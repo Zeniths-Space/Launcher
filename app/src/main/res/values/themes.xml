@@ -1,0 +1,10 @@
+<resources>
+    <!-- Transparent window over the wallpaper; Compose draws everything else. -->
+    <style name="Theme.Launcher" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
