@@ -146,9 +146,14 @@ fun LauncherScreen(
     onDockChange: (List<String>) -> Unit,
 ) {
     val apps by repository.apps.collectAsState()
-    // Dock keys to installed apps; an app that is gone simply drops out of the row.
-    val dockApps = remember(apps, settings.dock) { settings.dock.mapNotNull { k -> apps?.firstOrNull { it.key == k } } }
-    val dockKeys = remember(dockApps) { dockApps.map { it.key } }
+    // Dock keys by slot ("" empty); an app that is gone leaves its slot empty. Kept as stored until apps load.
+    val dockKeys = remember(apps, settings.dock) {
+        apps?.let { list -> list.mapTo(HashSet()) { it.key }.let { known -> settings.dock.map { if (it in known) it else "" } } } ?: settings.dock
+    }
+    val dockApps = remember(apps, dockKeys, settings.dockCapacity) {
+        val byKey = apps.orEmpty().associateBy { it.key }
+        List(settings.dockCapacity) { byKey[dockKeys.getOrNull(it)] }
+    }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
@@ -216,15 +221,14 @@ fun LauncherScreen(
         )
         if (settings.showDock) {
             Dock(
-                apps = dockApps.take(settings.dockCapacity),
+                apps = dockApps,
                 repository = repository,
                 columns = settings.dockColumns,
                 rows = settings.dockRows,
                 iconSize = settings.dockIconSize.dp,
                 showBar = settings.dockBar,
-                // Apps hidden past a shrunken grid stay after the shown ones.
-                onReorder = { shown -> onDockChange(shown.map(AppEntry::key) + dockKeys.drop(shown.size)) },
-                onRemove = { app -> onDockChange(dockKeys - app.key) },
+                onMove = { from, to -> onDockChange(DockSlots.move(dockKeys, from, to)) },
+                onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .safeDrawingPadding()
@@ -542,8 +546,10 @@ private fun AppDrawer(
                         repository,
                         showLabels,
                         inDock = app.key in dockKeys,
-                        dockFull = dockKeys.size >= dockCapacity,
-                        onDockToggle = { onDockChange(if (app.key in dockKeys) dockKeys - app.key else dockKeys + app.key) },
+                        dockFull = !DockSlots.hasRoom(dockKeys, dockCapacity),
+                        onDockToggle = {
+                            onDockChange(if (app.key in dockKeys) DockSlots.remove(dockKeys, app.key) else DockSlots.add(dockKeys, app.key, dockCapacity))
+                        },
                         onOpen = open,
                     )
                 }

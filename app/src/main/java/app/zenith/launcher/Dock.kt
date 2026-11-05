@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -53,28 +54,27 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
 /**
- * The dock: a fixed grid of [columns] by [rows] at the bottom of the home screen, icons only, apps
- * filling it from the top left in reading order; empty slots keep their space. Tap opens an app. Long-press opens a menu (remove, app info); keep
- * holding and drag to move the app, the others making room as it passes. Screen readers get
- * Move left / Move right instead.
+ * The dock: a fixed grid of [columns] by [rows] at the bottom of the home screen, icons only, each
+ * app in its own slot ([apps] by slot, null for an empty one). Tap opens an app. Long-press opens a
+ * menu (remove, app info); keep holding and drag to any slot: an empty one takes the app, a full
+ * one swaps. Screen readers get Move left / Move right instead.
  */
 @Composable
 fun Dock(
-    apps: List<AppEntry>,
+    apps: List<AppEntry?>,
     repository: AppRepository,
     columns: Int,
     rows: Int,
     iconSize: Dp,
     showBar: Boolean,
-    onReorder: (List<AppEntry>) -> Unit,
+    onMove: (from: Int, to: Int) -> Unit,
     onRemove: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (apps.isEmpty()) return
-    // The app being dragged and how far; the others move a slot as it passes them.
+    if (apps.all { it == null }) return
+    // The slot being dragged from and how far; the app in the slot under it moves over to swap.
     var dragging by remember { mutableIntStateOf(-1) }
     var drag by remember { mutableStateOf(Offset.Zero) }
-    val move = { from: Int, to: Int -> onReorder(apps.toMutableList().apply { add(to, removeAt(from)) }) }
 
     BoxWithConstraints(
         modifier
@@ -97,39 +97,66 @@ fun Dock(
             }
         }
         val target = targetOf()
-        val order = if (dragging < 0) null else (apps.indices - dragging).toMutableList().apply { add(target, dragging) }
 
         Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() })) {
             apps.forEachIndexed { i, app ->
-                val home = center(i)
-                // Where this app is drawn: following the finger, or in its slot once the dragged one is placed.
-                val shift by animateOffsetAsState(order?.let { center(it.indexOf(i)) - home } ?: Offset.Zero, label = "dock shift")
-                DockIcon(
-                    app = app,
-                    repository = repository,
-                    size = icon,
-                    lifted = i == dragging,
-                    offset = { if (i == dragging) drag else shift },
-                    canMoveLeft = i > 0,
-                    canMoveRight = i < apps.lastIndex,
-                    onMove = { by -> move(i, i + by) },
-                    onDragStart = {
-                        dragging = i
-                        drag = Offset.Zero
-                    },
-                    onDrag = { drag += it },
-                    onDragEnd = {
-                        val to = targetOf()
-                        if (dragging >= 0 && to != dragging) move(dragging, to)
-                        dragging = -1
-                        drag = Offset.Zero
-                    },
-                    onRemove = { onRemove(app) },
-                    modifier = Modifier.offset { IntOffset((home.x - iconPx / 2).roundToInt(), (home.y - iconPx / 2).roundToInt()) },
-                )
+                if (app == null) return@forEachIndexed
+                // Keyed by app, so its gesture and animations follow it to a new slot.
+                key(app.key) {
+                    val home = center(i)
+                    // The app under the dragged one shows in the dragged one's slot, where it will go.
+                    val swapping = dragging >= 0 && i == target && i != dragging
+                    val shift by animateOffsetAsState(if (swapping) center(dragging) - home else Offset.Zero, label = "dock shift")
+                    DockIcon(
+                        app = app,
+                        repository = repository,
+                        size = icon,
+                        lifted = i == dragging,
+                        offset = { if (i == dragging) drag else shift },
+                        canMoveLeft = i > 0,
+                        canMoveRight = i < apps.lastIndex,
+                        onMove = { by -> onMove(i, i + by) },
+                        onDragStart = {
+                            dragging = i
+                            drag = Offset.Zero
+                        },
+                        onDrag = { drag += it },
+                        onDragEnd = {
+                            val to = targetOf()
+                            if (dragging >= 0 && to != dragging) onMove(dragging, to)
+                            dragging = -1
+                            drag = Offset.Zero
+                        },
+                        onRemove = { onRemove(app) },
+                        modifier = Modifier.offset { IntOffset((home.x - iconPx / 2).roundToInt(), (home.y - iconPx / 2).roundToInt()) },
+                    )
+                }
             }
         }
     }
+}
+
+/** Dock edits on app keys by slot, "" for an empty slot. Trailing empty slots are dropped. */
+object DockSlots {
+    /** Moves the app in [from] to [to], swapping with any app there. */
+    fun move(slots: List<String>, from: Int, to: Int): List<String> {
+        val s = slots.toMutableList()
+        while (s.size <= maxOf(from, to)) s += ""
+        s[from] = s[to].also { s[to] = s[from] }
+        return s.trimmed()
+    }
+
+    fun remove(slots: List<String>, key: String) = slots.map { if (it == key) "" else it }.trimmed()
+
+    /** Puts [key] in the first empty slot of the first [capacity]; unchanged if there is none. */
+    fun add(slots: List<String>, key: String, capacity: Int): List<String> {
+        val at = (0 until capacity).firstOrNull { slots.getOrNull(it).isNullOrEmpty() } ?: return slots
+        return move(slots + key, slots.size, at)
+    }
+
+    fun hasRoom(slots: List<String>, capacity: Int) = (0 until capacity).any { slots.getOrNull(it).isNullOrEmpty() }
+
+    fun List<String>.trimmed() = dropLastWhile { it.isEmpty() }
 }
 
 @Composable

@@ -28,7 +28,7 @@ data class LauncherSettings(
     val showDock: Boolean = true,
     /** A bar behind the dock icons; off shows the icons alone over the wallpaper. */
     val dockBar: Boolean = false,
-    /** Dock apps by [AppEntry.key], in reading order. Only the first [dockCapacity] are shown. */
+    /** Dock apps by [AppEntry.key] and slot in reading order, "" for an empty slot. Only the first [dockCapacity] slots show. */
     val dock: List<String> = emptyList(),
     val dockColumns: Int = 5,
     val dockRows: Int = 1,
@@ -57,7 +57,7 @@ class SettingsStore(context: Context) {
                 doubleTap = GestureAction.parse(p[DOUBLE_TAP], GestureAction.None),
                 showDock = p[SHOW_DOCK] ?: true,
                 dockBar = p[DOCK_BAR] ?: false,
-                dock = p[DOCK]?.split(DockSeparator)?.filter { it.isNotEmpty() }.orEmpty(),
+                dock = p[DOCK]?.split(DockSeparator)?.dropLastWhile { it.isEmpty() }.orEmpty(),
                 dockColumns = (p[DOCK_COLUMNS] ?: 5).coerceIn(DockGridRange),
                 dockRows = (p[DOCK_ROWS] ?: 1).coerceIn(DockGridRange),
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
@@ -72,7 +72,7 @@ class SettingsStore(context: Context) {
     suspend fun setDoubleTap(action: GestureAction) = store.edit { it[DOUBLE_TAP] = action.name }
     suspend fun setShowDock(on: Boolean) = set(SHOW_DOCK, on)
     suspend fun setDockBar(on: Boolean) = set(DOCK_BAR, on)
-    // Apps past the dock's size are kept, so making the grid smaller and back loses nothing.
+    // Slots past the dock's size are kept, so making the grid smaller and back loses nothing.
     suspend fun setDock(keys: List<String>) = store.edit { it[DOCK] = keys.joinToString(DockSeparator) }
     suspend fun setDockColumns(n: Int) = store.edit { it[DOCK_COLUMNS] = n.coerceIn(DockGridRange) }
     suspend fun setDockRows(n: Int) = store.edit { it[DOCK_ROWS] = n.coerceIn(DockGridRange) }
