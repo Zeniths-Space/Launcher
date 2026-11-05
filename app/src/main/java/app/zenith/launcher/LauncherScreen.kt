@@ -227,7 +227,8 @@ fun LauncherScreen(
                 rows = settings.dockRows,
                 iconSize = settings.dockIconSize.dp,
                 showBar = settings.dockBar,
-                onMove = { from, to -> onDockChange(DockSlots.move(dockKeys, from, to)) },
+                // Slots past a smaller grid stay as they were.
+                onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },
                 onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

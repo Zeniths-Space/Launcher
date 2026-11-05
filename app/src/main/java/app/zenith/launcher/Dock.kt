@@ -59,8 +59,9 @@ import kotlin.math.roundToInt
 /**
  * The dock: a fixed grid of [columns] by [rows] at the bottom of the home screen, icons only, each
  * app in its own slot ([apps] by slot, null for an empty one). Tap opens an app. Long-press opens a
- * menu (remove, app info); keep holding and drag to any slot: an empty one takes the app, a full
- * one swaps. Screen readers get Move left / Move right instead.
+ * menu (remove, app info); keep holding and drag to any slot. The other apps make room as the
+ * finger moves (see [DockSlots.place]) and the layout shown when it lifts is the one saved.
+ * Screen readers get Move left / Move right instead.
  */
 @Composable
 fun Dock(
@@ -70,19 +71,19 @@ fun Dock(
     rows: Int,
     iconSize: Dp,
     showBar: Boolean,
-    onMove: (from: Int, to: Int) -> Unit,
+    onArrange: (List<AppEntry?>) -> Unit,
     onRemove: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // A move shows at once, not when the saved dock comes back; a new saved dock replaces it.
+    // A change shows at once, not when the saved dock comes back; a new saved dock replaces it.
     var slots by remember(apps) { mutableStateOf(apps) }
     if (slots.all { it == null }) return
-    // The slot being dragged from and how far; the app in the slot under it moves over to swap.
+    // The slot being dragged from and how far.
     var dragging by remember { mutableIntStateOf(-1) }
     var drag by remember { mutableStateOf(Offset.Zero) }
-    val move = { from: Int, to: Int ->
-        slots = slots.toMutableList().also { it[from] = it[to].also { _ -> it[to] = it[from] } }
-        onMove(from, to)
+    val arrange = { to: List<AppEntry?> ->
+        slots = to
+        onArrange(to)
     }
 
     BoxWithConstraints(
@@ -98,14 +99,14 @@ fun Dock(
         val iconPx = with(density) { icon.toPx() }
         val rowHeight = iconPx + with(density) { 20.dp.toPx() }
         fun center(index: Int) = Offset((index % columns + 0.5f) * slot, (index / columns + 0.5f) * rowHeight)
-        // Read when the drag ends too, not only from this composition: the gesture outlives it.
-        val targetOf = {
-            if (dragging < 0) -1 else {
+        // The layout if the finger lifted now. Read when the drag ends too: the gesture outlives this composition.
+        val previewOf = {
+            if (dragging < 0) slots else {
                 val at = center(dragging) + drag
-                slots.indices.minBy { (center(it) - at).getDistanceSquared() }
+                DockSlots.place(slots, dragging, slots.indices.minBy { (center(it) - at).getDistanceSquared() })
             }
         }
-        val target = targetOf()
+        val preview = previewOf()
 
         Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() })) {
             slots.forEachIndexed { i, app ->
@@ -113,12 +114,11 @@ fun Dock(
                 // Keyed by app, so its gesture and position follow it to a new slot.
                 key(app.key) {
                     val home = center(i)
-                    // Where the app's centre is drawn. It follows the finger while dragged, then glides
-                    // on from where it was let go; the app under the dragged one shows in the dragged
-                    // one's slot, where it will go.
+                    // Where the app's centre is drawn: under the finger while held, else gliding to its
+                    // slot in the preview, from wherever it is.
                     val position = remember { Animatable(home, Offset.VectorConverter) }
                     val held = i == dragging
-                    val goal = if (dragging >= 0 && i == target && !held) center(dragging) else home
+                    val goal = center(preview.indexOf(app))
                     LaunchedEffect(held, goal) {
                         if (held) snapshotFlow { home + drag }.collect { position.snapTo(it) } else position.animateTo(goal)
                     }
@@ -130,17 +130,18 @@ fun Dock(
                         offset = { position.value - home },
                         canMoveLeft = i > 0,
                         canMoveRight = i < slots.lastIndex,
-                        onMove = { by -> move(i, i + by) },
+                        onMove = { by -> arrange(DockSlots.place(slots, i, i + by)) },
                         onDragStart = {
                             dragging = i
                             drag = Offset.Zero
                         },
                         onDrag = { drag += it },
                         onDragEnd = {
-                            val to = targetOf()
-                            if (dragging >= 0 && to != dragging) move(dragging, to)
+                            val to = previewOf()
+                            // drag is left as is: zeroing it would snap the icon back to its old slot
+                            // before the glide starts; the next drag zeroes it.
                             dragging = -1
-                            drag = Offset.Zero
+                            if (to != slots) arrange(to)
                         },
                         onRemove = { onRemove(app) },
                         modifier = Modifier.offset { IntOffset((home.x - iconPx / 2).roundToInt(), (home.y - iconPx / 2).roundToInt()) },
@@ -151,14 +152,29 @@ fun Dock(
     }
 }
 
-/** Dock edits on app keys by slot, "" for an empty slot. Trailing empty slots are dropped. */
+/** Dock edits by slot. Keys use "" for an empty slot, and trailing empty slots are dropped. */
 object DockSlots {
-    /** Moves the app in [from] to [to], swapping with any app there. */
-    fun move(slots: List<String>, from: Int, to: Int): List<String> {
+    /**
+     * Moves the item in [from] to [to] (null is an empty slot). An empty [to] just takes it; a full
+     * one pushes the items from [to] one slot back toward [from], up to the first gap that way, which
+     * the slot left behind guarantees.
+     */
+    fun <T : Any> place(slots: List<T?>, from: Int, to: Int): List<T?> {
+        if (from == to || to !in slots.indices) return slots
         val s = slots.toMutableList()
-        while (s.size <= maxOf(from, to)) s += ""
-        s[from] = s[to].also { s[to] = s[from] }
-        return s.trimmed()
+        val item = s[from]
+        s[from] = null
+        if (s[to] != null) {
+            val step = if (from > to) 1 else -1
+            var gap = to
+            while (s[gap] != null) gap += step
+            while (gap != to) {
+                s[gap] = s[gap - step]
+                gap -= step
+            }
+        }
+        s[to] = item
+        return s
     }
 
     fun remove(slots: List<String>, key: String) = slots.map { if (it == key) "" else it }.trimmed()
@@ -166,7 +182,7 @@ object DockSlots {
     /** Puts [key] in the first empty slot of the first [capacity]; unchanged if there is none. */
     fun add(slots: List<String>, key: String, capacity: Int): List<String> {
         val at = (0 until capacity).firstOrNull { slots.getOrNull(it).isNullOrEmpty() } ?: return slots
-        return move(slots + key, slots.size, at)
+        return List(maxOf(slots.size, at + 1)) { if (it == at) key else slots.getOrElse(it) { "" } }
     }
 
     fun hasRoom(slots: List<String>, capacity: Int) = (0 until capacity).any { slots.getOrNull(it).isNullOrEmpty() }
