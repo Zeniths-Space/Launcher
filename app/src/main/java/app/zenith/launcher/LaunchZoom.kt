@@ -51,7 +51,7 @@ fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
 /*
  * One UI Home grows the app's window out of its icon. Android keeps that animation for the system's
  * own launcher, so this draws the same zoom inside the launcher instead: a rounded rectangle in the
- * app's splash colour grows from the icon to the full screen while the icon fades into it. Just before
+ * app's splash colour grows from the icon to the full screen, fading in over it. Just before
  * it fills the screen the app starts, with the system animation turned off; Android then shows
  * the app's own splash screen, whatever the app defines, so the launcher never draws a splash of
  * its own. (Drawing one, matched to each app's theme, stacked with apps that draw their own.)
@@ -73,8 +73,8 @@ private val FallbackEndCorner = 0.dp
  * the splash replaces the card as it lands (98.5% grown) instead of after a still frame.
  */
 private const val StartAppLeadMillis = 50L
-/** Part of the zoom over which the icon fades, in place. */
-private const val IconFadeEnd = 0.3f
+/** Part of the zoom (about 130 ms) over which the card fades in over the tapped icon. */
+private const val CardFadeEnd = 0.45f
 /**
  * From here to the end of the zoom, what Android's splash will show fades in where it will show
  * it, so the splash does not flash its icon in one frame. Sizes as Android lays them out: a splash
@@ -86,7 +86,7 @@ private val SplashIconSize = 192.dp
 private val LauncherIconSplashSize = 160.dp
 
 @Composable
-fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = key(launching) {
+fun LaunchZoom(launching: Launching, onStart: () -> Unit) = key(launching) {
     val t = remember { Animatable(0f) }
     val view = LocalView.current
     // The card ends on the screen's own corner shape, so nothing shows round its corners when the
@@ -115,21 +115,10 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
         val bottom = lerp(b.bottom.toFloat(), size.height, f)
         // Starts as the icon's own rounded shape, ends as a rounded screen.
         val corner = lerp(b.width() * 0.3f, endCorner ?: FallbackEndCorner.toPx(), f)
-        drawRoundRect(launching.color, Offset(left, top), Size(right - left, bottom - top), CornerRadius(corner))
-        // The icon stays where it was tapped, at its size, and fades as the card grows out from
-        // under it; carried to the centre of the card, it was seen travelling across the screen.
-        val cx = b.exactCenterX()
-        val cy = b.exactCenterY()
-        val iconAlpha = 1f - (f / IconFadeEnd).coerceIn(0f, 1f)
-        launching.icon?.takeIf { iconAlpha > 0f }?.let { icon ->
-            val s = iconSizePx.roundToInt()
-            drawImage(
-                icon,
-                dstOffset = IntOffset((cx - s / 2f).roundToInt(), (cy - s / 2f).roundToInt()),
-                dstSize = IntSize(s, s),
-                alpha = iconAlpha,
-            )
-        }
+        // The card fades in as it grows, so the real icon in the drawer shows through and dims into
+        // the window colour; at full strength from the first frame, a light icon blinked dark.
+        val cardAlpha = (f / CardFadeEnd).coerceIn(0f, 1f)
+        drawRoundRect(launching.color, Offset(left, top), Size(right - left, bottom - top), CornerRadius(corner), alpha = cardAlpha)
         val splashAlpha = ((f - SplashFadeStart) / (1f - SplashFadeStart)).coerceIn(0f, 1f)
         // Inside the card only: it can still be short of the screen's centre when this starts.
         if (splashAlpha > 0f) clipRect(left, top, right, bottom) {

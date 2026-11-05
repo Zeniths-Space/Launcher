@@ -205,7 +205,7 @@ fun LauncherScreen(
             )
         launch.current?.let { launching ->
             val context = LocalContext.current
-            LaunchZoom(launching, with(LocalDensity.current) { IconSize.toPx() }) {
+            LaunchZoom(launching) {
                 // Falls back to the system's animation if the app cannot be started without one.
                 if (!repository.launchWithoutAnimation(launching.app, launching.bounds, context)) {
                     launch.current = null
