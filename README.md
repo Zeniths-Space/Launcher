@@ -22,10 +22,10 @@ Application ID `app.zenith.launcher`.
 - Long-press the home screen for a menu at your finger: Wallpaper and Settings.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
-  off, background bar, columns, rows, icon size), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
+  off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
-  shrink below it when the columns are too narrow. A background bar is a setting. Making the
+  shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the
   grid smaller hides apps past it without forgetting them. It starts with your default Phone, Messages, Browser and Camera apps. Long-press an
   app in the drawer to add or remove it; long-press a dock app for Remove and App info, or keep
   holding and drag it to any slot: the other apps make room as you go, and an empty slot just takes it.

@@ -12,7 +12,7 @@
 - **What it reads:** the list of apps that have a launcher icon (name, icon), through Android's
   LauncherApps API, to show and start them. It does not read app data, notifications or usage.
 - **What it stores:** four on/off settings (clock, swipe hint, app names, pure black) and the
-  two gesture choices, and which apps are in the dock with its columns, rows and icon size, in the app's private storage. Search text is kept only while the drawer is open.
+  two gesture choices, and which apps are in the dock with its columns, rows, icon size and row spacing, in the app's private storage. Search text is kept only while the drawer is open.
 - **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's
   wallpaper screen (read access to that one photo). The launcher gets no access to your other
   photos and keeps no copy.

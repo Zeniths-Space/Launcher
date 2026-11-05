@@ -65,8 +65,8 @@ No other ecosystem app is needed.
   screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
   it is set.
 - **Dock.** App keys by slot in reading order, "" for an empty slot, in the settings DataStore
-  (`DockSlots` does the edits); an app that is uninstalled leaves its slot empty. Columns, rows
-  and icon size are stored with it; only the first columns times rows slots show, and the rest
+  (`DockSlots` does the edits); an app that is uninstalled leaves its slot empty. Columns, rows,
+  icon size and row spacing are stored with it; only the first columns times rows slots show, and the rest
   stay stored. The grid is
   always columns by rows high; each app is placed at its slot's centre, so it needs no lazy layout. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
   smsto:`, `VIEW https` and `STILL_IMAGE_CAMERA`, which the manifest's `<queries>` make visible.
