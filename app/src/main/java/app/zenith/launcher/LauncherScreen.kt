@@ -195,7 +195,7 @@ fun LauncherScreen(
             val context = LocalContext.current
             LaunchZoom(launching, with(LocalDensity.current) { IconSize.toPx() }) {
                 // Falls back to the system's animation if the app cannot be started without one.
-                if (!repository.launchWithoutAnimation(launching.app, launching.bounds, context)) {
+                if (!repository.launchWithoutAnimation(launching.app, launching.bounds, context, plainSplash = launching.ownSplash)) {
                     launch.current = null
                     repository.launch(launching.app, launching.bounds)
                 }
@@ -382,7 +382,7 @@ private fun AppDrawer(
         keyboard?.hide()
         if (bounds != null && animationsEnabled() && repository.isOwnProfile(app)) {
             val splash = repository.splash(app, context)
-            onLaunch(Launching(app, bounds, icon, splash.color?.let { Color(it) } ?: fallbackColor, splash.icon))
+            onLaunch(Launching(app, bounds, icon, splash.color?.let { Color(it) } ?: fallbackColor, splash.icon, splash.ownSplash))
         } else {
             repository.launch(app, bounds)
         }

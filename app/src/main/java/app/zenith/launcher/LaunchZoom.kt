@@ -33,7 +33,15 @@ import kotlin.math.roundToInt
  * An app being opened: where its icon was (window pixels), the icon, and the colour and icon its
  * splash screen shows.
  */
-data class Launching(val app: AppEntry, val bounds: Rect, val icon: ImageBitmap?, val color: Color, val splashIcon: Drawable?)
+data class Launching(
+    val app: AppEntry,
+    val bounds: Rect,
+    val icon: ImageBitmap?,
+    val color: Color,
+    val splashIcon: Drawable?,
+    /** The app draws its own splash: the zoom shows only its colour, so the two do not stack. */
+    val ownSplash: Boolean,
+)
 
 /** The app launch in progress, if any. Cleared when the launcher leaves the screen. */
 class LaunchState {
@@ -96,8 +104,9 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
         val cx = (left + right) / 2
         val cy = (top + bottom) / 2
         val swap = (f / IconSwapEnd).coerceIn(0f, 1f)
-        val iconAlpha = if (splashIcon == null) 1f else 1f - swap
-        val iconSize = if (splashIcon == null) lerp(iconSizePx, LauncherIconSplashSize.toPx(), f) else iconSizePx * (1f + f)
+        val keepIcon = splashIcon == null && !launching.ownSplash
+        val iconAlpha = if (keepIcon) 1f else 1f - swap
+        val iconSize = if (keepIcon) lerp(iconSizePx, LauncherIconSplashSize.toPx(), f) else iconSizePx * (1f + f)
         launching.icon?.takeIf { iconAlpha > 0f }?.let { icon ->
             val s = iconSize.roundToInt()
             drawImage(
