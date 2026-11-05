@@ -9,7 +9,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,6 +22,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -71,10 +74,16 @@ fun Dock(
     onRemove: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (apps.all { it == null }) return
+    // A move shows at once, not when the saved dock comes back; a new saved dock replaces it.
+    var slots by remember(apps) { mutableStateOf(apps) }
+    if (slots.all { it == null }) return
     // The slot being dragged from and how far; the app in the slot under it moves over to swap.
     var dragging by remember { mutableIntStateOf(-1) }
     var drag by remember { mutableStateOf(Offset.Zero) }
+    val move = { from: Int, to: Int ->
+        slots = slots.toMutableList().also { it[from] = it[to].also { _ -> it[to] = it[from] } }
+        onMove(from, to)
+    }
 
     BoxWithConstraints(
         modifier
@@ -93,29 +102,35 @@ fun Dock(
         val targetOf = {
             if (dragging < 0) -1 else {
                 val at = center(dragging) + drag
-                apps.indices.minBy { (center(it) - at).getDistanceSquared() }
+                slots.indices.minBy { (center(it) - at).getDistanceSquared() }
             }
         }
         val target = targetOf()
 
         Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() })) {
-            apps.forEachIndexed { i, app ->
+            slots.forEachIndexed { i, app ->
                 if (app == null) return@forEachIndexed
-                // Keyed by app, so its gesture and animations follow it to a new slot.
+                // Keyed by app, so its gesture and position follow it to a new slot.
                 key(app.key) {
                     val home = center(i)
-                    // The app under the dragged one shows in the dragged one's slot, where it will go.
-                    val swapping = dragging >= 0 && i == target && i != dragging
-                    val shift by animateOffsetAsState(if (swapping) center(dragging) - home else Offset.Zero, label = "dock shift")
+                    // Where the app's centre is drawn. It follows the finger while dragged, then glides
+                    // on from where it was let go; the app under the dragged one shows in the dragged
+                    // one's slot, where it will go.
+                    val position = remember { Animatable(home, Offset.VectorConverter) }
+                    val held = i == dragging
+                    val goal = if (dragging >= 0 && i == target && !held) center(dragging) else home
+                    LaunchedEffect(held, goal) {
+                        if (held) snapshotFlow { home + drag }.collect { position.snapTo(it) } else position.animateTo(goal)
+                    }
                     DockIcon(
                         app = app,
                         repository = repository,
                         size = icon,
-                        lifted = i == dragging,
-                        offset = { if (i == dragging) drag else shift },
+                        lifted = held,
+                        offset = { position.value - home },
                         canMoveLeft = i > 0,
-                        canMoveRight = i < apps.lastIndex,
-                        onMove = { by -> onMove(i, i + by) },
+                        canMoveRight = i < slots.lastIndex,
+                        onMove = { by -> move(i, i + by) },
                         onDragStart = {
                             dragging = i
                             drag = Offset.Zero
@@ -123,7 +138,7 @@ fun Dock(
                         onDrag = { drag += it },
                         onDragEnd = {
                             val to = targetOf()
-                            if (dragging >= 0 && to != dragging) onMove(dragging, to)
+                            if (dragging >= 0 && to != dragging) move(dragging, to)
                             dragging = -1
                             drag = Offset.Zero
                         },
@@ -199,14 +214,6 @@ private fun DockIcon(
             Modifier
                 .size(size)
                 .onGloballyPositioned { coords[0] = it }
-                .graphicsLayer {
-                    offset().let {
-                        translationX = it.x
-                        translationY = it.y
-                    }
-                    scaleX = scale
-                    scaleY = scale
-                }
                 .pointerInput(app.key) { detectTapGestures(onTap = { repository.launch(app, bounds()) }) }
                 .pointerInput(app.key) {
                     var travelled = Offset.Zero
@@ -236,6 +243,16 @@ private fun DockIcon(
                         if (canMoveLeft) add(CustomAccessibilityAction(moveLeft) { onMove(-1); true })
                         if (canMoveRight) add(CustomAccessibilityAction(moveRight) { onMove(1); true })
                     }
+                }
+                // Last, so touches are measured from the slot: an icon moving under the finger would
+                // otherwise eat into each drag step and fall behind it.
+                .graphicsLayer {
+                    offset().let {
+                        translationX = it.x
+                        translationY = it.y
+                    }
+                    scaleX = scale
+                    scaleY = scale
                 },
         ) {
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(size)) }
