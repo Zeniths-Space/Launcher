@@ -19,7 +19,6 @@ class MainActivity : ComponentActivity() {
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
     private val drawer = DrawerMotion()
-    private val launch = LaunchState()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,7 +32,6 @@ class MainActivity : ComponentActivity() {
                 LauncherScreen(
                     repository = repository,
                     motion = drawer,
-                    launch = launch,
                     settings = settings,
                     drawerOpen = drawerOpen,
                     onDrawerOpenChange = { drawerOpen = it },
@@ -59,7 +57,6 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         drawer.jump(0f)
         drawerOpen = false
-        launch.current = null
     }
 
     override fun onDestroy() {

@@ -129,7 +129,6 @@ private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
 fun LauncherScreen(
     repository: AppRepository,
     motion: DrawerMotion,
-    launch: LaunchState,
     settings: LauncherSettings,
     drawerOpen: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
@@ -193,7 +192,6 @@ fun LauncherScreen(
                 onRelease = settle,
                 isOpen = { motion.progress == 1f },
                 onOpenSettings = onOpenSettings,
-                onLaunch = { launch.current = it },
                 modifier = Modifier
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
@@ -203,16 +201,6 @@ fun LauncherScreen(
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
-        launch.current?.let { launching ->
-            val context = LocalContext.current
-            LaunchZoom(launching) {
-                // Falls back to the system's animation if the app cannot be started without one.
-                if (!repository.launchWithoutAnimation(launching.app, launching.bounds, context)) {
-                    launch.current = null
-                    repository.launch(launching.app, launching.bounds)
-                }
-            }
-        }
     }
 }
 
@@ -409,7 +397,6 @@ private fun AppDrawer(
     onRelease: (Float) -> Unit,
     isOpen: () -> Boolean,
     onOpenSettings: () -> Unit,
-    onLaunch: (Launching) -> Unit,
     modifier: Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -439,16 +426,10 @@ private fun AppDrawer(
             }
         }
     }
-    val context = LocalContext.current
-    val fallbackColor = MaterialTheme.colorScheme.surface
-    val open: (AppEntry, Rect?, ImageBitmap?) -> Unit = { app, bounds, icon ->
+    // Android plays its own open animation; the icon's bounds tell it where the app came from.
+    val open: (AppEntry, Rect?) -> Unit = { app, bounds ->
         keyboard?.hide()
-        if (bounds != null && animationsEnabled() && repository.isOwnProfile(app)) {
-            val color = repository.windowColor(app, context)?.let { Color(it) } ?: fallbackColor
-            onLaunch(Launching(app, bounds, icon, color, repository.splashIcon(app, context)))
-        } else {
-            repository.launch(app, bounds)
-        }
+        repository.launch(app, bounds)
     }
     Column(
         modifier
@@ -461,7 +442,7 @@ private fun AppDrawer(
             SearchField(
                 query,
                 onQuery = { query = it },
-                onGo = { shown?.firstOrNull()?.let { open(it, null, null) } },
+                onGo = { shown?.firstOrNull()?.let { open(it, null) } },
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = {
@@ -529,7 +510,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Un
 /** Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for App info. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolean, onOpen: (AppEntry, Rect?, ImageBitmap?) -> Unit) {
+private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolean, onOpen: (AppEntry, Rect?) -> Unit) {
     val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
     // Read at tap time only: a state written on every layout would recompose each tile per frame
@@ -546,7 +527,7 @@ private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolea
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .combinedClickable(onClick = { onOpen(app, bounds(), icon) }, onLongClick = { menu = true })
+                .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true })
                 .padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
