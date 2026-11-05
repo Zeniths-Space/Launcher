@@ -4,4 +4,27 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
+    <string name="home_menu_settings">Settings</string>
+    <string name="drawer_settings">Launcher settings</string>
+    <string name="back">Back</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_unavailable">Not available on this device</string>
+    <string name="settings_home_is_default">Zenith Launcher is your home app</string>
+    <string name="settings_home_not_default">Not your home app yet</string>
+    <string name="settings_home_change">Tap to choose a different home app</string>
+    <string name="settings_home_choose">Tap to make it the home app. You can switch back here any time.</string>
+    <string name="settings_section_home">Home screen</string>
+    <string name="settings_wallpaper">Wallpaper</string>
+    <string name="settings_wallpaper_sub">Pick a photo, then crop and set it</string>
+    <string name="settings_clock">Clock</string>
+    <string name="settings_clock_sub">Time and date on the home screen</string>
+    <string name="settings_hint">Swipe hint</string>
+    <string name="settings_hint_sub">"“Swipe up for apps” at the bottom"</string>
+    <string name="settings_section_drawer">App drawer</string>
+    <string name="settings_labels">App names</string>
+    <string name="settings_labels_sub">Names under the icons</string>
+    <string name="settings_pure_black">Pure black</string>
+    <string name="settings_pure_black_sub">Black drawer and settings in dark mode</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version %1$s</string>
 </resources>

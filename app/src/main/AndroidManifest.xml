@@ -40,5 +40,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Opened from the home screen's long-press menu and the drawer; not reachable by other apps. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Launcher.Settings" />
     </application>
 </manifest>

@@ -16,6 +16,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -42,6 +44,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,6 +79,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import java.util.Date
@@ -84,25 +89,33 @@ import kotlin.math.roundToInt
 private val SwipeThreshold = 72.dp
 
 @Composable
-fun LauncherScreen(repository: AppRepository, drawerOpen: Boolean, onDrawerOpenChange: (Boolean) -> Unit) {
+fun LauncherScreen(
+    repository: AppRepository,
+    settings: LauncherSettings,
+    drawerOpen: Boolean,
+    onDrawerOpenChange: (Boolean) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val apps by repository.apps.collectAsState()
     BackHandler(enabled = drawerOpen) { onDrawerOpenChange(false) }
     Box(Modifier.fillMaxSize()) {
-        HomeScreen(onOpenDrawer = { onDrawerOpenChange(true) })
+        HomeScreen(settings, onOpenDrawer = { onDrawerOpenChange(true) }, onOpenSettings = onOpenSettings)
         AnimatedVisibility(
             visible = drawerOpen,
             enter = slideInVertically(Motion.spatial(350)) { it / 6 } + fadeIn(Motion.effects(200)),
             exit = slideOutVertically(Motion.effects(200)) { it / 6 } + fadeOut(Motion.effects(150)),
         ) {
-            AppDrawer(apps, repository, onClose = { onDrawerOpenChange(false) })
+            AppDrawer(apps, repository, settings.showLabels, onClose = { onDrawerOpenChange(false) }, onOpenSettings = onOpenSettings)
         }
     }
 }
 
-/** The wallpaper with the time and date; swipe up anywhere for the app drawer. */
+/** The wallpaper with the time and date; swipe up anywhere for the app drawer, long-press for a menu. */
 @Composable
-private fun HomeScreen(onOpenDrawer: () -> Unit) {
+private fun HomeScreen(settings: LauncherSettings, onOpenDrawer: () -> Unit, onOpenSettings: () -> Unit) {
+    val pickWallpaper = rememberWallpaperPicker()
     val threshold = with(LocalDensity.current) { SwipeThreshold.toPx() }
+    var menuAt by remember { mutableStateOf<Offset?>(null) }
     Box(
         Modifier
             .fillMaxSize()
@@ -119,15 +132,42 @@ private fun HomeScreen(onOpenDrawer: () -> Unit) {
                     },
                 )
             }
-            .safeDrawingPadding(),
+            .pointerInput(Unit) { detectTapGestures(onLongPress = { menuAt = it }) },
     ) {
-        Clock(Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 48.dp))
-        Text(
-            stringResource(R.string.home_swipe_hint),
-            style = MaterialTheme.typography.labelMedium,
-            color = OnWallpaper.copy(alpha = 0.7f),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
-        )
+        // The menu opens where the finger pressed.
+        menuAt?.let { at ->
+            Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
+                DropdownMenu(expanded = true, onDismissRequest = { menuAt = null }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.settings_wallpaper)) },
+                        leadingIcon = { Icon(Icons.Wallpaper, contentDescription = null) },
+                        onClick = {
+                            menuAt = null
+                            pickWallpaper()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.home_menu_settings)) },
+                        leadingIcon = { Icon(Icons.Settings, contentDescription = null) },
+                        onClick = {
+                            menuAt = null
+                            onOpenSettings()
+                        },
+                    )
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (settings.showClock) Clock(Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 48.dp))
+            if (settings.showHint) {
+                Text(
+                    stringResource(R.string.home_swipe_hint),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = OnWallpaper.copy(alpha = 0.7f),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                )
+            }
+        }
     }
 }
 
@@ -181,7 +221,13 @@ private fun Clock(modifier: Modifier) {
  * match. Long-press an app for App info. Back, home, or pulling down from the top closes it.
  */
 @Composable
-private fun AppDrawer(apps: List<AppEntry>?, repository: AppRepository, onClose: () -> Unit) {
+private fun AppDrawer(
+    apps: List<AppEntry>?,
+    repository: AppRepository,
+    showLabels: Boolean,
+    onClose: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val cs = MaterialTheme.colorScheme
     var query by remember { mutableStateOf("") }
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
@@ -223,12 +269,20 @@ private fun AppDrawer(apps: List<AppEntry>?, repository: AppRepository, onClose:
             .imePadding()
             .nestedScroll(pullToClose),
     ) {
-        SearchField(
-            query,
-            onQuery = { query = it },
-            onGo = { shown?.firstOrNull()?.let { open(it, null) } },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-        )
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            SearchField(
+                query,
+                onQuery = { query = it },
+                onGo = { shown?.firstOrNull()?.let { open(it, null) } },
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = {
+                keyboard?.hide()
+                onOpenSettings()
+            }) {
+                Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = cs.onSurfaceVariant)
+            }
+        }
         when {
             shown == null -> Unit
             shown.isEmpty() -> Text(
@@ -246,7 +300,7 @@ private fun AppDrawer(apps: List<AppEntry>?, repository: AppRepository, onClose:
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(shown, key = { it.key }) { app ->
-                    AppTile(app, repository, onOpen = open)
+                    AppTile(app, repository, showLabels, onOpen = open)
                 }
             }
         }
@@ -285,7 +339,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Un
 /** Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for App info. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppTile(app: AppEntry, repository: AppRepository, onOpen: (AppEntry, Rect?) -> Unit) {
+private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolean, onOpen: (AppEntry, Rect?) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
@@ -308,18 +362,20 @@ private fun AppTile(app: AppEntry, repository: AppRepository, onOpen: (AppEntry,
                         bounds = Rect(r.left.roundToInt(), r.top.roundToInt(), r.right.roundToInt(), r.bottom.roundToInt())
                     },
             ) {
-                icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
+                icon?.let { Image(it, contentDescription = if (showLabels) null else app.label, modifier = Modifier.fillMaxSize()) }
             }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                app.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = cs.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
+            if (showLabels) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    app.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = cs.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
