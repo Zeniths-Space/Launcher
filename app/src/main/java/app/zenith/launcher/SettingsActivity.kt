@@ -69,6 +69,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Slider
 
 /** The launcher's settings: home app status, then one page each for appearance, dock, home screen, app drawer, gestures and about. */
 class SettingsActivity : ComponentActivity() {
@@ -258,6 +265,21 @@ private fun SettingsScreen(
                                 {
                                     SwitchTile(Icons.Apps, stringResource(R.string.settings_dock_bar), stringResource(R.string.settings_dock_bar_sub), settings.dockBar) {
                                         save { store.setDockBar(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.Columns, stringResource(R.string.settings_dock_columns), null, settings.dockColumns, DockGridRange) {
+                                        save { store.setDockColumns(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.Rows, stringResource(R.string.settings_dock_rows), stringResource(R.string.settings_dock_rows_sub), settings.dockRows, DockGridRange) {
+                                        save { store.setDockRows(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_dock_icon_size), null, settings.dockIconSize, DockIconRange, step = 4, format = R.string.settings_dock_icon_size_value) {
+                                        save { store.setDockIconSize(it) }
                                     }
                                 },
                             ),
@@ -516,6 +538,47 @@ private fun SwitchTile(icon: ImageVector, title: String, subtitle: String, check
             )
         },
     )
+}
+
+/** A tile with a slider over whole numbers in [range]; [onChange] runs once the finger lifts, not on every step. */
+@Composable
+private fun SliderTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String?,
+    value: Int,
+    range: IntRange,
+    step: Int = 1,
+    format: Int? = null,
+    onChange: (Int) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    // Follows the finger; the stored value catches up when it lifts.
+    var shown by remember(value) { mutableFloatStateOf(value.toFloat()) }
+    val label = format?.let { stringResource(it, shown.roundToInt()) } ?: shown.roundToInt().toString()
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ScallopBadge(icon)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = cs.onSurface)
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
+                }
+            }
+            Text(label, style = MaterialTheme.typography.titleMedium, color = cs.secondary)
+        }
+        Slider(
+            value = shown,
+            onValueChange = { shown = it },
+            onValueChangeFinished = { if (shown.roundToInt() != value) onChange(shown.roundToInt()) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = (range.last - range.first) / step - 1,
+            colors = SliderDefaults.colors(thumbColor = cs.secondary, activeTrackColor = cs.secondary),
+            modifier = Modifier.semantics { contentDescription = title },
+        )
+    }
 }
 
 @Composable

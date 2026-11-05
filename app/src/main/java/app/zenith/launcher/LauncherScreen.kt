@@ -216,10 +216,13 @@ fun LauncherScreen(
         )
         if (settings.showDock) {
             Dock(
-                apps = dockApps,
+                apps = dockApps.take(settings.dockCapacity),
                 repository = repository,
+                columns = settings.dockColumns,
+                iconSize = settings.dockIconSize.dp,
                 showBar = settings.dockBar,
-                onReorder = { onDockChange(it.map(AppEntry::key)) },
+                // Apps hidden past a shrunken grid stay after the shown ones.
+                onReorder = { shown -> onDockChange(shown.map(AppEntry::key) + dockKeys.drop(shown.size)) },
                 onRemove = { app -> onDockChange(dockKeys - app.key) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -240,6 +243,7 @@ fun LauncherScreen(
                 repository,
                 settings.showLabels,
                 dockKeys = dockKeys,
+                dockCapacity = settings.dockCapacity,
                 onDockChange = onDockChange,
                 drawerOpen = drawerOpen,
                 onPull = dragBy,
@@ -453,6 +457,7 @@ private fun AppDrawer(
     repository: AppRepository,
     showLabels: Boolean,
     dockKeys: List<String>,
+    dockCapacity: Int,
     onDockChange: (List<String>) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
@@ -536,7 +541,7 @@ private fun AppDrawer(
                         repository,
                         showLabels,
                         inDock = app.key in dockKeys,
-                        dockFull = dockKeys.size >= DockSize,
+                        dockFull = dockKeys.size >= dockCapacity,
                         onDockToggle = { onDockChange(if (app.key in dockKeys) dockKeys - app.key else dockKeys + app.key) },
                         onOpen = open,
                     )

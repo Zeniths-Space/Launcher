@@ -23,6 +23,11 @@
     <string name="settings_dock_show_sub">Your apps at the bottom of the home screen</string>
     <string name="settings_dock_bar">Background</string>
     <string name="settings_dock_bar_sub">A bar behind the dock icons</string>
+    <string name="settings_dock_columns">Columns</string>
+    <string name="settings_dock_rows">Rows</string>
+    <string name="settings_dock_rows_sub">Rows show as they fill</string>
+    <string name="settings_dock_icon_size">Icon size</string>
+    <string name="settings_dock_icon_size_value">%1$d dp</string>
     <string name="settings_dock_hint">Long-press an app in the drawer to add it to the dock. Long-press a dock app and drag it to move it.</string>
     <string name="dock_add">Add to dock</string>
     <string name="dock_remove">Remove from dock</string>

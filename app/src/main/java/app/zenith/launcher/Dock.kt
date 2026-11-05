@@ -1,16 +1,20 @@
 package app.zenith.launcher
 
 import android.graphics.Rect
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -18,14 +22,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -35,7 +37,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -48,73 +49,89 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
+import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
 /**
- * The dock: up to [DockSize] apps in a row at the bottom of the home screen, icons only. Tap opens
- * an app. Long-press opens a menu (remove, app info); keep holding and drag sideways to move the
- * app, the others making room as it passes. Screen readers get Move left / Move right instead.
+ * The dock: apps in a grid of [columns] at the bottom of the home screen, icons only, a partly
+ * filled last row centred. Tap opens an app. Long-press opens a menu (remove, app info); keep
+ * holding and drag to move the app, the others making room as it passes. Screen readers get
+ * Move left / Move right instead.
  */
 @Composable
 fun Dock(
     apps: List<AppEntry>,
     repository: AppRepository,
+    columns: Int,
+    iconSize: Dp,
     showBar: Boolean,
     onReorder: (List<AppEntry>) -> Unit,
     onRemove: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (apps.isEmpty()) return
-    var slotWidth by remember { mutableFloatStateOf(1f) }
-    // The app being dragged and how far; the others shift by a slot as it passes them.
+    // The app being dragged and how far; the others move a slot as it passes them.
     var dragging by remember { mutableIntStateOf(-1) }
-    var dragX by remember { mutableFloatStateOf(0f) }
-    val targetOf = { if (dragging < 0) -1 else (dragging + (dragX / slotWidth).roundToInt()).coerceIn(0, apps.lastIndex) }
-    val target = targetOf()
+    var drag by remember { mutableStateOf(Offset.Zero) }
     val move = { from: Int, to: Int -> onReorder(apps.toMutableList().apply { add(to, removeAt(from)) }) }
 
-    Row(
+    BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .then(if (showBar) Modifier.background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(32.dp)) else Modifier)
-            .padding(vertical = 10.dp)
-            .onSizeChanged { slotWidth = (it.width / apps.size.toFloat()).coerceAtLeast(1f) },
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .then(if (showBar) Modifier.background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(32.dp)) else Modifier),
     ) {
-        apps.forEachIndexed { i, app ->
-            // Where this app is drawn: following the finger, or a slot over to make room.
-            val shift = when {
-                i == dragging -> 0f
-                dragging < 0 -> 0f
-                i in (dragging + 1)..target -> -slotWidth
-                i in target until dragging -> slotWidth
-                else -> 0f
+        val density = LocalDensity.current
+        val width = constraints.maxWidth.toFloat()
+        val slot = width / columns
+        // Icons shrink to fit narrow columns.
+        val icon = minOf(iconSize, with(density) { (slot * 0.85f).toDp() })
+        val iconPx = with(density) { icon.toPx() }
+        val rowHeight = iconPx + with(density) { 20.dp.toPx() }
+        val rowCount = (apps.size + columns - 1) / columns
+        fun center(index: Int): Offset {
+            val row = index / columns
+            val inRow = minOf(columns, apps.size - row * columns)
+            return Offset((width - inRow * slot) / 2 + (index % columns + 0.5f) * slot, (row + 0.5f) * rowHeight)
+        }
+        // Read when the drag ends too, not only from this composition: the gesture outlives it.
+        val targetOf = {
+            if (dragging < 0) -1 else {
+                val at = center(dragging) + drag
+                apps.indices.minBy { (center(it) - at).getDistanceSquared() }
             }
-            val animated by animateFloatAsState(shift, label = "dock shift")
-            DockIcon(
-                app = app,
-                repository = repository,
-                lifted = i == dragging,
-                offsetX = { if (i == dragging) dragX else animated },
-                canMoveLeft = i > 0,
-                canMoveRight = i < apps.lastIndex,
-                onMove = { by -> move(i, i + by) },
-                onDragStart = {
-                    dragging = i
-                    dragX = 0f
-                },
-                onDrag = { dragX += it },
-                onDragEnd = {
-                    // Read now, not from this composition: the gesture outlives it.
-                    val to = targetOf()
-                    if (dragging >= 0 && to != dragging) move(dragging, to)
-                    dragging = -1
-                    dragX = 0f
-                },
-                onRemove = { onRemove(app) },
-                modifier = Modifier.weight(1f),
-            )
+        }
+        val target = targetOf()
+        val order = if (dragging < 0) null else (apps.indices - dragging).toMutableList().apply { add(target, dragging) }
+
+        Box(Modifier.fillMaxWidth().height(with(density) { (rowCount * rowHeight).toDp() })) {
+            apps.forEachIndexed { i, app ->
+                val home = center(i)
+                // Where this app is drawn: following the finger, or in its slot once the dragged one is placed.
+                val shift by animateOffsetAsState(order?.let { center(it.indexOf(i)) - home } ?: Offset.Zero, label = "dock shift")
+                DockIcon(
+                    app = app,
+                    repository = repository,
+                    size = icon,
+                    lifted = i == dragging,
+                    offset = { if (i == dragging) drag else shift },
+                    canMoveLeft = i > 0,
+                    canMoveRight = i < apps.lastIndex,
+                    onMove = { by -> move(i, i + by) },
+                    onDragStart = {
+                        dragging = i
+                        drag = Offset.Zero
+                    },
+                    onDrag = { drag += it },
+                    onDragEnd = {
+                        val to = targetOf()
+                        if (dragging >= 0 && to != dragging) move(dragging, to)
+                        dragging = -1
+                        drag = Offset.Zero
+                    },
+                    onRemove = { onRemove(app) },
+                    modifier = Modifier.offset { IntOffset((home.x - iconPx / 2).roundToInt(), (home.y - iconPx / 2).roundToInt()) },
+                )
+            }
         }
     }
 }
@@ -123,18 +140,19 @@ fun Dock(
 private fun DockIcon(
     app: AppEntry,
     repository: AppRepository,
+    size: Dp,
     lifted: Boolean,
-    offsetX: () -> Float,
+    offset: () -> Offset,
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
     onMove: (Int) -> Unit,
     onDragStart: () -> Unit,
-    onDrag: (Float) -> Unit,
+    onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier,
 ) {
-    val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
+    val sizePx = with(LocalDensity.current) { size.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
     val coords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val bounds = {
@@ -152,32 +170,36 @@ private fun DockIcon(
     val moveLeft = stringResource(R.string.dock_move_left)
     val moveRight = stringResource(R.string.dock_move_right)
     val scale by animateFloatAsState(if (lifted) 1.15f else 1f, label = "dock lift")
-    Box(modifier, contentAlignment = Alignment.Center) {
+    // The dragged app is drawn over the others.
+    Box(modifier.zIndex(if (lifted) 1f else 0f)) {
         Box(
             Modifier
-                .size(IconSize)
+                .size(size)
                 .onGloballyPositioned { coords[0] = it }
                 .graphicsLayer {
-                    translationX = offsetX()
+                    offset().let {
+                        translationX = it.x
+                        translationY = it.y
+                    }
                     scaleX = scale
                     scaleY = scale
                 }
                 .pointerInput(app.key) { detectTapGestures(onTap = { repository.launch(app, bounds()) }) }
                 .pointerInput(app.key) {
-                    var travelled = 0f
+                    var travelled = Offset.Zero
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            travelled = 0f
+                            travelled = Offset.Zero
                             menu = true
                             start()
                         },
                         onDrag = { change, amount ->
                             change.consume()
-                            travelled += amount.x
+                            travelled += amount
                             // Moving it means rearranging, not choosing from the menu.
-                            if (abs(travelled) > slop) menu = false
-                            drag(amount.x)
+                            if (travelled.getDistance() > slop) menu = false
+                            drag(amount)
                         },
                         onDragEnd = { end() },
                         onDragCancel = { end() },
@@ -193,7 +215,7 @@ private fun DockIcon(
                     }
                 },
         ) {
-            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(IconSize)) }
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(size)) }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
