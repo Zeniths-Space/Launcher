@@ -24,6 +24,11 @@ data class LauncherSettings(
     val swipeDown: GestureAction = GestureAction.Notifications,
     /** Double-tapping the home screen. */
     val doubleTap: GestureAction = GestureAction.None,
+    val showDock: Boolean = true,
+    /** A bar behind the dock icons; off shows the icons alone over the wallpaper. */
+    val dockBar: Boolean = false,
+    /** Dock apps by [AppEntry.key], left to right. */
+    val dock: List<String> = emptyList(),
 )
 
 // One store per process, shared by the home screen and the settings screen.
@@ -43,6 +48,9 @@ class SettingsStore(context: Context) {
                 pureBlack = p[PURE_BLACK] ?: false,
                 swipeDown = GestureAction.parse(p[SWIPE_DOWN], GestureAction.Notifications),
                 doubleTap = GestureAction.parse(p[DOUBLE_TAP], GestureAction.None),
+                showDock = p[SHOW_DOCK] ?: true,
+                dockBar = p[DOCK_BAR] ?: false,
+                dock = p[DOCK]?.split(DockSeparator)?.filter { it.isNotEmpty() }.orEmpty(),
             )
         }
 
@@ -52,6 +60,16 @@ class SettingsStore(context: Context) {
     suspend fun setPureBlack(on: Boolean) = set(PURE_BLACK, on)
     suspend fun setSwipeDown(action: GestureAction) = store.edit { it[SWIPE_DOWN] = action.name }
     suspend fun setDoubleTap(action: GestureAction) = store.edit { it[DOUBLE_TAP] = action.name }
+    suspend fun setShowDock(on: Boolean) = set(SHOW_DOCK, on)
+    suspend fun setDockBar(on: Boolean) = set(DOCK_BAR, on)
+    suspend fun setDock(keys: List<String>) = store.edit { it[DOCK] = keys.take(DockSize).joinToString(DockSeparator) }
+
+    /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
+    suspend fun seedDock(keys: List<String>) = store.edit {
+        if (it[DOCK_SEEDED] == true) return@edit
+        it[DOCK] = keys.take(DockSize).joinToString(DockSeparator)
+        it[DOCK_SEEDED] = true
+    }
 
     private suspend fun set(key: Preferences.Key<Boolean>, on: Boolean) {
         store.edit { it[key] = on }
@@ -64,5 +82,15 @@ class SettingsStore(context: Context) {
         val PURE_BLACK = booleanPreferencesKey("pure_black")
         val SWIPE_DOWN = stringPreferencesKey("swipe_down")
         val DOUBLE_TAP = stringPreferencesKey("double_tap")
+        val SHOW_DOCK = booleanPreferencesKey("show_dock")
+        val DOCK_BAR = booleanPreferencesKey("dock_bar")
+        val DOCK = stringPreferencesKey("dock")
+        val DOCK_SEEDED = booleanPreferencesKey("dock_seeded")
     }
 }
+
+/** Most apps the dock holds. */
+const val DockSize = 5
+
+// App keys contain "/" and "#", never a line break.
+private const val DockSeparator = "\n"

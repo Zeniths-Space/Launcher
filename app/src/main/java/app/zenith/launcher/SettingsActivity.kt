@@ -67,7 +67,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -197,7 +196,7 @@ private fun SettingsScreen(
                         SegmentedGroup(
                             listOf(
                                 { CategoryTile(Icons.Wallpaper, Page.Appearance, stringResource(R.string.settings_appearance_sub)) { page = it } },
-                                { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_coming_soon)) { page = it } },
+                                { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_dock_sub)) { page = it } },
                                 { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub)) { page = it } },
                                 { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub)) { page = it } },
                                 { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub)) { page = it } },
@@ -248,7 +247,29 @@ private fun SettingsScreen(
                         ),
                         Modifier.padding(top = 8.dp),
                     )
-                    Page.Dock -> ComingSoon(Icons.Dock, stringResource(R.string.settings_dock_soon))
+                    Page.Dock -> {
+                        SegmentedGroup(
+                            listOf(
+                                {
+                                    SwitchTile(Icons.Dock, stringResource(R.string.settings_dock_show), stringResource(R.string.settings_dock_show_sub), settings.showDock) {
+                                        save { store.setShowDock(it) }
+                                    }
+                                },
+                                {
+                                    SwitchTile(Icons.Apps, stringResource(R.string.settings_dock_bar), stringResource(R.string.settings_dock_bar_sub), settings.dockBar) {
+                                        save { store.setDockBar(it) }
+                                    }
+                                },
+                            ),
+                            Modifier.padding(top = 8.dp),
+                        )
+                        Text(
+                            stringResource(R.string.settings_dock_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+                        )
+                    }
                     Page.Gestures -> {
                         // The service is only asked for when a chosen gesture needs it (locking).
                         val context = LocalContext.current
@@ -305,26 +326,6 @@ private val Page.title
         Page.Gestures -> R.string.settings_section_gestures
         Page.About -> R.string.settings_section_about
     }
-
-/** A category with no settings yet: says so plainly instead of showing an empty list. */
-@Composable
-private fun ComingSoon(icon: ImageVector, text: String) {
-    Column(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ScallopBadge(icon)
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.settings_coming_soon), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
 
 /** Whether the gestures service is on, and the way to Android's accessibility settings. */
 @Composable

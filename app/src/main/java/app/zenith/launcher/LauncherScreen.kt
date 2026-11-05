@@ -143,8 +143,12 @@ fun LauncherScreen(
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onGesture: (GestureAction) -> Unit,
+    onDockChange: (List<String>) -> Unit,
 ) {
     val apps by repository.apps.collectAsState()
+    // Dock keys to installed apps; an app that is gone simply drops out of the row.
+    val dockApps = remember(apps, settings.dock) { settings.dock.mapNotNull { k -> apps?.firstOrNull { it.key == k } } }
+    val dockKeys = remember(dockApps) { dockApps.map { it.key } }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
@@ -210,12 +214,33 @@ fun LauncherScreen(
                 translationY = -gone * HomeLift.toPx()
             },
         )
+        if (settings.showDock) {
+            Dock(
+                apps = dockApps,
+                repository = repository,
+                showBar = settings.dockBar,
+                onReorder = { onDockChange(it.map(AppEntry::key)) },
+                onRemove = { app -> onDockChange(dockKeys - app.key) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .safeDrawingPadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = if (settings.showHint) 48.dp else 16.dp)
+                    .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
+                    .graphicsLayer {
+                        val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
+                        alpha = 1f - gone
+                        translationY = -gone * HomeLift.toPx()
+                    },
+            )
+        }
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
                 apps,
                 repository,
                 settings.showLabels,
+                dockKeys = dockKeys,
+                onDockChange = onDockChange,
                 drawerOpen = drawerOpen,
                 onPull = dragBy,
                 onRelease = settle,
@@ -427,6 +452,8 @@ private fun AppDrawer(
     apps: List<AppEntry>?,
     repository: AppRepository,
     showLabels: Boolean,
+    dockKeys: List<String>,
+    onDockChange: (List<String>) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
     onRelease: (Float) -> Unit,
@@ -504,7 +531,15 @@ private fun AppDrawer(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(shown, key = { it.key }) { app ->
-                    AppTile(app, repository, showLabels, onOpen = open)
+                    AppTile(
+                        app,
+                        repository,
+                        showLabels,
+                        inDock = app.key in dockKeys,
+                        dockFull = dockKeys.size >= DockSize,
+                        onDockToggle = { onDockChange(if (app.key in dockKeys) dockKeys - app.key else dockKeys + app.key) },
+                        onOpen = open,
+                    )
                 }
             }
         }
@@ -545,7 +580,15 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Un
 /** Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for App info. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolean, onOpen: (AppEntry, Rect?) -> Unit) {
+private fun AppTile(
+    app: AppEntry,
+    repository: AppRepository,
+    showLabels: Boolean,
+    inDock: Boolean,
+    dockFull: Boolean,
+    onDockToggle: () -> Unit,
+    onOpen: (AppEntry, Rect?) -> Unit,
+) {
     val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
     // Read at tap time only: a state written on every layout would recompose each tile per frame
@@ -587,6 +630,15 @@ private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolea
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            if (inDock || !dockFull) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (inDock) R.string.dock_remove else R.string.dock_add)) },
+                    onClick = {
+                        menu = false
+                        onDockToggle()
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.app_info)) },
                 onClick = {
@@ -598,4 +650,4 @@ private fun AppTile(app: AppEntry, repository: AppRepository, showLabels: Boolea
     }
 }
 
-private val IconSize = 52.dp
+internal val IconSize = 52.dp

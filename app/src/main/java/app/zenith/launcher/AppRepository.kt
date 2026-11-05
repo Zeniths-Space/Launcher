@@ -4,13 +4,17 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherActivityInfo
+import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Process
+import android.provider.MediaStore
 import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
@@ -18,6 +22,7 @@ import android.os.UserManager
 import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
+import androidx.core.net.toUri
 import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +107,29 @@ class AppRepository(context: Context) {
             null
         }
         runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, options) }
+    }
+
+    /**
+     * The default Phone, Messages, Browser and Camera apps, as the system resolves their standard
+     * intents, mapped to this profile's launcher entries; any without a default are skipped.
+     */
+    fun defaultDock(apps: List<AppEntry>, context: Context): List<AppEntry> {
+        val pm = context.packageManager
+        val serial = userManager.getSerialNumberForUser(Process.myUserHandle())
+        val intents = listOf(
+            Intent(Intent.ACTION_DIAL),
+            Intent(Intent.ACTION_SENDTO, "smsto:".toUri()),
+            Intent(Intent.ACTION_VIEW, "https://".toUri()).addCategory(Intent.CATEGORY_BROWSABLE),
+            Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
+        )
+        return intents.mapNotNull { intent ->
+            // With no default set, Android resolves to its chooser ("android"): take the first match.
+            val resolved = runCatching { pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) }.getOrNull()
+                ?.activityInfo?.packageName?.takeIf { it != "android" }
+                ?: runCatching { pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY) }.getOrNull()
+                    ?.firstOrNull()?.activityInfo?.packageName
+            apps.firstOrNull { it.packageName == resolved && it.userSerial == serial }
+        }.distinct()
     }
 
     fun openAppInfo(app: AppEntry) {

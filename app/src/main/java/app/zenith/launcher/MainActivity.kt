@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,12 @@ class MainActivity : ComponentActivity() {
         reload()
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
+            // The first time apps are known, fill the dock with the default Phone, Messages,
+            // Browser and Camera apps (once: the store keeps it from happening again).
+            val apps by repository.apps.collectAsState()
+            LaunchedEffect(apps != null) {
+                apps?.let { list -> store.seedDock(repository.defaultDock(list, this@MainActivity).map { it.key }) }
+            }
             ZenithTheme(pureBlack = settings.pureBlack) {
                 LauncherScreen(
                     repository = repository,
@@ -38,6 +45,7 @@ class MainActivity : ComponentActivity() {
                     onDrawerOpenChange = { drawerOpen = it },
                     onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                     onGesture = ::onGesture,
+                    onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
                 )
             }
         }
