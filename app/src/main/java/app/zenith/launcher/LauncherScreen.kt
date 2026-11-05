@@ -445,7 +445,7 @@ private fun AppDrawer(
         keyboard?.hide()
         if (bounds != null && animationsEnabled() && repository.isOwnProfile(app)) {
             val color = repository.windowColor(app, context)?.let { Color(it) } ?: fallbackColor
-            onLaunch(Launching(app, bounds, icon, color))
+            onLaunch(Launching(app, bounds, icon, color, repository.splashIcon(app, context)))
         } else {
             repository.launch(app, bounds)
         }

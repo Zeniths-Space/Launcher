@@ -160,6 +160,27 @@ class AppRepository(context: Context) {
         }
     }.getOrNull()
 
+    /**
+     * The icon Android's splash screen shows for [app] (Android 12+), read from its theme, so the
+     * launcher can fade it in where it will appear instead of it appearing in one frame.
+     */
+    fun splashIcon(app: AppEntry, context: Context): SplashIcon = runCatching {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return SplashIcon.None
+        val activity = context.packageManager.getActivityInfo(ComponentName(app.packageName, app.className), 0)
+        val theme = activity.themeResource.takeIf { it != 0 } ?: return SplashIcon.Launcher
+        val appContext = context.createPackageContext(app.packageName, 0).apply { setTheme(theme) }
+        val a = appContext.obtainStyledAttributes(intArrayOf(android.R.attr.windowSplashScreenAnimatedIcon))
+        try {
+            // No splash icon: Android shows the launcher icon. One that draws nothing (Nekogram,
+            // Samsung Settings): Android shows none.
+            if (!a.hasValue(0)) return SplashIcon.Launcher
+            val icon = a.getDrawable(0) ?: return SplashIcon.None
+            if (icon.isBlank()) SplashIcon.None else SplashIcon.Theme(icon.mutate())
+        } finally {
+            a.recycle()
+        }
+    }.getOrDefault(SplashIcon.None)
+
     fun openAppInfo(app: AppEntry) {
         val info = synchronized(infos) { infos[app.key] } ?: return
         runCatching { launcherApps.startAppDetailsActivity(ComponentName(app.packageName, app.className), info.user, null, null) }
@@ -187,3 +208,25 @@ private fun Drawable.inSystemShape(): Drawable =
     else AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(this, LegacyIconInset))
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
+
+/** What Android's splash screen shows in its centre. */
+sealed interface SplashIcon {
+    data object None : SplashIcon
+    /** The app's launcher icon (the app sets no splash icon). */
+    data object Launcher : SplashIcon
+    /** The app's `windowSplashScreenAnimatedIcon`. */
+    data class Theme(val drawable: Drawable) : SplashIcon
+}
+
+/** Whether [this] draws nothing, checked at its own size (fixed-size layers ignore smaller bounds). */
+private fun Drawable.isBlank(): Boolean {
+    val size = maxOf(intrinsicWidth, intrinsicHeight).coerceIn(32, 256)
+    val bitmap = createBitmap(size, size)
+    val old = copyBounds()
+    setBounds(0, 0, size, size)
+    draw(Canvas(bitmap))
+    bounds = old
+    val pixels = IntArray(size * size).also { bitmap.getPixels(it, 0, size, 0, 0, size, size) }
+    bitmap.recycle()
+    return pixels.none { android.graphics.Color.alpha(it) != 0 }
+}

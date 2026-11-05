@@ -22,6 +22,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -31,8 +34,11 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** An app being opened: where its icon was (window pixels), the icon, and its splash colour. */
-data class Launching(val app: AppEntry, val bounds: Rect, val icon: ImageBitmap?, val color: Color)
+/**
+ * An app being opened: where its icon was (window pixels), the icon, its splash colour and what
+ * Android's splash will show in its centre.
+ */
+data class Launching(val app: AppEntry, val bounds: Rect, val icon: ImageBitmap?, val color: Color, val splashIcon: SplashIcon)
 
 /** The app launch in progress, if any. Cleared when the launcher leaves the screen. */
 class LaunchState {
@@ -69,6 +75,15 @@ private val FallbackEndCorner = 0.dp
 private const val StartAppLeadMillis = 50L
 /** Part of the zoom over which the icon fades, in place. */
 private const val IconFadeEnd = 0.3f
+/**
+ * From here to the end of the zoom, what Android's splash will show fades in where it will show
+ * it, so the splash does not flash its icon in one frame. Sizes as Android lays them out: a splash
+ * icon in a 108 dp box scaled to 192 dp (no icon background), a launcher icon at 160 dp.
+ */
+private const val SplashFadeStart = 0.5f
+private val SplashIconBox = 108.dp
+private val SplashIconSize = 192.dp
+private val LauncherIconSplashSize = 160.dp
 
 @Composable
 fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = key(launching) {
@@ -114,6 +129,40 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
                 dstSize = IntSize(s, s),
                 alpha = iconAlpha,
             )
+        }
+        val splashAlpha = ((f - SplashFadeStart) / (1f - SplashFadeStart)).coerceIn(0f, 1f)
+        // Inside the card only: it can still be short of the screen's centre when this starts.
+        if (splashAlpha > 0f) clipRect(left, top, right, bottom) {
+            val sx = size.width / 2
+            val sy = size.height / 2
+            when (val splash = launching.splashIcon) {
+                SplashIcon.None -> Unit
+                SplashIcon.Launcher -> launching.icon?.let { icon ->
+                    val s = LauncherIconSplashSize.roundToPx()
+                    drawImage(
+                        icon,
+                        dstOffset = IntOffset((sx - s / 2f).roundToInt(), (sy - s / 2f).roundToInt()),
+                        dstSize = IntSize(s, s),
+                        alpha = splashAlpha,
+                    )
+                }
+                is SplashIcon.Theme -> {
+                    // shortcut: always the no-background size; apps that set windowSplashScreenIconBackgroundColor get 160 dp from Android.
+                    val d = splash.drawable
+                    val box = SplashIconBox.toPx()
+                    val scale = SplashIconSize.toPx() / box
+                    d.setBounds(0, 0, box.roundToInt(), box.roundToInt())
+                    d.alpha = (splashAlpha * 255).roundToInt()
+                    drawIntoCanvas {
+                        val c = it.nativeCanvas
+                        c.save()
+                        c.translate(sx - box * scale / 2, sy - box * scale / 2)
+                        c.scale(scale, scale)
+                        d.draw(c)
+                        c.restore()
+                    }
+                }
+            }
         }
     }
 }
