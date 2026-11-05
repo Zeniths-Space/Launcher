@@ -8,10 +8,14 @@ Application ID `app.zenith.launcher`.
 - Home screen over your wallpaper with the time and date. The clock updates on Android's minute
   tick while the home screen is showing; the launcher runs no timer of its own.
 - Swipe up anywhere for the app drawer: every app with a launcher icon, alphabetical, work-profile
-  apps included (with their badge).
+  apps included (with their badge). The drawer follows your finger, with the same timing as One UI
+  Home (measured from screen recordings): home fades first, then the drawer rises over the dimmed
+  wallpaper, and on release it settles without bounce. Pull down from the top of the list to close
+  it the same way.
 - Search at the top of the drawer. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
-- Tap to open (the app's window grows from its icon); long-press for App info.
+- Tap to open; long-press for App info. The launcher asks Android to grow the app out of its icon,
+  but Samsung's system uses its own short cross-fade (see Limitations).
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
@@ -29,6 +33,17 @@ open **Zenith Launcher** from your current launcher.
 To use it as the home screen, tap the card at the top of its settings, or go to Settings > Apps > Default apps > Home app (Samsung: Settings >
 Apps > Choose default apps > Home app) and pick Zenith Launcher. To go back, pick your previous
 home app (for example One UI Home) in the same place. Your old launcher stays installed.
+
+## Limitations
+
+- **App open and close animation.** One UI Home morphs an app's window out of its icon and back
+  into it. That uses remote app transitions, which need a permission Android grants only to the
+  system's own launcher (`CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS`). No installable launcher can
+  do it. Zenith Launcher passes a clip-reveal from the icon (`ActivityOptions`). On a Galaxy S24
+  Ultra (One UI, Android 16) the system ignores it and cross-fades, even when Zenith is the home
+  app. Other devices may honour it.
+- Returning from an app can show the drawer's last frame for a moment before the home screen,
+  since Android animates the launcher's last drawn frame.
 
 ## Build
 

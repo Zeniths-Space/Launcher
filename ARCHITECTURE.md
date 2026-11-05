@@ -26,8 +26,16 @@ No other ecosystem app is needed.
   while composed.
 - **Icons on demand.** Each tile asks for its icon at its pixel size; the repository draws it off
   the main thread once and keeps it in memory until the app changes or leaves.
-- **Launch animation from the tile.** The tile's window bounds go to `startMainActivity`, so the
-  app opens from its icon.
+- **Drawer motion follows the finger.** `DrawerMotion` holds one progress value (0 home, 1 open).
+  Drags set it directly; a release starts a critically damped spring (stiffness 400) with the
+  fling's speed. Every visual (home fade, drawer rise and fade, wallpaper dim) is read from it in
+  `graphicsLayer`/`drawBehind`, so a drag redraws without recomposing. Constants are measured from
+  One UI Home recordings. The drawer stays composed, parked off screen while closed: building it
+  when a swipe began froze the main thread ~270 ms (debug build) and lost the fling. The launcher
+  resets to the home screen in `onStop`.
+- **Launch animation.** The tile's window bounds go to `startMainActivity` with a clip-reveal
+  `ActivityOptions`. Icon-to-window morphs (open and close) need remote transitions, a
+  system-only permission; see README Limitations.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and
   `excludeFromRecents`: one fresh home that never appears in Recents. It also keeps a LAUNCHER
   entry so it can be tried from another launcher before being made the default.

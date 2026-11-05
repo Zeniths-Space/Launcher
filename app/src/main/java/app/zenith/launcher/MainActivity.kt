@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
     private val repository by lazy { AppRepository(this) }
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
+    private val drawer = DrawerMotion()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
             ZenithTheme(pureBlack = settings.pureBlack) {
                 LauncherScreen(
                     repository = repository,
+                    motion = drawer,
                     settings = settings,
                     drawerOpen = drawerOpen,
                     onDrawerOpenChange = { drawerOpen = it },
@@ -47,6 +49,14 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == Intent.ACTION_MAIN) drawerOpen = false
+    }
+
+    // Back from an app (or anywhere) to the home screen, like One UI: the drawer is already closed
+    // when the home screen shows again, instead of animating shut over the app's closing animation.
+    override fun onStop() {
+        super.onStop()
+        drawer.jump(0f)
+        drawerOpen = false
     }
 
     override fun onDestroy() {

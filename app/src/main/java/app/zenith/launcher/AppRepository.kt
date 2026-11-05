@@ -1,5 +1,6 @@
 package app.zenith.launcher
 
+import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherActivityInfo
@@ -10,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
 import android.os.UserManager
+import android.view.View
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -83,9 +85,18 @@ class AppRepository(context: Context) {
         bitmap.asImageBitmap().also { synchronized(infos) { icons[cacheKey] = it } }
     }
 
-    fun launch(app: AppEntry, bounds: Rect?) {
+    /** Starts [app]; with its icon's window [bounds] and the [view] it sits in, the app's window grows out of the icon. */
+    fun launch(app: AppEntry, bounds: Rect?, view: View? = null) {
         val info = synchronized(infos) { infos[app.key] } ?: return
-        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, null) }
+        val options = if (bounds != null && view != null) {
+            val origin = IntArray(2).also(view::getLocationInWindow)
+            ActivityOptions.makeClipRevealAnimation(
+                view, bounds.left - origin[0], bounds.top - origin[1], bounds.width(), bounds.height(),
+            ).toBundle()
+        } else {
+            null
+        }
+        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, options) }
     }
 
     fun openAppInfo(app: AppEntry) {
