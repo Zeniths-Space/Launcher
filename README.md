@@ -28,7 +28,7 @@ Application ID `app.zenith.launcher`.
   shrink below it when the columns are too narrow. A background bar is a setting. Making the
   grid smaller hides apps past it without forgetting them. It starts with your default Phone, Messages, Browser and Camera apps. Long-press an
   app in the drawer to add or remove it; long-press a dock app for Remove and App info, or keep
-  holding and drag it to any slot: an empty slot takes it, an app there swaps places with it.
+  holding and drag it to any slot: the other apps make room as you go, and an empty slot just takes it.
   Changing the column count rewraps the slots in reading order. Screen readers get Move left and Move right.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
   nothing), with nothing to set up. Double tap can lock the screen; that one needs Zenith
