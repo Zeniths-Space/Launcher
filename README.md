@@ -20,14 +20,14 @@ Application ID `app.zenith.launcher`.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
 - Home screen apps: pages of 1 to 20 columns and rows (4 by 5 to start), swiped sideways, with
-  dots for the pages. Long-press an app in the drawer to add it to the home screen. Long-press a
+  dots for the pages (a setting). Long-press an app in the drawer to add it to the home screen. Long-press a
   home screen app for Remove and App info, or keep holding and drag it to any slot: the others
   make room as you go. Hold it at a side edge to go to the page there, or a new page past the
   last. Pages left empty disappear. Screen readers get Move left, Move right and Remove.
 - Long-press an empty spot on the home screen for a menu at your finger: Wallpaper and Settings.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
-  off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint, app names, columns, rows, icon size), App drawer (app names under icons), Gestures and About.
+  off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names under icons), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the
