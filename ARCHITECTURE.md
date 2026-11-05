@@ -43,9 +43,12 @@ No other ecosystem app is needed.
   permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
   340 ms on Android's standard curve (One UI's own leapt out of the icon, then crawled), in the app's splash or window background colour (read
   from its theme through `createPackageContext`; a launch-screen drawable gives its corner pixel),
-  while the launcher icon fades into it. The launcher draws no splash of its own: an earlier
-  version matched each app's splash icon from its theme, and stacked with apps that draw their
-  own (Nekogram, Kontract, Flutter apps). The card ends on the display's corner radius
+  while the launcher icon fades in place where it was tapped. Over the second half of the zoom,
+  what Android's splash will show fades in where it will show it, so the splash does not flash
+  its icon in one frame: the theme's `windowSplashScreenAnimatedIcon` in a 108 dp box scaled to
+  192 dp, the launcher icon at 160 dp when the app sets none, nothing when the set icon draws
+  nothing (Nekogram, Samsung Settings). This only anticipates Android's own splash; an earlier
+  version drew a launcher splash by its own rules and stacked with apps that draw their own. The card ends on the display's corner radius
   (`WindowInsets.getRoundedCorner`), so nothing shows round it when the app's window replaces it.
   The app starts 50 ms before the zoom ends, at 98.5% grown, about Android's delay before the
   splash shows, so the splash lands as the zoom does (starting at 80%, as One UI snaps to full when
