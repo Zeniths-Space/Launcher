@@ -122,6 +122,15 @@ private const val DrawerRise = 0.07f
 private const val WallpaperDim = 0.4f
 /** Release speeds above this (in drawer heights per second) open or close regardless of position. */
 private const val FlingSpeed = 1.5f
+/** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
+private val SwipeDownDistance = 48.dp
+private val SwipeDownSpeed = 600.dp
+
+/** The current drag on the home screen: how far it has pulled down while the drawer was shut. */
+private class HomePull {
+    var distance = 0f
+    var startedClosed = false
+}
 private val HomeLift = 16.dp
 private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
 
@@ -133,6 +142,7 @@ fun LauncherScreen(
     drawerOpen: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
+    onGesture: (GestureAction) -> Unit,
 ) {
     val apps by repository.apps.collectAsState()
     val scope = rememberCoroutineScope()
@@ -143,6 +153,9 @@ fun LauncherScreen(
     val dim = if (settings.pureBlack && isSystemInDarkTheme()) 1f else WallpaperDim
 
     val dragBy: (Float) -> Unit = { dy -> motion.drag(-dy / range) }
+    val homePull = remember { HomePull() }
+    val swipeDownDistance = with(LocalDensity.current) { SwipeDownDistance.toPx() }
+    val swipeDownSpeed = with(LocalDensity.current) { SwipeDownSpeed.toPx() }
     val settle: (Float) -> Unit = { velocityY ->
         val speed = -velocityY / range
         val open = when {
@@ -167,14 +180,30 @@ fun LauncherScreen(
             // Dim drawn per frame, without recomposing.
             .drawBehind { drawRect(Color.Black, alpha = dim * motion.progress) }
             .draggable(
-                rememberDraggableState { dragBy(it) },
+                rememberDraggableState { dy ->
+                    if (homePull.startedClosed && motion.progress == 0f && dy > 0f) homePull.distance += dy
+                    dragBy(dy)
+                },
                 Orientation.Vertical,
-                onDragStopped = { settle(it) },
+                onDragStarted = {
+                    homePull.distance = 0f
+                    homePull.startedClosed = motion.progress == 0f
+                },
+                onDragStopped = { velocityY ->
+                    // A swipe down that started on the home screen is the swipe-down gesture.
+                    if (homePull.startedClosed && motion.progress == 0f &&
+                        (homePull.distance > swipeDownDistance || velocityY > swipeDownSpeed)
+                    ) {
+                        onGesture(settings.swipeDown)
+                    }
+                    settle(velocityY)
+                },
             ),
     ) {
         HomeScreen(
             settings,
             onOpenSettings = onOpenSettings,
+            onDoubleTap = { onGesture(settings.doubleTap) },
             modifier = Modifier.graphicsLayer {
                 val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
                 alpha = 1f - gone
@@ -206,13 +235,19 @@ fun LauncherScreen(
 
 /** The wallpaper with the time and date; long-press for a menu. (The swipe up is handled by [LauncherScreen].) */
 @Composable
-private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, modifier: Modifier) {
+private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, onDoubleTap: () -> Unit, modifier: Modifier) {
     val pickWallpaper = rememberWallpaperPicker()
     var menuAt by remember { mutableStateOf<Offset?>(null) }
     Box(
         modifier
             .fillMaxSize()
-            .pointerInput(Unit) { detectTapGestures(onLongPress = { menuAt = it }) },
+            .pointerInput(settings.doubleTap) {
+                // Double tap only listened for when it does something, so nothing waits on it otherwise.
+                detectTapGestures(
+                    onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ _ -> onDoubleTap() }) else null,
+                    onLongPress = { menuAt = it },
+                )
+            },
     ) {
         menuAt?.let { at ->
             HomeMenu(

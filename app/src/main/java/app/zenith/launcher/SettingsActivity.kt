@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -33,12 +34,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -70,6 +75,7 @@ class SettingsActivity : ComponentActivity() {
 
     private val store by lazy { SettingsStore(this) }
     private var isDefaultHome by mutableStateOf(false)
+    private var gesturesOn by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,10 +88,14 @@ class SettingsActivity : ComponentActivity() {
                     settings = settings,
                     store = store,
                     isDefaultHome = isDefaultHome,
+                    gesturesOn = gesturesOn,
                     versionName = versionName,
+                    startPage = if (intent.getStringExtra(EXTRA_PAGE) == PAGE_GESTURES) Page.Gestures else Page.Main,
                     onBack = ::finish,
                     onChooseHome = { open(Intent(Settings.ACTION_HOME_SETTINGS)) },
                     onWallpaper = rememberWallpaperPicker(),
+                    onAccessibility = { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+                    onAppInfo = { open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))) },
                 )
             }
         }
@@ -95,6 +105,7 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isDefaultHome = isDefaultHome(this)
+        gesturesOn = GestureService.isEnabled(this)
     }
 
     private fun open(intent: Intent) {
@@ -103,6 +114,12 @@ class SettingsActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, R.string.settings_unavailable, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    companion object {
+        /** Opens settings on a page: [PAGE_GESTURES]. */
+        const val EXTRA_PAGE = "page"
+        const val PAGE_GESTURES = "gestures"
     }
 }
 
@@ -122,16 +139,20 @@ private fun SettingsScreen(
     settings: LauncherSettings,
     store: SettingsStore,
     isDefaultHome: Boolean,
+    gesturesOn: Boolean,
     versionName: String,
+    startPage: Page,
     onBack: () -> Unit,
     onChooseHome: () -> Unit,
     onWallpaper: () -> Unit,
+    onAccessibility: () -> Unit,
+    onAppInfo: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val save: (suspend () -> Unit) -> Unit = { block -> scope.launch { block() } }
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-    var page by rememberSaveable { mutableStateOf(Page.Main) }
+    var page by rememberSaveable { mutableStateOf(startPage) }
     BackHandler(enabled = page != Page.Main) { page = Page.Main }
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
@@ -178,7 +199,7 @@ private fun SettingsScreen(
                                 { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_coming_soon)) { page = it } },
                                 { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub)) { page = it } },
                                 { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub)) { page = it } },
-                                { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_coming_soon)) { page = it } },
+                                { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub)) { page = it } },
                                 { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName)) { page = it } },
                             ),
                         )
@@ -227,7 +248,30 @@ private fun SettingsScreen(
                         Modifier.padding(top = 8.dp),
                     )
                     Page.Dock -> ComingSoon(Icons.Dock, stringResource(R.string.settings_dock_soon))
-                    Page.Gestures -> ComingSoon(Icons.Gesture, stringResource(R.string.settings_gestures_soon))
+                    Page.Gestures -> {
+                        GesturesCard(gesturesOn, onAccessibility)
+                        if (!gesturesOn) {
+                            Text(
+                                stringResource(R.string.gesture_service_restricted),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(role = Role.Button, onClick = onAppInfo)
+                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                            )
+                        }
+                        SectionHeader(stringResource(R.string.gesture_swipe_down))
+                        ChoiceGroup(
+                            listOf(GestureAction.Notifications, GestureAction.QuickSettings, GestureAction.None),
+                            settings.swipeDown,
+                        ) { save { store.setSwipeDown(it) } }
+                        SectionHeader(stringResource(R.string.gesture_double_tap))
+                        ChoiceGroup(
+                            listOf(GestureAction.LockScreen, GestureAction.None).filter { it.available },
+                            settings.doubleTap,
+                        ) { save { store.setDoubleTap(it) } }
+                    }
                     Page.About -> SegmentedGroup(
                         listOf(
                             {
@@ -276,6 +320,76 @@ private fun ComingSoon(icon: ImageVector, text: String) {
             textAlign = TextAlign.Center,
         )
     }
+}
+
+/** Whether the gestures service is on, and the way to Android's accessibility settings. */
+@Composable
+private fun GesturesCard(on: Boolean, onOpen: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val (container, content) = if (on) cs.secondaryContainer to cs.onSecondaryContainer else cs.surfaceContainerHigh to cs.onSurface
+    Surface(onClick = onOpen, shape = groupShape(0, 1), color = container, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            ScallopBadge(
+                if (on) Icons.Done else Icons.Gesture,
+                container = if (on) cs.secondary else ZenithColors.indicator,
+                content = if (on) cs.onSecondary else ZenithColors.onIndicator,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(if (on) R.string.gesture_service_on else R.string.gesture_service_off), style = MaterialTheme.typography.titleMedium, color = content)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(if (on) R.string.gesture_service_on_sub else R.string.gesture_service_off_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = content.copy(alpha = 0.75f),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.Next, contentDescription = null, tint = content.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** One choice of several, a row each, with a radio button; the whole row selects. */
+@Composable
+private fun ChoiceGroup(options: List<GestureAction>, selected: GestureAction, onSelect: (GestureAction) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(Modifier.selectableGroup()) {
+        SegmentedGroup(
+            options.map { option ->
+                {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .selectable(selected = option == selected, role = Role.RadioButton, onClick = { onSelect(option) })
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(option.label), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
+                        RadioButton(selected = option == selected, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = cs.secondary))
+                    }
+                }
+            },
+        )
+    }
+}
+
+private val GestureAction.label
+    get() = when (this) {
+        GestureAction.None -> R.string.gesture_none
+        GestureAction.Notifications -> R.string.gesture_notifications
+        GestureAction.QuickSettings -> R.string.gesture_quick_settings
+        GestureAction.LockScreen -> R.string.gesture_lock
+    }
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(start = 8.dp, top = 28.dp, bottom = 10.dp),
+    )
 }
 
 /** A row on the main page that opens a category's page. */

@@ -2,6 +2,7 @@ package app.zenith.launcher
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -36,9 +37,17 @@ class MainActivity : ComponentActivity() {
                     drawerOpen = drawerOpen,
                     onDrawerOpenChange = { drawerOpen = it },
                     onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                    onGesture = ::onGesture,
                 )
             }
         }
+    }
+
+    // Gestures that need the accessibility service point to where it is turned on.
+    private fun onGesture(action: GestureAction) {
+        if (GestureService.perform(action)) return
+        Toast.makeText(this, R.string.gesture_needs_service, Toast.LENGTH_SHORT).show()
+        startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, SettingsActivity.PAGE_GESTURES))
     }
 
     private fun reload() {

@@ -6,19 +6,24 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-/** User settings. Defaults: clock, swipe hint and app names shown; pure black off. */
+/** User settings. Defaults: clock, swipe hint and app names shown; pure black off; swipe down opens notifications. */
 data class LauncherSettings(
     val showClock: Boolean = true,
     val showHint: Boolean = true,
     val showLabels: Boolean = true,
     /** Near-black drawer and settings in dark mode (AMOLED). */
     val pureBlack: Boolean = false,
+    /** Swiping down on the home screen. */
+    val swipeDown: GestureAction = GestureAction.Notifications,
+    /** Double-tapping the home screen. */
+    val doubleTap: GestureAction = GestureAction.None,
 )
 
 // One store per process, shared by the home screen and the settings screen.
@@ -36,6 +41,8 @@ class SettingsStore(context: Context) {
                 showHint = p[SHOW_HINT] ?: true,
                 showLabels = p[SHOW_LABELS] ?: true,
                 pureBlack = p[PURE_BLACK] ?: false,
+                swipeDown = GestureAction.parse(p[SWIPE_DOWN], GestureAction.Notifications),
+                doubleTap = GestureAction.parse(p[DOUBLE_TAP], GestureAction.None),
             )
         }
 
@@ -43,6 +50,8 @@ class SettingsStore(context: Context) {
     suspend fun setShowHint(on: Boolean) = set(SHOW_HINT, on)
     suspend fun setShowLabels(on: Boolean) = set(SHOW_LABELS, on)
     suspend fun setPureBlack(on: Boolean) = set(PURE_BLACK, on)
+    suspend fun setSwipeDown(action: GestureAction) = store.edit { it[SWIPE_DOWN] = action.name }
+    suspend fun setDoubleTap(action: GestureAction) = store.edit { it[DOUBLE_TAP] = action.name }
 
     private suspend fun set(key: Preferences.Key<Boolean>, on: Boolean) {
         store.edit { it[key] = on }
@@ -53,5 +62,7 @@ class SettingsStore(context: Context) {
         val SHOW_HINT = booleanPreferencesKey("show_hint")
         val SHOW_LABELS = booleanPreferencesKey("show_labels")
         val PURE_BLACK = booleanPreferencesKey("pure_black")
+        val SWIPE_DOWN = stringPreferencesKey("swipe_down")
+        val DOUBLE_TAP = stringPreferencesKey("double_tap")
     }
 }
