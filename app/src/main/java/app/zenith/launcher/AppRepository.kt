@@ -8,7 +8,6 @@ import android.content.pm.LauncherApps
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -19,6 +18,7 @@ import android.os.UserManager
 import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,6 +117,6 @@ class AppRepository(context: Context) {
  */
 private fun Drawable.inSystemShape(): Drawable =
     if (this is AdaptiveIconDrawable) this
-    else AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(this, LegacyIconInset))
+    else AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
