@@ -38,8 +38,8 @@ No other ecosystem app is needed.
   requested through `ActivityOptions` (the transition reaches Shell without them; it plays its
   default zoom from the centre), and icon morphs need remote transitions, a system-only
   permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
-  250 ms, in the app's splash or window background colour (read from its theme through
-  `createPackageContext`), and starts the app 200 ms in with `FLAG_ACTIVITY_NO_ANIMATION`.
+  400 ms, in the app's splash or window background colour (read from its theme through
+  `createPackageContext`), and starts the app 330 ms in with `FLAG_ACTIVITY_NO_ANIMATION`.
   That flag also skips the system splash screen, so the zoom draws the splash itself: the
   launcher icon hands over to the app's `windowSplashScreenAnimatedIcon` (or grows to 160 dp when
   there is none), laid out in a 108 dp box scaled to 192 dp as Android's splash does, and the

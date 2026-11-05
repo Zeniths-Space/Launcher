@@ -55,11 +55,12 @@ fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
  * Measured from One UI on a Galaxy S24 Ultra (Play Store): the window fills the screen in about
  * 190 ms, decelerating; the splash icon never fades; the splash shows about 130 ms before content.
  */
-private const val ZoomMillis = 250
-private val ZoomEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+private const val ZoomMillis = 400
+// A gentle start: the One UI-like 0.2,0,0,1 curve reached half size in 35 ms and read as a jump.
+private val ZoomEasing = CubicBezierEasing(0.3f, 0f, 0.1f, 1f)
 private val EndCorner = 28.dp
 /** Late enough that an app already running does not cover the zoom before it is nearly done. */
-private const val StartAppAfterMillis = 200L
+private const val StartAppAfterMillis = 330L
 /**
  * Android's splash screen lays the icon out in a 108 dp box (an adaptive icon's size) and scales
  * that box to 192 dp when the icon has no background of its own, so fixed-size artwork grows too.
