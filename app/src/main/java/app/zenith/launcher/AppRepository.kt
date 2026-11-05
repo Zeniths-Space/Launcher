@@ -179,44 +179,11 @@ private fun Drawable.cornerColor(): Int {
 
 /**
  * Legacy (non-adaptive) icons are drawn as they are, square or shapeless, next to adaptive icons in
- * the system shape, so wrap them in an adaptive icon and Android masks them to the same shape, as
- * Launcher3 does. An icon whose corners are filled (a square) fills the shape; any other sits at
- * 70% of the shape on its own dominant colour.
+ * the system shape. Like Launcher3, place them on white inside an adaptive icon so Android masks
+ * them to the same shape: scaled to 70% of the visible area, the layer being 1.5 times that area.
  */
-private fun Drawable.inSystemShape(): Drawable {
-    if (this is AdaptiveIconDrawable) return this
-    val size = 32
-    val bitmap = createBitmap(size, size)
-    setBounds(0, 0, size, size)
-    draw(Canvas(bitmap))
-    val pixels = IntArray(size * size).also { bitmap.getPixels(it, 0, size, 0, 0, size, size) }
-    bitmap.recycle()
-    val corners = intArrayOf(0, size - 1, size * (size - 1), size * size - 1)
-    val square = corners.all { android.graphics.Color.alpha(pixels[it]) == 255 }
-    return if (square) {
-        AdaptiveIconDrawable(ColorDrawable(pixels[0]), InsetDrawable(this, FullBleedInset))
-    } else {
-        AdaptiveIconDrawable(ColorDrawable(dominantColor(pixels)), InsetDrawable(this, LegacyIconInset))
-    }
-}
+private fun Drawable.inSystemShape(): Drawable =
+    if (this is AdaptiveIconDrawable) this
+    else AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(this, LegacyIconInset))
 
-/** The visible part of an adaptive icon layer is its middle 72 of 108 units. */
-private const val FullBleedInset = 18f / 108f
-/** 70% of the visible area, the layer being 1.5 times that area. */
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
-
-/**
- * The most common colour among [argb]'s opaque pixels, grouped in steps of 16 per channel; white
- * if none are opaque.
- */
-internal fun dominantColor(argb: IntArray): Int {
-    val counts = HashMap<Int, Int>()
-    for (c in argb) {
-        if (c ushr 24 < 200) continue
-        val bucket = c and 0x00F0F0F0
-        counts[bucket] = (counts[bucket] ?: 0) + 1
-    }
-    val best = counts.maxByOrNull { it.value }?.key ?: return 0xFFFFFFFF.toInt()
-    // The middle of the bucket, opaque.
-    return best or 0x00080808 or 0xFF000000.toInt()
-}
