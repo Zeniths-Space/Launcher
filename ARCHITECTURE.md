@@ -11,7 +11,6 @@ No other ecosystem app is needed.
 | `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
-| `LaunchZoom.kt` | The zoom from the icon drawn when an app opens. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
 | `Apps.kt` | Pure model: `AppEntry`, sorting and search ranking. Unit-tested. |
 | `Theme.kt` | Colours, type and motion shared in style with Zenboard (copied, not a shared library). |
@@ -37,29 +36,14 @@ No other ecosystem app is needed.
   One UI Home recordings. The drawer stays composed, parked off screen while closed: building it
   when a swipe began froze the main thread ~270 ms (debug build) and lost the fling. The launcher
   resets to the home screen in `onStop`.
-- **Launch animation drawn by the launcher (`LaunchZoom.kt`).** Android ignores launch animations
-  requested through `ActivityOptions` (the transition reaches Shell without them; it plays its
-  default zoom from the centre), and icon morphs need remote transitions, a system-only
-  permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
-  340 ms on Android's standard curve (One UI's own leapt out of the icon, then crawled), in the app's splash or window background colour (read
-  from its theme through `createPackageContext`; a launch-screen drawable gives its corner pixel),
-  fading in over the first 45% (about 130 ms) so the tapped icon dims into it rather than
-  blinking dark (an opaque card turned a white icon dark in 60 ms). Over the second half of the zoom,
-  what Android's splash will show fades in where it will show it, so the splash does not flash
-  its icon in one frame: the theme's `windowSplashScreenAnimatedIcon` in a 108 dp box scaled to
-  192 dp, the launcher icon at 160 dp when the app sets none, nothing when the set icon draws
-  nothing (Nekogram, Samsung Settings). This only anticipates Android's own splash; an earlier
-  version drew a launcher splash by its own rules and stacked with apps that draw their own. The card ends on the display's corner radius
-  (`WindowInsets.getRoundedCorner`), so nothing shows round it when the app's window replaces it.
-  The app starts 50 ms before the zoom ends, at 98.5% grown, about Android's delay before the
-  splash shows, so the splash lands as the zoom does (starting at 80%, as One UI snaps to full when
-  the app is ready, read as a stutter), with
-  `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
-  launch from a non-home app gets a plain colour splash, a blank screen), so Android shows each
-  app's own splash as a home-screen launch would. `makeScaleUpAnimation` through LauncherApps was
-  re-tested with Zenith as the default home (2026-11-05): Android faded in a plain window instead; a zero-length `makeCustomAnimation` was
-  tried instead of the flag and Android played its own centre zoom. Skipped when animations are off, for other profiles
-  (LauncherApps cannot drop the animation) and without a tile. Cleared in `onStop`.
+- **Launch animation is the system's.** Apps start through `LauncherApps.startMainActivity` with
+  the icon's bounds and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise Android gives a
+  launch it does not count as from the home app a plain colour splash), and Android animates
+  the open and shows each app's own splash. A launcher-drawn zoom from the icon was tried and
+  removed (2026-11-05): Android ignores launch animations requested through `ActivityOptions`
+  (scale-up, clip-reveal, a zero-length custom animation; re-tested with Zenith as the default
+  home), an icon morph of the real window needs remote transitions (a system-only permission),
+  and a drawn imitation never handed over to the app's splash cleanly.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and
   `excludeFromRecents`: one fresh home that never appears in Recents. It also keeps a LAUNCHER
   entry so it can be tried from another launcher before being made the default.
