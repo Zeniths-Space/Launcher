@@ -36,8 +36,15 @@ data class LauncherSettings(
     val dockIconSize: Int = 52,
     /** Space between dock rows in dp, also above the first and below the last (half each). */
     val dockRowGap: Int = 20,
+    /** Home screen pages, each app keys by slot in reading order, "" for an empty slot. */
+    val home: List<List<String>> = emptyList(),
+    val homeColumns: Int = 4,
+    val homeRows: Int = 5,
+    val homeIconSize: Int = 52,
+    val homeLabels: Boolean = true,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
+    val homeCapacity: Int get() = homeColumns * homeRows
 }
 
 // One store per process, shared by the home screen and the settings screen.
@@ -64,6 +71,11 @@ class SettingsStore(context: Context) {
                 dockRows = (p[DOCK_ROWS] ?: 1).coerceIn(DockGridRange),
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 dockRowGap = (p[DOCK_ROW_GAP] ?: 20).coerceIn(DockRowGapRange),
+                home = HomePages.parse(p[HOME]),
+                homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
+                homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
+                homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
+                homeLabels = p[HOME_LABELS] ?: true,
             )
         }
 
@@ -81,6 +93,11 @@ class SettingsStore(context: Context) {
     suspend fun setDockRows(n: Int) = store.edit { it[DOCK_ROWS] = n.coerceIn(DockGridRange) }
     suspend fun setDockIconSize(dp: Int) = store.edit { it[DOCK_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setDockRowGap(dp: Int) = store.edit { it[DOCK_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
+    suspend fun setHome(pages: List<List<String>>) = store.edit { it[HOME] = HomePages.format(pages) }
+    suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
+    suspend fun setHomeRows(n: Int) = store.edit { it[HOME_ROWS] = n.coerceIn(DockGridRange) }
+    suspend fun setHomeIconSize(dp: Int) = store.edit { it[HOME_ICON_SIZE] = dp.coerceIn(DockIconRange) }
+    suspend fun setHomeLabels(on: Boolean) = set(HOME_LABELS, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -108,6 +125,11 @@ class SettingsStore(context: Context) {
         val DOCK_ROWS = intPreferencesKey("dock_rows")
         val DOCK_ICON_SIZE = intPreferencesKey("dock_icon_size")
         val DOCK_ROW_GAP = intPreferencesKey("dock_row_gap")
+        val HOME = stringPreferencesKey("home")
+        val HOME_COLUMNS = intPreferencesKey("home_columns")
+        val HOME_ROWS = intPreferencesKey("home_rows")
+        val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")
+        val HOME_LABELS = booleanPreferencesKey("home_labels")
     }
 }
 

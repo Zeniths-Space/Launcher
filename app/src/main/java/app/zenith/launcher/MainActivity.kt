@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
                     onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                     onGesture = ::onGesture,
                     onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
+                    onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
                 )
             }
         }

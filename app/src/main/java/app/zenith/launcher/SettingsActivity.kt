@@ -241,6 +241,26 @@ private fun SettingsScreen(
                                     save { store.setShowHint(it) }
                                 }
                             },
+                            {
+                                SwitchTile(Icons.Label, stringResource(R.string.settings_home_labels), stringResource(R.string.settings_home_labels_sub), settings.homeLabels) {
+                                    save { store.setHomeLabels(it) }
+                                }
+                            },
+                            {
+                                SliderTile(Icons.Columns, stringResource(R.string.settings_home_columns), null, settings.homeColumns, DockGridRange) {
+                                    save { store.setHomeColumns(it) }
+                                }
+                            },
+                            {
+                                SliderTile(Icons.Rows, stringResource(R.string.settings_home_rows), null, settings.homeRows, DockGridRange) {
+                                    save { store.setHomeRows(it) }
+                                }
+                            },
+                            {
+                                SliderTile(Icons.IconSize, stringResource(R.string.settings_home_icon_size), null, settings.homeIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp) {
+                                    save { store.setHomeIconSize(it) }
+                                }
+                            },
                         ),
                         Modifier.padding(top = 8.dp),
                     )

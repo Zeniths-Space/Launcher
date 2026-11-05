@@ -144,8 +144,15 @@ fun LauncherScreen(
     onOpenSettings: () -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
+    onHomeChange: (List<List<String>>) -> Unit,
 ) {
     val apps by repository.apps.collectAsState()
+    val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
+    // Home pages by key; an app that is gone leaves its slot empty. Kept as stored until apps load.
+    val homePages = remember(apps, settings.home) {
+        if (apps == null) settings.home else settings.home.map { page -> page.map { if (it in appsByKey) it else "" } }
+    }
+    val homeKeys = remember(homePages) { homePages.flatten().filterTo(HashSet()) { it.isNotEmpty() } }
     // Dock keys by slot ("" empty); an app that is gone leaves its slot empty. Kept as stored until apps load.
     val dockKeys = remember(apps, settings.dock) {
         apps?.let { list -> list.mapTo(HashSet()) { it.key }.let { known -> settings.dock.map { if (it in known) it else "" } } } ?: settings.dock
@@ -213,36 +220,46 @@ fun LauncherScreen(
             settings,
             onOpenSettings = onOpenSettings,
             onDoubleTap = { onGesture(settings.doubleTap) },
-            modifier = Modifier.graphicsLayer {
-                val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
-                alpha = 1f - gone
-                translationY = -gone * HomeLift.toPx()
+            modifier = Modifier
+                .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
+                .graphicsLayer {
+                    val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
+                    alpha = 1f - gone
+                    translationY = -gone * HomeLift.toPx()
+                },
+            grid = { onLongPressEmpty, modifier ->
+                HomeGrid(
+                    pages = homePages,
+                    apps = appsByKey,
+                    repository = repository,
+                    columns = settings.homeColumns,
+                    rows = settings.homeRows,
+                    iconSize = settings.homeIconSize.dp,
+                    showLabels = settings.homeLabels,
+                    onPagesChange = onHomeChange,
+                    onLongPressEmpty = onLongPressEmpty,
+                    onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,
+                    modifier = modifier,
+                )
+            },
+            dock = {
+                if (settings.showDock) {
+                    Dock(
+                        apps = dockApps,
+                        repository = repository,
+                        columns = settings.dockColumns,
+                        rows = settings.dockRows,
+                        iconSize = settings.dockIconSize.dp,
+                        rowGap = settings.dockRowGap.dp,
+                        showBar = settings.dockBar,
+                        // Slots past a smaller grid stay as they were.
+                        onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },
+                        onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
             },
         )
-        if (settings.showDock) {
-            Dock(
-                apps = dockApps,
-                repository = repository,
-                columns = settings.dockColumns,
-                rows = settings.dockRows,
-                iconSize = settings.dockIconSize.dp,
-                rowGap = settings.dockRowGap.dp,
-                showBar = settings.dockBar,
-                // Slots past a smaller grid stay as they were.
-                onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },
-                onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .safeDrawingPadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = if (settings.showHint) 48.dp else 16.dp)
-                    .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
-                    .graphicsLayer {
-                        val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
-                        alpha = 1f - gone
-                        translationY = -gone * HomeLift.toPx()
-                    },
-            )
-        }
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
@@ -252,6 +269,10 @@ fun LauncherScreen(
                 dockKeys = dockKeys,
                 dockCapacity = settings.dockCapacity,
                 onDockChange = onDockChange,
+                homeKeys = homeKeys,
+                onHomeToggle = { app ->
+                    onHomeChange(if (app.key in homeKeys) HomePages.remove(homePages, app.key) else HomePages.add(homePages, app.key, settings.homeCapacity))
+                },
                 drawerOpen = drawerOpen,
                 onPull = dragBy,
                 onRelease = settle,
@@ -269,9 +290,20 @@ fun LauncherScreen(
     }
 }
 
-/** The wallpaper with the time and date; long-press for a menu. (The swipe up is handled by [LauncherScreen].) */
+/**
+ * The wallpaper with the time and date, the apps [grid], the [dock] and the swipe hint, top to
+ * bottom; long-press or double-tap the wallpaper for the menu or gesture. (The swipe up is handled
+ * by [LauncherScreen].) The grid reports long-presses on its empty slots, in window coordinates.
+ */
 @Composable
-private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, onDoubleTap: () -> Unit, modifier: Modifier) {
+private fun HomeScreen(
+    settings: LauncherSettings,
+    onOpenSettings: () -> Unit,
+    onDoubleTap: () -> Unit,
+    modifier: Modifier,
+    grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
+    dock: @Composable () -> Unit,
+) {
     val pickWallpaper = rememberWallpaperPicker()
     var menuAt by remember { mutableStateOf<Offset?>(null) }
     Box(
@@ -295,15 +327,19 @@ private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, o
                 ),
             )
         }
-        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
-            if (settings.showClock) Clock(Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 48.dp))
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (settings.showClock) Clock(Modifier.padding(start = 28.dp, top = 48.dp, bottom = 16.dp))
+            grid({ menuAt = it }, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
+            dock()
             if (settings.showHint) {
                 Text(
                     stringResource(R.string.home_swipe_hint),
                     style = MaterialTheme.typography.labelMedium,
                     color = OnWallpaper.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp, bottom = 16.dp),
                 )
+            } else {
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -374,8 +410,8 @@ private fun HomeMenu(at: Offset, onDismiss: () -> Unit, items: List<MenuItem>) {
 }
 
 /** White text with a soft shadow reads on any wallpaper. */
-private val OnWallpaper = Color.White
-private val WallpaperShadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 8f)
+internal val OnWallpaper = Color.White
+internal val WallpaperShadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 8f)
 
 /**
  * Time and date. Updated by the system's minute tick (and time or zone changes), only while the
@@ -466,6 +502,8 @@ private fun AppDrawer(
     dockKeys: List<String>,
     dockCapacity: Int,
     onDockChange: (List<String>) -> Unit,
+    homeKeys: Set<String>,
+    onHomeToggle: (AppEntry) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
     onRelease: (Float) -> Unit,
@@ -552,6 +590,9 @@ private fun AppDrawer(
                         onDockToggle = {
                             onDockChange(if (app.key in dockKeys) DockSlots.remove(dockKeys, app.key) else DockSlots.add(dockKeys, app.key, dockCapacity))
                         },
+                        onHome = app.key in homeKeys,
+                        drawerOpen = drawerOpen,
+                        onHomeToggle = { onHomeToggle(app) },
                         onOpen = open,
                     )
                 }
@@ -601,6 +642,9 @@ private fun AppTile(
     inDock: Boolean,
     dockFull: Boolean,
     onDockToggle: () -> Unit,
+    onHome: Boolean,
+    drawerOpen: Boolean,
+    onHomeToggle: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
 ) {
     val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
@@ -614,6 +658,8 @@ private fun AppTile(
         }
     }
     var menu by remember { mutableStateOf(false) }
+    // The drawer stays composed when shut; its menu must not outlive it.
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) menu = false }
     Box {
         Column(
             Modifier
@@ -644,6 +690,13 @@ private fun AppTile(
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(if (onHome) R.string.home_remove else R.string.home_add)) },
+                onClick = {
+                    menu = false
+                    onHomeToggle()
+                },
+            )
             if (inDock || !dockFull) {
                 DropdownMenuItem(
                     text = { Text(stringResource(if (inDock) R.string.dock_remove else R.string.dock_add)) },
