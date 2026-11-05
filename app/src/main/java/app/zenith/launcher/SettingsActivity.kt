@@ -9,6 +9,14 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +64,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-/** The launcher's settings: home app status, home screen, app drawer and about. */
+/** The launcher's settings: home app status, then one page each for style, home screen, app drawer and about. */
 class SettingsActivity : ComponentActivity() {
 
     private val store by lazy { SettingsStore(this) }
@@ -103,6 +112,9 @@ fun isDefaultHome(context: Context): Boolean {
         ?.activityInfo?.packageName == context.packageName
 }
 
+/** The settings pages: a list of categories, each opening its own page. */
+private enum class Page { Main, Style, Home, Drawer, About }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
@@ -118,85 +130,131 @@ private fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val save: (suspend () -> Unit) -> Unit = { block -> scope.launch { block() } }
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    var page by rememberSaveable { mutableStateOf(Page.Main) }
+    BackHandler(enabled = page != Page.Main) { page = Page.Main }
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
         containerColor = cs.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(page.title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Previous, contentDescription = stringResource(R.string.back)) }
+                    IconButton(onClick = { if (page == Page.Main) onBack() else page = Page.Main }) {
+                        Icon(Icons.Previous, contentDescription = stringResource(R.string.back))
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface, scrolledContainerColor = cs.surfaceContainer),
                 scrollBehavior = scroll,
             )
         },
     ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .navigationBarsPadding(),
-        ) {
-            HomeAppCard(isDefaultHome, onChooseHome)
-
-            SectionHeader(stringResource(R.string.settings_section_home))
-            SegmentedGroup(
-                listOf(
-                    {
-                        GroupTile(
-                            badge = { ScallopBadge(Icons.Wallpaper) },
-                            title = stringResource(R.string.settings_wallpaper),
-                            subtitle = stringResource(R.string.settings_wallpaper_sub),
-                            onClick = onWallpaper,
+        // Material's shared-axis X: a sub-page slides in from the end, back slides it out.
+        AnimatedContent(
+            targetState = page,
+            transitionSpec = {
+                val forward = targetState != Page.Main
+                val shift = { width: Int -> (if (forward) width else -width) / 10 }
+                (slideInHorizontally(tween(300)) { shift(it) } + fadeIn(tween(150, delayMillis = 75)))
+                    .togetherWith(slideOutHorizontally(tween(300)) { -shift(it) } + fadeOut(tween(75)))
+            },
+            label = "settings page",
+        ) { shown ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .navigationBarsPadding(),
+            ) {
+                when (shown) {
+                    Page.Main -> {
+                        HomeAppCard(isDefaultHome, onChooseHome)
+                        Spacer(Modifier.height(24.dp))
+                        SegmentedGroup(
+                            listOf(
+                                { CategoryTile(Icons.Wallpaper, Page.Style, stringResource(R.string.settings_style_sub)) { page = it } },
+                                { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub)) { page = it } },
+                                { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub)) { page = it } },
+                                { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName)) { page = it } },
+                            ),
                         )
-                    },
-                    {
-                        SwitchTile(Icons.Clock, stringResource(R.string.settings_clock), stringResource(R.string.settings_clock_sub), settings.showClock) {
-                            save { store.setShowClock(it) }
-                        }
-                    },
-                    {
-                        SwitchTile(Icons.SwipeUp, stringResource(R.string.settings_hint), stringResource(R.string.settings_hint_sub), settings.showHint) {
-                            save { store.setShowHint(it) }
-                        }
-                    },
-                ),
-            )
-
-            SectionHeader(stringResource(R.string.settings_section_drawer))
-            SegmentedGroup(
-                listOf(
-                    {
-                        SwitchTile(Icons.Label, stringResource(R.string.settings_labels), stringResource(R.string.settings_labels_sub), settings.showLabels) {
-                            save { store.setShowLabels(it) }
-                        }
-                    },
-                    {
-                        SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {
-                            save { store.setPureBlack(it) }
-                        }
-                    },
-                ),
-            )
-
-            SectionHeader(stringResource(R.string.settings_section_about))
-            SegmentedGroup(
-                listOf(
-                    {
-                        GroupTile(
-                            badge = { ScallopBadge(Icons.Info) },
-                            title = stringResource(R.string.app_name),
-                            subtitle = stringResource(R.string.settings_version, versionName),
-                        )
-                    },
-                ),
-            )
-            Spacer(Modifier.height(24.dp))
+                    }
+                    Page.Style -> SegmentedGroup(
+                        listOf(
+                            {
+                                GroupTile(
+                                    badge = { ScallopBadge(Icons.Wallpaper) },
+                                    title = stringResource(R.string.settings_wallpaper),
+                                    subtitle = stringResource(R.string.settings_wallpaper_sub),
+                                    onClick = onWallpaper,
+                                )
+                            },
+                            {
+                                SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {
+                                    save { store.setPureBlack(it) }
+                                }
+                            },
+                        ),
+                        Modifier.padding(top = 8.dp),
+                    )
+                    Page.Home -> SegmentedGroup(
+                        listOf(
+                            {
+                                SwitchTile(Icons.Clock, stringResource(R.string.settings_clock), stringResource(R.string.settings_clock_sub), settings.showClock) {
+                                    save { store.setShowClock(it) }
+                                }
+                            },
+                            {
+                                SwitchTile(Icons.SwipeUp, stringResource(R.string.settings_hint), stringResource(R.string.settings_hint_sub), settings.showHint) {
+                                    save { store.setShowHint(it) }
+                                }
+                            },
+                        ),
+                        Modifier.padding(top = 8.dp),
+                    )
+                    Page.Drawer -> SegmentedGroup(
+                        listOf(
+                            {
+                                SwitchTile(Icons.Label, stringResource(R.string.settings_labels), stringResource(R.string.settings_labels_sub), settings.showLabels) {
+                                    save { store.setShowLabels(it) }
+                                }
+                            },
+                        ),
+                        Modifier.padding(top = 8.dp),
+                    )
+                    Page.About -> SegmentedGroup(
+                        listOf(
+                            {
+                                GroupTile(
+                                    badge = { ScallopBadge(Icons.Info) },
+                                    title = stringResource(R.string.app_name),
+                                    subtitle = stringResource(R.string.settings_version, versionName),
+                                )
+                            },
+                        ),
+                        Modifier.padding(top = 8.dp),
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
+}
+
+private val Page.title
+    get() = when (this) {
+        Page.Main -> R.string.settings_title
+        Page.Style -> R.string.settings_section_style
+        Page.Home -> R.string.settings_section_home
+        Page.Drawer -> R.string.settings_section_drawer
+        Page.About -> R.string.settings_section_about
+    }
+
+/** A row on the main page that opens a category's page. */
+@Composable
+private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen: (Page) -> Unit) {
+    GroupTile(badge = { ScallopBadge(icon) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
 }
 
 /** The first thing on the page: whether this is the home app, and the way to change it. */
@@ -244,20 +302,10 @@ private fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
 
 /* Grouped tiles, the same building blocks as Zenboard's settings. */
 
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.secondary,
-        modifier = Modifier.padding(start = 8.dp, top = 28.dp, bottom = 10.dp),
-    )
-}
-
 /** Rounded segments stacked with small gaps (M3 Expressive grouped list). */
 @Composable
-private fun SegmentedGroup(segments: List<@Composable () -> Unit>) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun SegmentedGroup(segments: List<@Composable () -> Unit>, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         segments.forEachIndexed { i, segment ->
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -325,7 +373,7 @@ private fun SwitchTile(icon: ImageVector, title: String, subtitle: String, check
 }
 
 @Composable
-private fun ScallopBadge(icon: ImageVector, container: Color = ZenithColors.indicator, content: Color = ZenithColors.onIndicator) {
+internal fun ScallopBadge(icon: ImageVector, container: Color = ZenithColors.indicator, content: Color = ZenithColors.onIndicator) {
     Box(Modifier.size(44.dp).background(container, ScallopShape), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(20.dp))
     }
