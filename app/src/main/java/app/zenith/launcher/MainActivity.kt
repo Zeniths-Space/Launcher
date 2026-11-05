@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,6 +24,8 @@ class MainActivity : ComponentActivity() {
     private val repository by lazy { AppRepository(this) }
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
+    // Counts Home presses and leaving, which also close the home sheet.
+    private var resets by mutableIntStateOf(0)
     private val drawer = DrawerMotion()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,11 +48,13 @@ class MainActivity : ComponentActivity() {
                     motion = drawer,
                     settings = settings,
                     drawerOpen = drawerOpen,
+                    resets = resets,
                     onDrawerOpenChange = { drawerOpen = it },
                     onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                     onSettings = { edit -> lifecycleScope.launch { store.edit() } },
                     // The same settings as the settings screen, in the home sheet pulled up. Built
                     // each time it opens, so the home app and gesture checks are current.
+                    homeAppCard = { HomeAppCard(remember { isDefaultHome(this) }) { openSystem(Settings.ACTION_HOME_SETTINGS) } },
                     allSettings = { startPage, onBack ->
                         SettingsScreen(
                             settings = settings,
@@ -88,7 +93,10 @@ class MainActivity : ComponentActivity() {
     // Home pressed while already home: back to the home screen, like every launcher.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.action == Intent.ACTION_MAIN) drawerOpen = false
+        if (intent.action == Intent.ACTION_MAIN) {
+            drawerOpen = false
+            resets++
+        }
     }
 
     // Back from an app (or anywhere) to the home screen, like One UI: the drawer is already closed
@@ -97,6 +105,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         drawer.jump(0f)
         drawerOpen = false
+        resets++
     }
 
     override fun onDestroy() {

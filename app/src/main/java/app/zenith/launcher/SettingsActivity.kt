@@ -45,8 +45,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -157,7 +155,7 @@ internal fun SettingsScreen(
     onWallpaper: () -> Unit,
     onAccessibility: () -> Unit,
     onAppInfo: () -> Unit,
-    // In the home sheet, which already sits below the status bar.
+    // Opened on a page from the home sheet: leaving that page goes back to the sheet, not to the list.
     inSheet: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -165,22 +163,21 @@ internal fun SettingsScreen(
     val save: (suspend () -> Unit) -> Unit = { block -> scope.launch { block() } }
     val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     var page by rememberSaveable { mutableStateOf(startPage) }
-    BackHandler(enabled = page != Page.Main) { page = Page.Main }
+    val leave = { if (page == Page.Main || (inSheet && page == startPage)) onBack() else page = Page.Main }
+    BackHandler(enabled = page != Page.Main && !(inSheet && page == startPage)) { page = Page.Main }
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
         containerColor = cs.surface,
-        contentWindowInsets = if (inSheet) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(page.title)) },
                 navigationIcon = {
-                    IconButton(onClick = { if (page == Page.Main) onBack() else page = Page.Main }) {
+                    IconButton(onClick = leave) {
                         Icon(Icons.Previous, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface, scrolledContainerColor = cs.surfaceContainer),
                 scrollBehavior = scroll,
-                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
             )
         },
     ) { padding ->
@@ -465,7 +462,7 @@ private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen:
 
 /** The first thing on the page: whether this is the home app, and the way to change it. */
 @Composable
-private fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
+internal fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val (container, content) = if (isDefault) cs.secondaryContainer to cs.onSecondaryContainer else cs.surfaceContainerHigh to cs.onSurface
     Surface(

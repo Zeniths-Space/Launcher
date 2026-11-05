@@ -44,14 +44,26 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitEachGesture
+import kotlin.math.abs
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,6 +81,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -138,10 +151,12 @@ internal fun LauncherScreen(
     motion: DrawerMotion,
     settings: LauncherSettings,
     drawerOpen: Boolean,
+    resets: Int,
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
+    homeAppCard: @Composable () -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
@@ -224,7 +239,9 @@ internal fun LauncherScreen(
     ) {
         HomeScreen(
             settings,
+            resets = resets,
             allSettings = allSettings,
+            homeAppCard = homeAppCard,
             onSettings = onSettings,
             onAddApp = {
                 picking = true
@@ -328,7 +345,9 @@ internal fun LauncherScreen(
 @Composable
 private fun HomeScreen(
     settings: LauncherSettings,
+    resets: Int,
     allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
+    homeAppCard: @Composable () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onAddApp: () -> Unit,
     onAddPage: () -> Unit,
@@ -339,6 +358,7 @@ private fun HomeScreen(
     dock: @Composable () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    LaunchedEffect(resets) { menu = false }
     Box(
         modifier
             .fillMaxSize()
@@ -350,21 +370,6 @@ private fun HomeScreen(
                 )
             },
     ) {
-        if (menu) {
-            HomeSheet(
-                onDismiss = { menu = false },
-                allSettings = allSettings,
-                locked = settings.locked,
-                onLockedChange = { on -> onSettings { setLocked(on) } },
-                items = listOf(
-                    MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
-                    MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
-                    MenuItem(Icons.Delete, stringResource(R.string.home_menu_remove_page), enabled = !settings.locked && onRemovePage != null) { onRemovePage?.invoke() },
-                    // shortcut: no widget hosting yet, so the tile is shown but off; wire it to AppWidgetHost with the widgets work.
-                    MenuItem(Icons.Widgets, stringResource(R.string.home_menu_widgets), enabled = false) {},
-                ),
-            )
-        }
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             if (settings.showClock) Clock(Modifier.padding(start = 28.dp, top = 48.dp, bottom = 16.dp))
             grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
@@ -380,126 +385,223 @@ private fun HomeScreen(
                 Spacer(Modifier.height(16.dp))
             }
         }
+        // Last, so it sits over the grid and dock and takes their touches.
+        if (menu) {
+            HomeSheet(
+                onDismiss = { menu = false },
+                allSettings = allSettings,
+                homeAppCard = homeAppCard,
+                locked = settings.locked,
+                onLockedChange = { on -> onSettings { setLocked(on) } },
+                items = listOf(
+                    MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
+                    MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
+                    MenuItem(Icons.Delete, stringResource(R.string.home_menu_remove_page), enabled = !settings.locked && onRemovePage != null) { onRemovePage?.invoke() },
+                    // shortcut: no widget hosting yet, so the tile is shown but off; wire it to AppWidgetHost with the widgets work.
+                    MenuItem(Icons.Widgets, stringResource(R.string.home_menu_widgets), enabled = false) {},
+                ),
+            )
+        }
     }
 }
 
 private class MenuItem(val icon: ImageVector, val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
 /**
- * The home screen's long-press menu: a sheet from the bottom edge with the layout lock, a row of
- * actions (add app, add or remove page, widgets) and the first settings categories. Pull it up, or
- * pick a category, and it grows into the whole settings screen ([allSettings]); its back arrow or
- * Back returns to the actions. Drag it down, tap outside or press Back to close it.
+ * The home screen's long-press menu: a sheet from the bottom edge, drawn here rather than M3's
+ * ModalBottomSheet, whose stops can't be set. It opens far enough to show the layout lock, a row of
+ * actions (add app, add or remove page, widgets) and the first settings categories; pulled up, it
+ * follows the finger and the same list goes on with the rest of the settings. A category slides its
+ * page in over the sheet ([allSettings]); back returns to the sheet. Drag it down, tap outside or
+ * press Back to close it.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeSheet(
     onDismiss: () -> Unit,
     allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
+    homeAppCard: @Composable () -> Unit,
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
     items: List<MenuItem>,
 ) {
     val colors = MaterialTheme.colorScheme
-    // The settings page to show, or null for the actions. Not M3's half-expanded stop: that is
-    // fixed at half the screen, shorter than the actions.
-    var settingsPage by remember { mutableStateOf<Page?>(null) }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // The settings screen's colour, so its categories and pages look the same here.
-        containerColor = colors.surface,
-    ) {
-        // Inside the sheet, whose window takes Back before the activity does.
-        BackHandler(enabled = settingsPage != null) { settingsPage = null }
-        AnimatedContent(settingsPage, label = "home sheet") { page ->
-            if (page != null) {
-                Box(Modifier.fillMaxHeight()) { allSettings(page) { settingsPage = null } }
-            } else {
-                HomeSheetActions(locked, onLockedChange, items, onDismiss, onSettings = { settingsPage = it })
+    val scope = rememberCoroutineScope()
+    var page by remember { mutableStateOf<Page?>(null) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screen = constraints.maxHeight.toFloat()
+        // How far the sheet's top sits below its fully pulled-up place, in px; starts off screen.
+        var offset by remember { mutableFloatStateOf(screen) }
+        var sheetHeight by remember { mutableIntStateOf(0) }
+        // Bottom of the first categories in the list; opened, the sheet shows down to there and its bottom margin.
+        var headBottom by remember { mutableIntStateOf(0) }
+        val density = LocalDensity.current
+        val margin = with(density) { 24.dp.toPx() } + WindowInsets.navigationBars.getBottom(density)
+        val open = (sheetHeight - headBottom - margin).coerceIn(0f, sheetHeight.toFloat())
+        val hidden = sheetHeight.toFloat()
+        var settling by remember { mutableStateOf<Job?>(null) }
+        val settle = { velocity: Float ->
+            settling?.cancel()
+            val target = when {
+                velocity > FlingSpeedPx -> if (offset < open - 1f) open else hidden
+                velocity < -FlingSpeedPx -> if (offset > open + 1f) open else 0f
+                else -> listOf(0f, open, hidden).minBy { abs(it - offset) }
             }
+            settling = scope.launch {
+                animate(offset, target, velocity, SheetSpring) { v, _ -> offset = v }
+                if (target == hidden) onDismiss()
+            }
+        }
+        val close = { settle(FlingSpeedPx * 2) }
+        // The scroll connection below is made once; these keep it on the latest sizes.
+        val latestSettle by rememberUpdatedState(settle)
+        // Rises from the bottom edge once measured.
+        LaunchedEffect(sheetHeight > 0 && headBottom > 0) {
+            if (sheetHeight > 0 && headBottom > 0) {
+                offset = hidden
+                settling = launch { animate(offset, open, 0f, SheetSpring) { v, _ -> offset = v } }
+            }
+        }
+        BackHandler(enabled = page == null) { close() }
+        // A category's page: back to the sheet (its own sub-pages go back first, registered later).
+        BackHandler(enabled = page != null) { page = null }
+        // Drags move the sheet first; once it is fully up, the list scrolls, and back down the same way.
+        val drag = remember {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    if (available.y >= 0f || offset <= 0f) return Offset.Zero
+                    settling?.cancel()
+                    val used = maxOf(available.y, -offset)
+                    offset += used
+                    return Offset(0f, used)
+                }
+
+                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                    if (available.y <= 0f || source != NestedScrollSource.UserInput) return Offset.Zero
+                    settling?.cancel()
+                    val used = minOf(available.y, sheetHeight - offset)
+                    offset += used
+                    return Offset(0f, used)
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (offset <= 0f) return Velocity.Zero
+                    latestSettle(available.y)
+                    return available
+                }
+            }
+        }
+
+        // Scrim: darker as the sheet rises; a tap outside closes it.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = if (hidden > 0f) (1f - offset / hidden).coerceIn(0f, 1f) else 0f }
+                .background(Color.Black.copy(alpha = 0.4f))
+                .pointerInput(Unit) { detectTapGestures { close() } }
+                // Takes drags too, so they don't reach the home screen's swipe up behind it.
+                .draggable(rememberDraggableState {}, Orientation.Vertical),
+        )
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .heightIn(max = with(density) { screen.toDp() } - WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+                .onSizeChanged { sheetHeight = it.height }
+                .graphicsLayer { translationY = offset }
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(colors.surface)
+                // A list too short to scroll passes its drags on: these move the sheet.
+                .draggable(
+                    rememberDraggableState { dy ->
+                        settling?.cancel()
+                        offset = (offset + dy).coerceIn(0f, hidden)
+                    },
+                    Orientation.Vertical,
+                    onDragStopped = { velocity -> settle(velocity) },
+                )
+                .nestedScroll(drag)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Drag handle.
+            Box(
+                Modifier
+                    .padding(vertical = 14.dp)
+                    .size(32.dp, 4.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .background(colors.onSurfaceVariant.copy(alpha = 0.4f), CircleShape),
+            )
+            Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                    Text(
+                        stringResource(if (locked) R.string.home_menu_locked else R.string.home_menu_pull),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                // Filled while locked, so the state reads at a glance.
+                FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
+                    Icon(
+                        if (locked) Icons.Lock else Icons.LockOpen,
+                        contentDescription = stringResource(if (locked) R.string.home_menu_unlock else R.string.home_menu_lock),
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { item ->
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(28.dp))
+                            .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
+                            .clickable(enabled = item.enabled, role = Role.Button) {
+                                onDismiss()
+                                item.onClick()
+                            }
+                            .padding(horizontal = 4.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        ScallopBadge(item.icon)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            item.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            val categories = categoryTiles("") { page = it }
+            SegmentedGroup(categories.take(4), Modifier.onGloballyPositioned { headBottom = (it.positionInParent().y + it.size.height).roundToInt() })
+            // The rest of the settings, below where the sheet first stops.
+            Spacer(Modifier.height(8.dp))
+            SegmentedGroup(categories.drop(4))
+            Spacer(Modifier.height(8.dp))
+            homeAppCard()
+        }
+        // A category's page, slid in over the sheet.
+        AnimatedContent(
+            page,
+            transitionSpec = {
+                (slideInHorizontally(tween(300)) { it / 10 } + fadeIn(tween(150, delayMillis = 75)))
+                    .togetherWith(slideOutHorizontally(tween(300)) { it / 10 } + fadeOut(tween(75)))
+            },
+            label = "sheet page",
+        ) { p ->
+            if (p != null) Box(Modifier.fillMaxSize().background(colors.surface)) { allSettings(p) { page = null } }
         }
     }
 }
 
-@Composable
-private fun HomeSheetActions(
-    locked: Boolean,
-    onLockedChange: (Boolean) -> Unit,
-    items: List<MenuItem>,
-    onDismiss: () -> Unit,
-    onSettings: (Page) -> Unit,
-) {
-    val colors = MaterialTheme.colorScheme
-    val pull = with(LocalDensity.current) { 48.dp.toPx() }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            // A pull up opens the whole settings. Watched, not consumed, so taps and the sheet's own drag still work.
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var dy = 0f
-                    // Switched when the finger lifts: switching mid-drag left the sheet's drag hanging and lost the next tap.
-                    do {
-                        val event = awaitPointerEvent()
-                        dy += event.changes.first().positionChangeIgnoreConsumed().y
-                    } while (event.changes.any { it.pressed })
-                    if (dy <= -pull) onSettings(Page.Main)
-                }
-            }
-            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-                Text(
-                    stringResource(if (locked) R.string.home_menu_locked else R.string.home_menu_pull),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
-            }
-            // Filled while locked, so the state reads at a glance.
-            FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
-                Icon(
-                    if (locked) Icons.Lock else Icons.LockOpen,
-                    contentDescription = stringResource(if (locked) R.string.home_menu_unlock else R.string.home_menu_lock),
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.forEach { item ->
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(28.dp))
-                        .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
-                        .clickable(enabled = item.enabled, role = Role.Button) {
-                            onDismiss()
-                            item.onClick()
-                        }
-                        .padding(horizontal = 4.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    ScallopBadge(item.icon)
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        item.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.onSurface,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        // The settings page's first categories, opening in the sheet.
-        SegmentedGroup(categoryTiles("", onSettings).take(4))
-    }
-}
+private val SheetSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
+private const val FlingSpeedPx = 1500f
 
 /** White text with a soft shadow reads on any wallpaper. */
 internal val OnWallpaper = Color.White
