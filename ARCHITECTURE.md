@@ -38,12 +38,15 @@ No other ecosystem app is needed.
   requested through `ActivityOptions` (the transition reaches Shell without them; it plays its
   default zoom from the centre), and icon morphs need remote transitions, a system-only
   permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
-  400 ms, in the app's splash or window background colour (read from its theme through
-  `createPackageContext`), and starts the app 330 ms in with `FLAG_ACTIVITY_NO_ANIMATION`.
-  That flag also skips the system splash screen, so the zoom draws the splash itself: the
-  launcher icon hands over to the app's `windowSplashScreenAnimatedIcon` (or grows to 160 dp when
-  there is none), laid out in a 108 dp box scaled to 192 dp as Android's splash does, and the
-  finished zoom stays until the app's first frame covers it. Skipped when animations are off, for other profiles
+  300 ms (easing fitted to One UI's growth), in the app's splash or window background colour (read
+  from its theme through `createPackageContext`), while the launcher icon hands over to the app's
+  `windowSplashScreenAnimatedIcon` (or grows to 160 dp when there is none), laid out in a 108 dp
+  box scaled to 192 dp as Android's splash does. The app starts 130 ms in, at about 80% grown,
+  with `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
+  launch from a non-home app gets a plain colour splash, a blank screen). Android's splash or the
+  app's window then covers the zoom at full size, like One UI's snap when the app is ready; a
+  zero-length `makeCustomAnimation` was tried instead of the flag and Android played its own
+  centre zoom. Skipped when animations are off, for other profiles
   (LauncherApps cannot drop the animation) and without a tile. Cleared in `onStop`.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and
   `excludeFromRecents`: one fresh home that never appears in Recents. It also keeps a LAUNCHER

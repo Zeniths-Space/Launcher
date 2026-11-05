@@ -15,8 +15,8 @@ Application ID `app.zenith.launcher`.
 - Search at the top of the drawer. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Tap to open: the app zooms out of its icon, as in One UI Home. A rounded rectangle in the app's
-  splash colour grows from the icon to the full screen while the icon grows into the app's splash
-  icon, and the splash stays until the app has drawn.
+  splash colour grows from the icon while the icon grows into the app's splash icon, then the
+  app's splash screen takes over at full size.
   Long-press for App info.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
@@ -42,10 +42,10 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   back into it, through remote app transitions, a permission Android grants only to the system's
   own launcher. Android also drops launch animations requested by other apps (`ActivityOptions`
   scale-up or clip-reveal; verified on a Galaxy S24 Ultra, even as the home app). So Zenith
-  Launcher draws the zoom and the splash screen itself and starts the app with the system
-  animation off. The splash shows the app's first frame of an animated splash icon, not the
-  animation, and the app's content appears only once it is drawn, not inside the growing
-  rectangle. Closing an app back to home uses the system animation.
+  Launcher draws the zoom itself and starts the app with the system animation off. The growing
+  rectangle shows the first frame of an animated splash icon, not the animation, and never the
+  app's content. On Android 12 an app that is not running can show a plain colour splash with no
+  icon after the zoom. Closing an app back to home uses the system animation.
 - Apps from a work profile, and apps opened from the search key, open with the system animation.
 - Returning from an app can show the drawer's last frame for a moment before the home screen,
   since Android animates the launcher's last drawn frame.
