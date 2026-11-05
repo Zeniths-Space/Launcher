@@ -4,7 +4,7 @@ import android.animation.ValueAnimator
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,8 +55,11 @@ fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
  * already running); the splash icon never fades.
  */
 private const val ZoomMillis = 340
-/** The shape of the One UI growth above (within 2% at 300 ms), stretched between 300 ms (felt snappy) and 420 ms (felt slow). */
-private val ZoomEasing = CubicBezierEasing(0.1f, 0.3f, 0.3f, 1f)
+/**
+ * Between 300 ms (felt snappy) and 420 ms (felt slow). Android's standard curve, not One UI's: that
+ * one covers 30% in the first 35 ms, so the card leapt out of the icon and then crawled.
+ */
+private val ZoomEasing = FastOutSlowInEasing
 private val EndCorner = 28.dp
 /**
  * Android's splash screen lays the icon out in a 108 dp box (an adaptive icon's size) and scales
