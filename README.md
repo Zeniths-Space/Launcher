@@ -45,8 +45,9 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   Launcher draws the zoom itself and starts the app with the system animation off. The growing
   rectangle shows the first frame of an animated splash icon, not the animation, and never the
   app's content. On Android 12 an app that is not running can show a plain colour splash with no
-  icon after the zoom. Apps whose own splash is blank (Samsung Settings) show their icon during
-  the zoom and then their blank splash until they have drawn. Closing an app back to home uses the system animation:
+  icon after the zoom. Apps that draw their own splash (Nekogram, Kontract, Flutter apps)
+  are recognised from their theme and get a plain zoom in their colour; an app that draws its own
+  splash without saying so in its theme can still show the launcher's icon before its own splash. Closing an app back to home uses the system animation:
   on One UI, Back and Home run one system transition through One UI's recents task, and it
   ignored a `windowAnimationStyle` on the home theme (verified on a Galaxy S24 Ultra).
 - Apps from a work profile, and apps opened from the search key, open with the system animation.

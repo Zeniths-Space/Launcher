@@ -41,8 +41,11 @@ No other ecosystem app is needed.
   340 ms on Android's standard curve (One UI's own leapt out of the icon, then crawled), in the app's splash or window background colour (read
   from its theme through `createPackageContext`), while the launcher icon hands over to the app's
   `windowSplashScreenAnimatedIcon` (or grows to 160 dp when there is none), laid out in a 108 dp
-  box scaled to 192 dp as Android's splash does (a splash icon that draws nothing, such as Samsung
-  Settings' `sec_ic_blank`, counts as none). The app starts once the zoom fills the screen
+  box scaled to 192 dp as Android's splash does. Apps that draw their own splash get only the
+  colour, and Android's plain colour splash (`SPLASH_SCREEN_STYLE_SOLID_COLOR`), so two splashes
+  do not stack: detected as a splash icon that draws nothing (Nekogram, Kontract, Samsung
+  Settings' `sec_ic_blank`) or no splash icon with a launch-screen drawable as the window
+  background (Flutter apps such as Artha; its corner pixel gives the colour). The app starts once the zoom fills the screen
   (starting it part way, as One UI snaps to full when the app is ready, read as a stutter), with
   `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
   launch from a non-home app gets a plain colour splash, a blank screen). Android's splash or the
