@@ -247,6 +247,11 @@ private fun SettingsScreen(
                                 }
                             },
                             {
+                                SwitchTile(Icons.Dots, stringResource(R.string.settings_home_dots), stringResource(R.string.settings_home_dots_sub), settings.homeDots) {
+                                    save { store.setHomeDots(it) }
+                                }
+                            },
+                            {
                                 SliderTile(Icons.Columns, stringResource(R.string.settings_home_columns), null, settings.homeColumns, DockGridRange) {
                                     save { store.setHomeColumns(it) }
                                 }

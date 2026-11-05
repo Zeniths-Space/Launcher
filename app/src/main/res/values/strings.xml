@@ -31,6 +31,8 @@
     <string name="settings_dock_hint">Long-press an app in the drawer to add it to the dock. Long-press a dock app and drag it to move it.</string>
     <string name="home_add">Add to home screen</string>
     <string name="home_remove">Remove from home screen</string>
+    <string name="settings_home_dots">Page indicator</string>
+    <string name="settings_home_dots_sub">Dots showing which page you are on</string>
     <string name="settings_home_columns">Columns</string>
     <string name="settings_home_rows">Rows</string>
     <string name="settings_home_icon_size">Icon size</string>

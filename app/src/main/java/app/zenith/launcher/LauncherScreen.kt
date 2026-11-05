@@ -236,6 +236,7 @@ fun LauncherScreen(
                     rows = settings.homeRows,
                     iconSize = settings.homeIconSize.dp,
                     showLabels = settings.homeLabels,
+                    showDots = settings.homeDots,
                     onPagesChange = onHomeChange,
                     onLongPressEmpty = onLongPressEmpty,
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,

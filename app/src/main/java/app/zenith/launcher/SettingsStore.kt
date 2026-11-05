@@ -42,6 +42,8 @@ data class LauncherSettings(
     val homeRows: Int = 5,
     val homeIconSize: Int = 52,
     val homeLabels: Boolean = true,
+    /** Dots under the home screen pages showing which one is shown. */
+    val homeDots: Boolean = true,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -76,6 +78,7 @@ class SettingsStore(context: Context) {
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 homeLabels = p[HOME_LABELS] ?: true,
+                homeDots = p[HOME_DOTS] ?: true,
             )
         }
 
@@ -98,6 +101,7 @@ class SettingsStore(context: Context) {
     suspend fun setHomeRows(n: Int) = store.edit { it[HOME_ROWS] = n.coerceIn(DockGridRange) }
     suspend fun setHomeIconSize(dp: Int) = store.edit { it[HOME_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setHomeLabels(on: Boolean) = set(HOME_LABELS, on)
+    suspend fun setHomeDots(on: Boolean) = set(HOME_DOTS, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -130,6 +134,7 @@ class SettingsStore(context: Context) {
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")
         val HOME_LABELS = booleanPreferencesKey("home_labels")
+        val HOME_DOTS = booleanPreferencesKey("home_dots")
     }
 }
 

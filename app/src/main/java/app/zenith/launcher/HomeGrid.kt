@@ -77,7 +77,7 @@ private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Of
 
 /**
  * The home screen's apps: pages of [columns] by [rows] slots, swiped sideways, with dots when there
- * is more than one. Tap opens an app. Long-press opens its menu (remove, app info); keep holding
+ * is more than one (and [showDots]). Tap opens an app. Long-press opens its menu (remove, app info); keep holding
  * and drag to any slot, the others making room live ([HomePages.move]); hold at a side edge to go
  * to the page there, a new one past the last. Long-press on an empty slot is [onLongPressEmpty]
  * (window coordinates). Gestures are read here, not on the icons, so a drag survives its page
@@ -92,6 +92,7 @@ fun HomeGrid(
     rows: Int,
     iconSize: Dp,
     showLabels: Boolean,
+    showDots: Boolean,
     onPagesChange: (List<List<String>>) -> Unit,
     onLongPressEmpty: (Offset) -> Unit,
     onDoubleTap: (() -> Unit)?,
@@ -270,8 +271,8 @@ fun HomeGrid(
                 }
             }
         }
-        // Always takes its space, so the grid keeps its size when a drag adds a page.
-        Row(
+        // When shown, always takes its space, so the grid keeps its size when a drag adds a page.
+        if (showDots) Row(
             Modifier.fillMaxWidth().padding(vertical = 8.dp).height(6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         ) {
