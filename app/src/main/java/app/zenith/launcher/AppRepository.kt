@@ -4,6 +4,7 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.graphics.Canvas
@@ -163,11 +164,14 @@ class AppRepository(context: Context) {
             }
             val iconIndex = attrs.indexOf(android.R.attr.windowSplashScreenAnimatedIcon)
             val icon = if (iconIndex >= 0) runCatching { a.getDrawable(iconIndex) }.getOrNull() else null
-            // A splash icon set to draw nothing (Nekogram, Kontract, Samsung Settings), or no splash
-            // icon but a launch-screen window background (Flutter apps such as Artha), means the
-            // app shows its own splash, or none, once it starts.
+            // Read from the theme, so it holds for any app: a splash icon set to draw nothing
+            // (Nekogram, Kontract), or no splash icon but a launch-screen window background (the
+            // pre-Android 12 splash pattern; Flutter apps such as Artha), means the app shows its
+            // own splash once it starts. System apps (Samsung Settings, Camera) blank the icon to
+            // have no splash at all, so they keep the launcher icon in the zoom.
             val blank = icon?.isBlank() == true
-            AppSplash(color, icon.takeUnless { blank }, ownSplash = blank || (icon == null && launchScreen))
+            val system = activity.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
+            AppSplash(color, icon.takeUnless { blank }, ownSplash = (blank && !system) || (icon == null && launchScreen))
         } finally {
             a.recycle()
         }
