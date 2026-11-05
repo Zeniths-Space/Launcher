@@ -13,7 +13,8 @@
 - [ ] Folders
 - [ ] App shortcuts (long-press menu)
 - [ ] Hidden apps
-- [ ] Settings screen (grid size, labels, theme)
+- [x] Settings screen: home app status, wallpaper, clock, swipe hint, app names, pure black
+- [ ] More settings: grid size, icon size
 - [ ] Gestures (double-tap to lock, swipe down for notifications)
 
 ## Later

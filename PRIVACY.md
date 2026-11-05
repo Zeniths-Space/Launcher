@@ -5,7 +5,11 @@
 - **No telemetry, analytics, ads, or accounts.**
 - **What it reads:** the list of apps that have a launcher icon (name, icon), through Android's
   LauncherApps API, to show and start them. It does not read app data, notifications or usage.
-- **What it stores:** nothing yet. Search text is kept only while the drawer is open.
+- **What it stores:** four on/off settings (clock, swipe hint, app names, pure black) in the
+  app's private storage. Search text is kept only while the drawer is open.
+- **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's
+  wallpaper screen (read access to that one photo). The launcher gets no access to your other
+  photos and keeps no copy.
 - **Backups:** disabled (`allowBackup="false"`).
 
 Features that store data on the device (home screen layout, hidden apps) will be documented here

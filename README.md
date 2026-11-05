@@ -15,13 +15,18 @@ Application ID `app.zenith.launcher`.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
+- Settings: long-press the home screen (or the gear in the drawer). Shows whether this is your
+  home app, with a shortcut to change it; wallpaper; clock and swipe hint on or off; app names
+  under icons; pure black in dark mode.
+- Wallpaper: long-press the home screen > Wallpaper. Pick a photo with Android's photo picker,
+  then crop and set it with the system's wallpaper screen. No storage permission.
 
 ## Try it and make it your home app
 
 The launcher also has an ordinary app icon, so you can try it without changing anything:
 open **Zenith Launcher** from your current launcher.
 
-To use it as the home screen: Settings > Apps > Default apps > Home app (Samsung: Settings >
+To use it as the home screen, tap the card at the top of its settings, or go to Settings > Apps > Default apps > Home app (Samsung: Settings >
 Apps > Choose default apps > Home app) and pick Zenith Launcher. To go back, pick your previous
 home app (for example One UI Home) in the same place. Your old launcher stays installed.
 
