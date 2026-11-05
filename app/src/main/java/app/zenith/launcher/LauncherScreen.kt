@@ -226,6 +226,7 @@ fun LauncherScreen(
                 columns = settings.dockColumns,
                 rows = settings.dockRows,
                 iconSize = settings.dockIconSize.dp,
+                rowGap = settings.dockRowGap.dp,
                 showBar = settings.dockBar,
                 // Slots past a smaller grid stay as they were.
                 onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },

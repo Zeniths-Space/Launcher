@@ -70,6 +70,7 @@ fun Dock(
     columns: Int,
     rows: Int,
     iconSize: Dp,
+    rowGap: Dp,
     showBar: Boolean,
     onArrange: (List<AppEntry?>) -> Unit,
     onRemove: (AppEntry) -> Unit,
@@ -97,7 +98,7 @@ fun Dock(
         // Icons shrink to fit narrow columns.
         val icon = minOf(iconSize, with(density) { (slot * 0.85f).toDp() })
         val iconPx = with(density) { icon.toPx() }
-        val rowHeight = iconPx + with(density) { 20.dp.toPx() }
+        val rowHeight = iconPx + with(density) { rowGap.toPx() }
         fun center(index: Int) = Offset((index % columns + 0.5f) * slot, (index / columns + 0.5f) * rowHeight)
         // The layout if the finger lifted now. Read when the drag ends too: the gesture outlives this composition.
         val previewOf = {

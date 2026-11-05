@@ -278,8 +278,13 @@ private fun SettingsScreen(
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_dock_icon_size), null, settings.dockIconSize, DockIconRange, step = 4, format = R.string.settings_dock_icon_size_value) {
+                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_dock_icon_size), null, settings.dockIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp) {
                                         save { store.setDockIconSize(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.Rows, stringResource(R.string.settings_dock_row_gap), null, settings.dockRowGap, DockRowGapRange, step = 2, format = R.string.settings_value_dp) {
+                                        save { store.setDockRowGap(it) }
                                     }
                                 },
                             ),

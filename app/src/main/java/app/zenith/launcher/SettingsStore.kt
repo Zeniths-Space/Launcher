@@ -34,6 +34,8 @@ data class LauncherSettings(
     val dockRows: Int = 1,
     /** Dock icon size in dp; icons shrink below it when the columns are too narrow. */
     val dockIconSize: Int = 52,
+    /** Space between dock rows in dp, also above the first and below the last (half each). */
+    val dockRowGap: Int = 20,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
 }
@@ -61,6 +63,7 @@ class SettingsStore(context: Context) {
                 dockColumns = (p[DOCK_COLUMNS] ?: 5).coerceIn(DockGridRange),
                 dockRows = (p[DOCK_ROWS] ?: 1).coerceIn(DockGridRange),
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
+                dockRowGap = (p[DOCK_ROW_GAP] ?: 20).coerceIn(DockRowGapRange),
             )
         }
 
@@ -77,6 +80,7 @@ class SettingsStore(context: Context) {
     suspend fun setDockColumns(n: Int) = store.edit { it[DOCK_COLUMNS] = n.coerceIn(DockGridRange) }
     suspend fun setDockRows(n: Int) = store.edit { it[DOCK_ROWS] = n.coerceIn(DockGridRange) }
     suspend fun setDockIconSize(dp: Int) = store.edit { it[DOCK_ICON_SIZE] = dp.coerceIn(DockIconRange) }
+    suspend fun setDockRowGap(dp: Int) = store.edit { it[DOCK_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -103,6 +107,7 @@ class SettingsStore(context: Context) {
         val DOCK_COLUMNS = intPreferencesKey("dock_columns")
         val DOCK_ROWS = intPreferencesKey("dock_rows")
         val DOCK_ICON_SIZE = intPreferencesKey("dock_icon_size")
+        val DOCK_ROW_GAP = intPreferencesKey("dock_row_gap")
     }
 }
 
@@ -111,6 +116,9 @@ val DockGridRange = 1..20
 
 /** Dock icon sizes, in dp. */
 val DockIconRange = 32..96
+
+/** Space between dock rows, in dp. */
+val DockRowGapRange = 0..40
 
 // App keys contain "/" and "#", never a line break.
 private const val DockSeparator = "\n"

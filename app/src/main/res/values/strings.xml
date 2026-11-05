@@ -26,7 +26,8 @@
     <string name="settings_dock_columns">Columns</string>
     <string name="settings_dock_rows">Rows</string>
     <string name="settings_dock_icon_size">Icon size</string>
-    <string name="settings_dock_icon_size_value">%1$d dp</string>
+    <string name="settings_dock_row_gap">Row spacing</string>
+    <string name="settings_value_dp">%1$d dp</string>
     <string name="settings_dock_hint">Long-press an app in the drawer to add it to the dock. Long-press a dock app and drag it to move it.</string>
     <string name="dock_add">Add to dock</string>
     <string name="dock_remove">Remove from dock</string>
