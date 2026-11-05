@@ -1,17 +1,20 @@
 package app.zenith.launcher
 
-import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import android.os.Process
 import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
 import android.os.UserManager
-import android.view.View
+import android.util.TypedValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -86,18 +89,61 @@ class AppRepository(context: Context) {
     }
 
     /** Starts [app]; with its icon's window [bounds] and the [view] it sits in, the app's window grows out of the icon. */
-    fun launch(app: AppEntry, bounds: Rect?, view: View? = null) {
+    /** Starts [app] with the system's own animation; [bounds] tell the app where it was opened from. */
+    fun launch(app: AppEntry, bounds: Rect?) {
         val info = synchronized(infos) { infos[app.key] } ?: return
-        val options = if (bounds != null && view != null) {
-            val origin = IntArray(2).also(view::getLocationInWindow)
-            ActivityOptions.makeClipRevealAnimation(
-                view, bounds.left - origin[0], bounds.top - origin[1], bounds.width(), bounds.height(),
-            ).toBundle()
-        } else {
-            null
-        }
-        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, options) }
+        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, null) }
     }
+
+    /**
+     * Starts [app] with no system animation, for when the launcher has just drawn its own zoom from
+     * the icon. Only for apps of this profile (other profiles start through LauncherApps, which
+     * cannot drop the animation). False if it could not be started this way.
+     */
+    fun launchWithoutAnimation(app: AppEntry, bounds: Rect?, context: Context): Boolean {
+        val info = synchronized(infos) { infos[app.key] } ?: return false
+        if (info.user != Process.myUserHandle()) return false
+        val intent = Intent(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .setComponent(ComponentName(app.packageName, app.className))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        intent.sourceBounds = bounds
+        return runCatching { context.startActivity(intent) }.isSuccess
+    }
+
+    /** Whether [app] can be started by [launchWithoutAnimation]. */
+    fun isOwnProfile(app: AppEntry): Boolean =
+        synchronized(infos) { infos[app.key] }?.user == Process.myUserHandle()
+
+    /**
+     * The colour the app's window opens with (its splash screen background, else its window
+     * background), so the launcher's zoom ends on the colour the app then shows. Null if unknown.
+     */
+    fun windowColor(app: AppEntry, context: Context): Int? = runCatching {
+        val activity = context.packageManager.getActivityInfo(ComponentName(app.packageName, app.className), 0)
+        val theme = activity.themeResource.takeIf { it != 0 } ?: return null
+        val appContext = context.createPackageContext(app.packageName, 0).apply { setTheme(theme) }
+        val attrs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            intArrayOf(android.R.attr.windowSplashScreenBackground, android.R.attr.windowBackground)
+        } else {
+            intArrayOf(android.R.attr.windowBackground)
+        }
+        val a = appContext.obtainStyledAttributes(attrs)
+        try {
+            (0 until a.length()).firstNotNullOfOrNull { i ->
+                val v = a.peekValue(i) ?: return@firstNotNullOfOrNull null
+                val color = if (v.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT) {
+                    v.data
+                } else {
+                    (runCatching { a.getDrawable(i) }.getOrNull() as? ColorDrawable)?.color
+                }
+                // Unset splash colours read as transparent; fall through to the window background.
+                color?.takeIf { android.graphics.Color.alpha(it) == 255 }
+            }
+        } finally {
+            a.recycle()
+        }
+    }.getOrNull()
 
     fun openAppInfo(app: AppEntry) {
         val info = synchronized(infos) { infos[app.key] } ?: return

@@ -11,6 +11,7 @@ No other ecosystem app is needed.
 | `SettingsActivity.kt` | Settings page (not exported): home app status, home screen and drawer switches, about. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
+| `LaunchZoom.kt` | The zoom from the icon drawn when an app opens. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
 | `Apps.kt` | Pure model: `AppEntry`, sorting and search ranking. Unit-tested. |
 | `Theme.kt` | Colours, type and motion shared in style with Zenboard (copied, not a shared library). |
@@ -33,9 +34,14 @@ No other ecosystem app is needed.
   One UI Home recordings. The drawer stays composed, parked off screen while closed: building it
   when a swipe began froze the main thread ~270 ms (debug build) and lost the fling. The launcher
   resets to the home screen in `onStop`.
-- **Launch animation.** The tile's window bounds go to `startMainActivity` with a clip-reveal
-  `ActivityOptions`. Icon-to-window morphs (open and close) need remote transitions, a
-  system-only permission; see README Limitations.
+- **Launch animation drawn by the launcher (`LaunchZoom.kt`).** Android ignores launch animations
+  requested through `ActivityOptions` (the transition reaches Shell without them; it plays its
+  default zoom from the centre), and icon morphs need remote transitions, a system-only
+  permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
+  220 ms, in the app's splash or window background colour (read from its theme through
+  `createPackageContext`), and starts the app 100 ms in with `FLAG_ACTIVITY_NO_ANIMATION`, so the
+  app's first frame lands as the zoom ends. Skipped when animations are off, for other profiles
+  (LauncherApps cannot drop the animation) and without a tile. Cleared in `onStop`.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and
   `excludeFromRecents`: one fresh home that never appears in Recents. It also keeps a LAUNCHER
   entry so it can be tried from another launcher before being made the default.

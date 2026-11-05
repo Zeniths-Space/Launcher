@@ -14,8 +14,9 @@ Application ID `app.zenith.launcher`.
   it the same way.
 - Search at the top of the drawer. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
-- Tap to open; long-press for App info. The launcher asks Android to grow the app out of its icon,
-  but Samsung's system uses its own short cross-fade (see Limitations).
+- Tap to open: the app zooms out of its icon, as in One UI Home. A rounded rectangle in the app's
+  own window colour grows from the icon to the full screen, then the app appears in place.
+  Long-press for App info.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
@@ -36,12 +37,13 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
 
 ## Limitations
 
-- **App open and close animation.** One UI Home morphs an app's window out of its icon and back
-  into it. That uses remote app transitions, which need a permission Android grants only to the
-  system's own launcher (`CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS`). No installable launcher can
-  do it. Zenith Launcher passes a clip-reveal from the icon (`ActivityOptions`). On a Galaxy S24
-  Ultra (One UI, Android 16) the system ignores it and cross-fades, even when Zenith is the home
-  app. Other devices may honour it.
+- **App open and close animation.** One UI Home animates the app's real window out of its icon and
+  back into it, through remote app transitions, a permission Android grants only to the system's
+  own launcher. Android also drops launch animations requested by other apps (`ActivityOptions`
+  scale-up or clip-reveal; verified on a Galaxy S24 Ultra, even as the home app). So Zenith
+  Launcher draws the zoom itself and starts the app with the system animation off. The app's own
+  content appears only once it is drawn; closing an app back to home uses the system animation.
+- Apps from a work profile, and apps opened from the search key, open with the system animation.
 - Returning from an app can show the drawer's last frame for a moment before the home screen,
   since Android animates the launcher's last drawn frame.
 
