@@ -78,7 +78,7 @@ No other ecosystem app is needed.
   That layout shows live and is the one saved when the finger lifts; callbacks go
   through `rememberUpdatedState`, as the gesture outlives the composition it started in.
 - **Home screen grid.** Pages of app keys by slot, "" for empty, stored as one string (slots by
-  line break, pages by "|"); empty pages are dropped on save. The grid reads its gestures on the
+  line break, pages by "|"); empty pages are kept until removed from the home sheet. The grid reads its gestures on the
   container, not the icons, so a drag survives its page being swiped away: long-press finds the
   slot under the finger, an app starts a drag (its icon drawn over the pager) and an empty slot
   opens the home menu. The pager's own swiping is off while dragging, and a drag adds a page past
