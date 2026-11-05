@@ -24,10 +24,11 @@ Application ID `app.zenith.launcher`.
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (coming
   soon), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
-  nothing), double tap can lock the screen. They need Zenith gestures, an accessibility service
-  you turn on once from Settings > Gestures: Android lets a third-party launcher open the panel or
-  lock the screen only that way. It asks for no events and cannot read your screen. On Android 13+
-  a sideloaded app's switch may be greyed out until App info > ⋮ > Allow restricted settings.
+  nothing), with nothing to set up. Double tap can lock the screen; that one needs Zenith
+  gestures, an accessibility service you turn on once from Settings > Gestures, since Android has
+  no other way for a third-party launcher to lock the screen. It asks for no events and cannot
+  read your screen. On Android 13+ a sideloaded app's switch may be greyed out until App info >
+  ⋮ > Allow restricted settings.
 - Wallpaper: long-press the home screen > Wallpaper. Pick a photo with Android's photo picker,
   then crop and set it with the system's wallpaper screen. No storage permission.
 
@@ -41,6 +42,12 @@ Apps > Choose default apps > Home app) and pick Zenith Launcher. To go back, pic
 home app (for example One UI Home) in the same place. Your old launcher stays installed.
 
 ## Limitations
+
+- **Swipe down uses a hidden Android method.** The notification panel and quick settings open
+  through `StatusBarManager`'s expand methods, which are not in the public SDK but are allowed
+  for apps (the same route Niagara, Nova and Lawnchair use), with the install-time
+  `EXPAND_STATUS_BAR` permission. If a future Android blocks them, swipe down falls back to the
+  Zenith gestures accessibility service and asks for it.
 
 - **App open and close animation.** One UI Home animates the app's real window out of its icon and
   back into it, through remote app transitions, a permission Android grants only to the system's

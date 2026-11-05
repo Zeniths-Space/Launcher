@@ -1,10 +1,11 @@
 # Privacy
 
-- **No internet permission and no permissions at all.** The launcher cannot open network
-  connections.
-- **Zenith gestures (accessibility service), off unless you turn it on.** It exists only so home
-  screen gestures can open the notification panel or quick settings and lock the screen, which
-  Android allows a third-party launcher only through an accessibility service. It asks Android
+- **No internet permission.** The launcher cannot open network connections. Its one permission,
+  `EXPAND_STATUS_BAR` (granted at install, no prompt), only lets swipe down open the notification
+  panel; it gives no access to your notifications.
+- **Zenith gestures (accessibility service), off unless you turn it on.** It exists only so double
+  tap can lock the screen (and as a fallback for swipe down), which Android allows a third-party
+  launcher only through an accessibility service. It asks Android
   for no accessibility events and cannot read window content, so it does not see what is on your
   screen or what you type. Turn it off any time in Android's accessibility settings.
 - **No telemetry, analytics, ads, or accounts.**

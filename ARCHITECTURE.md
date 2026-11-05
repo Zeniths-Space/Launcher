@@ -10,7 +10,7 @@ No other ecosystem app is needed.
 | `AppRepository.kt` | Apps from `LauncherApps` for every profile, package-change callbacks, icons, launching. |
 | `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
-| `GestureService.kt` | `GestureAction`, and the accessibility service that performs the home screen gestures. |
+| `GestureService.kt` | `GestureAction`, `Gestures` (status bar expand, service fallback) and the accessibility service for locking. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
 | `Apps.kt` | Pure model: `AppEntry`, sorting and search ranking. Unit-tested. |
@@ -52,13 +52,17 @@ No other ecosystem app is needed.
   are a second activity, so home always returns to a clean home screen (`singleTask` clears it).
   Its category pages are a saved page value in that activity, with a shared-axis slide and Back
   returning to the list.
-- **Gestures through an accessibility service.** Opening the notification panel from a
-  third-party app is a hidden API (`StatusBarManager.expandNotificationsPanel`), so the
-  swipe-down and double-tap gestures use `AccessibilityService.performGlobalAction`
-  (notifications, quick settings, lock screen on Android 9+). The service requests no event types
-  and `canRetrieveWindowContent="false"`, holds itself only as a weak reference while bound, and
-  does nothing between gestures. A swipe down counts when it starts on the home screen with the
-  drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when it is set.
+- **Gestures.** The notification panel and quick settings open through `StatusBarManager`'s
+  hidden `expandNotificationsPanel` / `expandSettingsPanel` by reflection, with the install-time
+  `EXPAND_STATUS_BAR` permission, as other third-party launchers do: no setup for the user
+  (checked on a Galaxy S24 Ultra, One UI, 2026-11-05). This breaks the no-hidden-API rule, by
+  the owner's choice. Locking the screen has no such route, so it uses
+  `AccessibilityService.performGlobalAction` (Android 9+), which is also the fallback for the panel
+  if those methods go. The service requests no event types and `canRetrieveWindowContent="false"`,
+  holds itself only as a weak reference while bound, and does nothing between gestures; Settings
+  asks for it only when a chosen gesture needs it. A swipe down counts when it starts on the home
+  screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
+  it is set.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
 - **Wallpaper through the photo picker.** `ACTION_SET_WALLPAPER` on Samsung lists only live
