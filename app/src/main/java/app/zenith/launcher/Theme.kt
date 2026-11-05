@@ -115,6 +115,9 @@ private val AppTypography = Typography().let { t ->
 
 private val LocalDark = staticCompositionLocalOf { false }
 
+/** Whether the pure black (AMOLED) surfaces are showing: dark mode with the setting on. */
+internal val LocalPureBlack = staticCompositionLocalOf { false }
+
 object ZenithColors {
     /** Selected/active pill: the secondary accent washed over a card. */
     val indicator: Color
@@ -152,7 +155,7 @@ fun ZenithTheme(
 ) {
     val context = LocalContext.current
     val scheme = remember(context, dark, pureBlack) { schemeFor(context, dark, pureBlack) }
-    CompositionLocalProvider(LocalDark provides dark) {
+    CompositionLocalProvider(LocalDark provides dark, LocalPureBlack provides (dark && pureBlack)) {
         MaterialTheme(colorScheme = scheme, typography = AppTypography) {
             // Screens draw on plain backgrounds, not Surfaces; without this, bare Icons default to black.
             CompositionLocalProvider(LocalContentColor provides scheme.onSurface, content = content)

@@ -474,7 +474,6 @@ private fun HomeSheetActions(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(28.dp))
-                        .background(colors.surfaceContainerHighest)
                         .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
                         .clickable(enabled = item.enabled, role = Role.Button) {
                             onDismiss()
