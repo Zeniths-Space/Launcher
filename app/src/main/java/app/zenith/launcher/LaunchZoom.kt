@@ -104,7 +104,8 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
         // Fades over the whole zoom: fading it early left an empty card travelling for 200 ms.
         val iconAlpha = 1f - f
         launching.icon?.takeIf { iconAlpha > 0f }?.let { icon ->
-            val s = (iconSizePx * (1f + f)).roundToInt()
+            // The icon keeps its size and fades in place at the centre of the growing card.
+            val s = iconSizePx.roundToInt()
             drawImage(
                 icon,
                 dstOffset = IntOffset((cx - s / 2f).roundToInt(), (cy - s / 2f).roundToInt()),
