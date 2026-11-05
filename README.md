@@ -24,7 +24,8 @@ Application ID `app.zenith.launcher`.
   home screen app for Remove and App info, or keep holding and drag it to any slot: the others
   make room as you go. Hold it at a side edge to go to the page there, or a new page past the
   last. Pages left empty disappear. Screen readers get Move left, Move right and Remove.
-- Long-press an empty spot on the home screen for a menu at your finger: Wallpaper and Settings.
+- Long-press an empty spot on the home screen for a sheet from the bottom edge with Wallpaper and
+  Settings tiles. Drag it down, tap outside or press Back to close it.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
   off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names under icons), Gestures and About.
