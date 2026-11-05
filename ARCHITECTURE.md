@@ -8,7 +8,7 @@ No other ecosystem app is needed.
 | `MainActivity.kt` | The home activity: `singleTask`, transparent over the wallpaper. Home pressed while it shows closes the drawer. |
 | `LauncherScreen.kt` | Compose UI: home screen with the clock, the app drawer with search, app tiles. |
 | `AppRepository.kt` | Apps from `LauncherApps` for every profile, package-change callbacks, icons, launching. |
-| `SettingsActivity.kt` | Settings page (not exported): home app status, home screen and drawer switches, about. |
+| `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
 | `LaunchZoom.kt` | The zoom from the icon drawn when an app opens. |
@@ -61,6 +61,8 @@ No other ecosystem app is needed.
   entry so it can be tried from another launcher before being made the default.
 - **No navigation library, no database yet.** Two states (home, drawer) in one activity; settings
   are a second activity, so home always returns to a clean home screen (`singleTask` clears it).
+  Its category pages are a saved page value in that activity, with a shared-axis slide and Back
+  returning to the list.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
 - **Wallpaper through the photo picker.** `ACTION_SET_WALLPAPER` on Samsung lists only live
