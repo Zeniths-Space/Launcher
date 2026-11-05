@@ -5,6 +5,8 @@
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
     <string name="home_menu_settings">Settings</string>
+    <string name="home_menu_home">Home</string>
+    <string name="home_menu_show_dock">Show dock</string>
     <string name="drawer_settings">Launcher settings</string>
     <string name="back">Back</string>
     <string name="settings_title">Settings</string>

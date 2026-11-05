@@ -97,7 +97,7 @@ class SettingsActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     gesturesOn = gesturesOn,
                     versionName = versionName,
-                    startPage = if (intent.getStringExtra(EXTRA_PAGE) == PAGE_GESTURES) Page.Gestures else Page.Main,
+                    startPage = Page.entries.firstOrNull { it.name.equals(intent.getStringExtra(EXTRA_PAGE), ignoreCase = true) } ?: Page.Main,
                     onBack = ::finish,
                     onChooseHome = { open(Intent(Settings.ACTION_HOME_SETTINGS)) },
                     onWallpaper = rememberWallpaperPicker(),
@@ -124,9 +124,11 @@ class SettingsActivity : ComponentActivity() {
     }
 
     companion object {
-        /** Opens settings on a page: [PAGE_GESTURES]. */
+        /** Opens settings on a page: [PAGE_GESTURES], [PAGE_HOME] or [PAGE_DOCK]. */
         const val EXTRA_PAGE = "page"
         const val PAGE_GESTURES = "gestures"
+        const val PAGE_HOME = "home"
+        const val PAGE_DOCK = "dock"
     }
 }
 

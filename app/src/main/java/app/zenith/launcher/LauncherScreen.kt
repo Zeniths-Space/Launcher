@@ -12,6 +12,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -133,7 +135,8 @@ fun LauncherScreen(
     settings: LauncherSettings,
     drawerOpen: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
-    onOpenSettings: () -> Unit,
+    onOpenSettings: (page: String?) -> Unit,
+    onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
@@ -211,6 +214,7 @@ fun LauncherScreen(
         HomeScreen(
             settings,
             onOpenSettings = onOpenSettings,
+            onSettings = onSettings,
             onDoubleTap = { onGesture(settings.doubleTap) },
             modifier = Modifier
                 .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
@@ -270,7 +274,7 @@ fun LauncherScreen(
                 onPull = dragBy,
                 onRelease = settle,
                 isOpen = { motion.progress == 1f },
-                onOpenSettings = onOpenSettings,
+                onOpenSettings = { onOpenSettings(null) },
                 modifier = Modifier
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
@@ -291,7 +295,8 @@ fun LauncherScreen(
 @Composable
 private fun HomeScreen(
     settings: LauncherSettings,
-    onOpenSettings: () -> Unit,
+    onOpenSettings: (page: String?) -> Unit,
+    onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onDoubleTap: () -> Unit,
     modifier: Modifier,
     grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
@@ -315,7 +320,17 @@ private fun HomeScreen(
                 onDismiss = { menu = false },
                 items = listOf(
                     MenuItem(Icons.Wallpaper, stringResource(R.string.settings_wallpaper)) { pickWallpaper() },
-                    MenuItem(Icons.Settings, stringResource(R.string.home_menu_settings)) { onOpenSettings() },
+                    MenuItem(Icons.Home, stringResource(R.string.home_menu_home)) { onOpenSettings(SettingsActivity.PAGE_HOME) },
+                    MenuItem(Icons.Dock, stringResource(R.string.settings_section_dock)) { onOpenSettings(SettingsActivity.PAGE_DOCK) },
+                    MenuItem(Icons.Settings, stringResource(R.string.home_menu_settings)) { onOpenSettings(null) },
+                ),
+                toggles = listOf(
+                    QuickToggle(Icons.Clock, stringResource(R.string.settings_clock), settings.showClock) { onSettings { setShowClock(it) } },
+                    QuickToggle(Icons.SwipeUp, stringResource(R.string.settings_hint), settings.showHint) { onSettings { setShowHint(it) } },
+                    QuickToggle(Icons.Label, stringResource(R.string.settings_home_labels), settings.homeLabels) { onSettings { setHomeLabels(it) } },
+                    QuickToggle(Icons.Dots, stringResource(R.string.settings_home_dots), settings.homeDots) { onSettings { setHomeDots(it) } },
+                    QuickToggle(Icons.Dock, stringResource(R.string.home_menu_show_dock), settings.showDock) { onSettings { setShowDock(it) } },
+                    QuickToggle(Icons.DarkMode, stringResource(R.string.settings_pure_black), settings.pureBlack) { onSettings { setPureBlack(it) } },
                 ),
             )
         }
@@ -339,39 +354,76 @@ private fun HomeScreen(
 
 private class MenuItem(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
+private class QuickToggle(val icon: ImageVector, val label: String, val on: Boolean, val onChange: (Boolean) -> Unit)
+
 /**
- * The home screen's long-press menu: a sheet that rises from the bottom edge, with a large tile
- * per action (the scalloped badges of the settings page). Drag it down, tap outside or press Back
- * to close it.
+ * The home screen's long-press menu: a sheet that rises from the bottom edge. A row of tiles opens
+ * the wallpaper picker and settings pages (the scalloped badges of the settings page); below it,
+ * switches for the home screen settings, which apply at once and leave the sheet open. Drag it
+ * down, tap outside or press Back to close it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>) {
+private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>, toggles: List<QuickToggle>) {
+    val colors = MaterialTheme.colorScheme
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = colors.surfaceContainer,
     ) {
-        Row(
+        Column(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items.forEach { item ->
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .clickable(role = Role.Button) {
-                            onDismiss()
-                            item.onClick()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { item ->
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(colors.surfaceContainerHighest)
+                            .clickable(role = Role.Button) {
+                                onDismiss()
+                                item.onClick()
+                            }
+                            .padding(horizontal = 4.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        ScallopBadge(item.icon)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            item.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            toggles.chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pair.forEach { t ->
+                        // Filled when on, like an M3 Expressive toggle button.
+                        val bg by animateColorAsState(if (t.on) colors.primaryContainer else colors.surfaceContainerHighest, label = "toggle")
+                        val fg = if (t.on) colors.onPrimaryContainer else colors.onSurfaceVariant
+                        Row(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(if (t.on) 28.dp else 16.dp))
+                                .background(bg)
+                                .toggleable(value = t.on, role = Role.Switch, onValueChange = t.onChange)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(t.icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(t.label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        .padding(vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    ScallopBadge(item.icon)
-                    Spacer(Modifier.height(12.dp))
-                    Text(item.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
