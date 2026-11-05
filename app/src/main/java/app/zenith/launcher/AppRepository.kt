@@ -154,7 +154,8 @@ class AppRepository(context: Context) {
                 color?.takeIf { android.graphics.Color.alpha(it) == 255 }
             }
             val iconIndex = attrs.indexOf(android.R.attr.windowSplashScreenAnimatedIcon)
-            val icon = if (iconIndex >= 0) runCatching { a.getDrawable(iconIndex) }.getOrNull() else null
+            // Some apps (Samsung Settings) set a blank splash icon; the launcher icon is shown instead.
+            val icon = if (iconIndex >= 0) runCatching { a.getDrawable(iconIndex) }.getOrNull()?.takeUnless { it.isBlank() } else null
             AppSplash(color, icon)
         } finally {
             a.recycle()
@@ -165,6 +166,19 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return
         runCatching { launcherApps.startAppDetailsActivity(ComponentName(app.packageName, app.className), info.user, null, null) }
     }
+}
+
+/** Whether [this] draws nothing, checked at its own size (fixed-size layers ignore smaller bounds). */
+private fun Drawable.isBlank(): Boolean {
+    val size = maxOf(intrinsicWidth, intrinsicHeight).coerceIn(32, 256)
+    val bitmap = createBitmap(size, size)
+    val old = copyBounds()
+    setBounds(0, 0, size, size)
+    draw(Canvas(bitmap))
+    bounds = old
+    val pixels = IntArray(size * size).also { bitmap.getPixels(it, 0, size, 0, 0, size, size) }
+    bitmap.recycle()
+    return pixels.none { android.graphics.Color.alpha(it) != 0 }
 }
 
 /** An app's splash screen colour and icon, each null when the app does not set one. */

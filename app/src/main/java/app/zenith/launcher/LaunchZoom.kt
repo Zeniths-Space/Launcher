@@ -56,15 +56,15 @@ fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
  * 70 ms and 80% at 134 ms, then snaps to full when the app is ready (about 30 ms in when the app is
  * already running); the splash icon never fades.
  */
-private const val ZoomMillis = 300
-/** Fitted to the One UI growth above, within 2%. */
+private const val ZoomMillis = 420
+/** The shape of the One UI growth above (within 2% at 300 ms), stretched: 300 ms felt snappy. */
 private val ZoomEasing = CubicBezierEasing(0.1f, 0.3f, 0.3f, 1f)
 private val EndCorner = 28.dp
 /**
  * Started at about 80% grown, where One UI snaps: the app's window (or Android's splash screen, for
  * an app that is not running) then covers the zoom at full size.
  */
-private const val StartAppAfterMillis = 130L
+private const val StartAppAfterMillis = 180L
 /**
  * Android's splash screen lays the icon out in a 108 dp box (an adaptive icon's size) and scales
  * that box to 192 dp when the icon has no background of its own, so fixed-size artwork grows too.
