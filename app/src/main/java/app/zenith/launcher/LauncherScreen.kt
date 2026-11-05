@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.graphics.Rect
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,7 +22,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,11 +43,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -75,7 +75,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -95,15 +94,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import java.util.Date
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
@@ -306,7 +298,7 @@ private fun HomeScreen(
     dock: @Composable () -> Unit,
 ) {
     val pickWallpaper = rememberWallpaperPicker()
-    var menuAt by remember { mutableStateOf<Offset?>(null) }
+    var menu by remember { mutableStateOf(false) }
     Box(
         modifier
             .fillMaxSize()
@@ -314,14 +306,13 @@ private fun HomeScreen(
                 // Double tap only listened for when it does something, so nothing waits on it otherwise.
                 detectTapGestures(
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ _ -> onDoubleTap() }) else null,
-                    onLongPress = { menuAt = it },
+                    onLongPress = { menu = true },
                 )
             },
     ) {
-        menuAt?.let { at ->
-            HomeMenu(
-                at = at,
-                onDismiss = { menuAt = null },
+        if (menu) {
+            HomeSheet(
+                onDismiss = { menu = false },
                 items = listOf(
                     MenuItem(Icons.Wallpaper, stringResource(R.string.settings_wallpaper)) { pickWallpaper() },
                     MenuItem(Icons.Settings, stringResource(R.string.home_menu_settings)) { onOpenSettings() },
@@ -330,7 +321,7 @@ private fun HomeScreen(
         }
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             if (settings.showClock) Clock(Modifier.padding(start = 28.dp, top = 48.dp, bottom = 16.dp))
-            grid({ menuAt = it }, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
+            grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
             dock()
             if (settings.showHint) {
                 Text(
@@ -349,61 +340,38 @@ private fun HomeScreen(
 private class MenuItem(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
 /**
- * The home screen's long-press menu: an M3 Expressive card at the finger, with the scalloped
- * badges of the settings page, springing open from the finger. Kept on screen: it opens above the
- * finger near the bottom and shifts in from the sides.
+ * The home screen's long-press menu: a sheet that rises from the bottom edge, with a large tile
+ * per action (the scalloped badges of the settings page). Drag it down, tap outside or press Back
+ * to close it.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeMenu(at: Offset, onDismiss: () -> Unit, items: List<MenuItem>) {
-    val margin = with(LocalDensity.current) { 16.dp.roundToPx() }
-    // Where the finger sits inside the card, as a fraction, so the card grows out of the finger.
-    var origin by remember { mutableStateOf(TransformOrigin(0f, 0f)) }
-    val position = remember(at) {
-        object : PopupPositionProvider {
-            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
-                val w = popupContentSize.width
-                val h = popupContentSize.height
-                val x = at.x.roundToInt().coerceIn(margin, (windowSize.width - w - margin).coerceAtLeast(margin))
-                val above = at.y + h > windowSize.height - margin
-                val y = if (above) at.y.roundToInt() - h else at.y.roundToInt()
-                origin = TransformOrigin(((at.x - x) / w.coerceAtLeast(1)).coerceIn(0f, 1f), if (above) 1f else 0f)
-                return IntOffset(x, y.coerceAtLeast(margin))
-            }
-        }
-    }
-    val open = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { open.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = 500f)) }
-    Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 6.dp,
-            modifier = Modifier
-                .width(IntrinsicSize.Max)
-                .graphicsLayer {
-                    val v = open.value
-                    scaleX = 0.8f + 0.2f * v
-                    scaleY = 0.8f + 0.2f * v
-                    alpha = v.coerceIn(0f, 1f)
-                    transformOrigin = origin
-                },
+private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(Modifier.padding(vertical = 8.dp)) {
-                items.forEach { item ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable(role = Role.Button) {
-                                onDismiss()
-                                item.onClick()
-                            }
-                            .padding(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ScallopBadge(item.icon)
-                        Spacer(Modifier.width(14.dp))
-                        Text(item.label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    }
+            items.forEach { item ->
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clickable(role = Role.Button) {
+                            onDismiss()
+                            item.onClick()
+                        }
+                        .padding(vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    ScallopBadge(item.icon)
+                    Spacer(Modifier.height(12.dp))
+                    Text(item.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
