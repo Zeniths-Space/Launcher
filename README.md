@@ -45,7 +45,8 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   Launcher draws the zoom itself and starts the app with the system animation off. The growing
   rectangle shows the first frame of an animated splash icon, not the animation, and never the
   app's content. On Android 12 an app that is not running can show a plain colour splash with no
-  icon after the zoom. Closing an app back to home uses the system animation.
+  icon after the zoom. Apps whose own splash is blank (Samsung Settings) show their icon during
+  the zoom and then their blank splash until they have drawn. Closing an app back to home uses the system animation.
 - Apps from a work profile, and apps opened from the search key, open with the system animation.
 - Returning from an app can show the drawer's last frame for a moment before the home screen,
   since Android animates the launcher's last drawn frame.
