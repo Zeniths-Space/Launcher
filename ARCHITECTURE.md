@@ -66,8 +66,8 @@ No other ecosystem app is needed.
   it is set.
 - **Dock.** App keys, in reading order, in the settings DataStore; apps that are uninstalled drop
   out. Columns, rows and icon size are stored with it; only the first columns times rows apps
-  show, and the rest stay stored, after the shown ones when they are reordered. Each app is
-  placed at its slot's centre, a part-filled last row centred, so the grid needs no lazy layout. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
+  show, and the rest stay stored, after the shown ones when they are reordered. The grid is
+  always columns by rows high; each app is placed at its slot's centre, so it needs no lazy layout. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
   smsto:`, `VIEW https` and `STILL_IMAGE_CAMERA`, which the manifest's `<queries>` make visible.
   It sits outside the home screen's long-press area, so holding a dock app does not open the home
   menu, but inside the swipe-up area. Drag after long-press drops the app on the nearest slot centre, the others shown in
