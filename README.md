@@ -21,8 +21,9 @@ Application ID `app.zenith.launcher`.
   never by polling.
 - Long-press the home screen for a menu at your finger: Wallpaper and Settings.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
-  it, then a page per category: Wallpaper & style (wallpaper, pure black in dark mode), Home
-  screen (clock, swipe hint), App drawer (app names under icons) and About.
+  it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (coming
+  soon), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures (coming
+  soon) and About.
 - Wallpaper: long-press the home screen > Wallpaper. Pick a photo with Android's photo picker,
   then crop and set it with the system's wallpaper screen. No storage permission.
 
