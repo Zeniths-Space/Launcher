@@ -42,8 +42,11 @@ No other ecosystem app is needed.
   from its theme through `createPackageContext`; a launch-screen drawable gives its corner pixel),
   while the launcher icon fades into it. The launcher draws no splash of its own: an earlier
   version matched each app's splash icon from its theme, and stacked with apps that draw their
-  own (Nekogram, Kontract, Flutter apps). The app starts once the zoom fills the screen
-  (starting it part way, as One UI snaps to full when the app is ready, read as a stutter), with
+  own (Nekogram, Kontract, Flutter apps). The card ends on the display's corner radius
+  (`WindowInsets.getRoundedCorner`), so nothing shows round it when the app's window replaces it.
+  The app starts 50 ms before the zoom ends, at 98.5% grown, about Android's delay before the
+  splash shows, so the splash lands as the zoom does (starting at 80%, as One UI snaps to full when
+  the app is ready, read as a stutter), with
   `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
   launch from a non-home app gets a plain colour splash, a blank screen), so Android shows each
   app's own splash as a home-screen launch would. `makeScaleUpAnimation` through LauncherApps was
