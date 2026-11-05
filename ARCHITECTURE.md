@@ -10,7 +10,7 @@ No other ecosystem app is needed.
 | `AppRepository.kt` | Apps from `LauncherApps` for every profile, package-change callbacks, icons, launching. |
 | `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
-| `Dock.kt` | The dock row: tap to open, long-press menu, drag sideways to rearrange. |
+| `Dock.kt` | The dock grid: tap to open, long-press menu, drag to rearrange. |
 | `GestureService.kt` | `GestureAction`, `Gestures` (status bar expand, service fallback) and the accessibility service for locking. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
@@ -64,11 +64,14 @@ No other ecosystem app is needed.
   asks for it only when a chosen gesture needs it. A swipe down counts when it starts on the home
   screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
   it is set.
-- **Dock.** App keys, left to right, in the settings DataStore; apps that are uninstalled drop out
-  of the row. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
+- **Dock.** App keys, in reading order, in the settings DataStore; apps that are uninstalled drop
+  out. Columns, rows and icon size are stored with it; only the first columns times rows apps
+  show, and the rest stay stored, after the shown ones when they are reordered. Each app is
+  placed at its slot's centre, a part-filled last row centred, so the grid needs no lazy layout. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
   smsto:`, `VIEW https` and `STILL_IMAGE_CAMERA`, which the manifest's `<queries>` make visible.
   It sits outside the home screen's long-press area, so holding a dock app does not open the home
-  menu, but inside the swipe-up area. Drag after long-press moves the app by slots; callbacks go
+  menu, but inside the swipe-up area. Drag after long-press drops the app on the nearest slot centre, the others shown in
+  their new places as it moves; callbacks go
   through `rememberUpdatedState`, as the gesture outlives the composition it started in.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
