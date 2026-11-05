@@ -86,6 +86,11 @@ No other ecosystem app is needed.
   always keeps its height, and cell sizes are read without restarting the gesture, so the grid
   never resizes or drops a drag midway. Icons take taps themselves, so a double-tap gesture on the
   wallpaper does not delay opening apps.
+- **Home sheet.** The long-press menu is drawn in the home screen, not M3's `ModalBottomSheet`,
+  whose half-open stop is fixed at half the screen. One list: it stops where the first settings
+  categories end and a drag or fling carries it on to the full list (a critically damped spring,
+  as the drawer); a nested-scroll connection moves the sheet before the list scrolls. A category's
+  page is the settings screen composable over the sheet.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
 - **Wallpaper through the photo picker.** `ACTION_SET_WALLPAPER` on Samsung lists only live

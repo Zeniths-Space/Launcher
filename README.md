@@ -28,9 +28,9 @@ Application ID `app.zenith.launcher`.
   opens; tap an app to put it on the page you were on), Add page, Remove page (the page shown,
   with its apps; they stay installed) and Widgets (not available yet), a lock that keeps home
   screen and dock apps from being moved, added or removed, and the first settings categories
-  (Appearance, Dock, Home screen, App drawer). A category opens its page in the sheet; pull the
-  sheet up for the whole settings screen. The back arrow or Back returns to the actions; drag it
-  down or tap outside to close it.
+  (Appearance, Dock, Home screen, App drawer). The sheet follows your finger: pull it up and the
+  same list goes on with Gestures, About and the home app card. A category slides its page in
+  over the sheet; Back returns to it. Drag it down, tap outside, or press Back or Home to close it.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
   off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names under icons), Gestures and About.
