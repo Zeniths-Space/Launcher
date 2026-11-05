@@ -46,8 +46,10 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   rectangle never shows the app's content, and an app's splash icon appears only once Android's
   splash replaces the finished zoom. On Android 12 an app that is not running can show a plain
   colour splash with no icon after the zoom. Closing an app back to home uses the system animation:
-  on One UI, Back and Home run one system transition through One UI's recents task, and it
-  ignored a `windowAnimationStyle` on the home theme (verified on a Galaxy S24 Ultra).
+  on One UI, Back and the Home button run one system transition through One UI's recents task,
+  and the Home gesture is animated by One UI Home's recents component even when another home app
+  is the default. The transition ignored a `windowAnimationStyle` on the home theme, and shrinking
+  the app's window back into its icon needs remote app transitions (verified on a Galaxy S24 Ultra).
 - Apps from a work profile, and apps opened from the search key, open with the system animation.
 - Returning from an app can show the drawer's last frame for a moment before the home screen,
   since Android animates the launcher's last drawn frame.
