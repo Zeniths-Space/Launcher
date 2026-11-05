@@ -7,32 +7,23 @@ import android.content.IntentFilter
 import android.graphics.Rect
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onSizeChanged
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,7 +32,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -59,44 +49,66 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import java.util.Date
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /*
  * Drawer motion, measured from One UI Home on a Galaxy S24 Ultra (screen recording, 120 Hz):
@@ -214,28 +226,15 @@ private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, m
             .fillMaxSize()
             .pointerInput(Unit) { detectTapGestures(onLongPress = { menuAt = it }) },
     ) {
-        // The menu opens where the finger pressed.
         menuAt?.let { at ->
-            Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
-                DropdownMenu(expanded = true, onDismissRequest = { menuAt = null }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.settings_wallpaper)) },
-                        leadingIcon = { Icon(Icons.Wallpaper, contentDescription = null) },
-                        onClick = {
-                            menuAt = null
-                            pickWallpaper()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.home_menu_settings)) },
-                        leadingIcon = { Icon(Icons.Settings, contentDescription = null) },
-                        onClick = {
-                            menuAt = null
-                            onOpenSettings()
-                        },
-                    )
-                }
-            }
+            HomeMenu(
+                at = at,
+                onDismiss = { menuAt = null },
+                items = listOf(
+                    MenuItem(Icons.Wallpaper, stringResource(R.string.settings_wallpaper)) { pickWallpaper() },
+                    MenuItem(Icons.Settings, stringResource(R.string.home_menu_settings)) { onOpenSettings() },
+                ),
+            )
         }
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             if (settings.showClock) Clock(Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 48.dp))
@@ -246,6 +245,70 @@ private fun HomeScreen(settings: LauncherSettings, onOpenSettings: () -> Unit, m
                     color = OnWallpaper.copy(alpha = 0.7f),
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                 )
+            }
+        }
+    }
+}
+
+private class MenuItem(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+
+/**
+ * The home screen's long-press menu: an M3 Expressive card at the finger, with the scalloped
+ * badges of the settings page, springing open from the finger. Kept on screen: it opens above the
+ * finger near the bottom and shifts in from the sides.
+ */
+@Composable
+private fun HomeMenu(at: Offset, onDismiss: () -> Unit, items: List<MenuItem>) {
+    val margin = with(LocalDensity.current) { 16.dp.roundToPx() }
+    // Where the finger sits inside the card, as a fraction, so the card grows out of the finger.
+    var origin by remember { mutableStateOf(TransformOrigin(0f, 0f)) }
+    val position = remember(at) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+                val w = popupContentSize.width
+                val h = popupContentSize.height
+                val x = at.x.roundToInt().coerceIn(margin, (windowSize.width - w - margin).coerceAtLeast(margin))
+                val above = at.y + h > windowSize.height - margin
+                val y = if (above) at.y.roundToInt() - h else at.y.roundToInt()
+                origin = TransformOrigin(((at.x - x) / w.coerceAtLeast(1)).coerceIn(0f, 1f), if (above) 1f else 0f)
+                return IntOffset(x, y.coerceAtLeast(margin))
+            }
+        }
+    }
+    val open = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { open.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = 500f)) }
+    Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = 6.dp,
+            modifier = Modifier
+                .width(IntrinsicSize.Max)
+                .graphicsLayer {
+                    val v = open.value
+                    scaleX = 0.8f + 0.2f * v
+                    scaleY = 0.8f + 0.2f * v
+                    alpha = v.coerceIn(0f, 1f)
+                    transformOrigin = origin
+                },
+        ) {
+            Column(Modifier.padding(vertical = 8.dp)) {
+                items.forEach { item ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) {
+                                onDismiss()
+                                item.onClick()
+                            }
+                            .padding(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ScallopBadge(item.icon)
+                        Spacer(Modifier.width(14.dp))
+                        Text(item.label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         }
     }
