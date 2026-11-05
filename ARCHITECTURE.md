@@ -38,7 +38,7 @@ No other ecosystem app is needed.
   requested through `ActivityOptions` (the transition reaches Shell without them; it plays its
   default zoom from the centre), and icon morphs need remote transitions, a system-only
   permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
-  420 ms (the shape of One UI's growth, stretched; at its 300 ms it felt snappy), in the app's splash or window background colour (read
+  340 ms (the shape of One UI's growth, stretched), in the app's splash or window background colour (read
   from its theme through `createPackageContext`), while the launcher icon hands over to the app's
   `windowSplashScreenAnimatedIcon` (or grows to 160 dp when there is none), laid out in a 108 dp
   box scaled to 192 dp as Android's splash does (a splash icon that draws nothing, such as Samsung
