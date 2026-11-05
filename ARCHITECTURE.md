@@ -43,7 +43,8 @@ No other ecosystem app is needed.
   permission. Instead the launcher grows a rounded rectangle from the icon to the full screen in
   340 ms on Android's standard curve (One UI's own leapt out of the icon, then crawled), in the app's splash or window background colour (read
   from its theme through `createPackageContext`; a launch-screen drawable gives its corner pixel),
-  while the launcher icon fades in place where it was tapped. Over the second half of the zoom,
+  fading in over the first 45% (about 130 ms) so the tapped icon dims into it rather than
+  blinking dark (an opaque card turned a white icon dark in 60 ms). Over the second half of the zoom,
   what Android's splash will show fades in where it will show it, so the splash does not flash
   its icon in one frame: the theme's `windowSplashScreenAnimatedIcon` in a 108 dp box scaled to
   192 dp, the launcher icon at 160 dp when the app sets none, nothing when the set icon draws
