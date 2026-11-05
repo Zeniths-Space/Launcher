@@ -27,6 +27,9 @@ No other ecosystem app is needed.
   while composed.
 - **Icons on demand.** Each tile asks for its icon at its pixel size; the repository draws it off
   the main thread once and keeps it in memory until the app changes or leaves.
+  Legacy (non-adaptive) icons are wrapped, as Launcher3 does, at 70% on white inside an
+  `AdaptiveIconDrawable`, so every icon gets the system icon shape; the work badge goes on after
+  (`getUserBadgedIcon`).
 - **Drawer motion follows the finger.** `DrawerMotion` holds one progress value (0 home, 1 open).
   Drags set it directly; a release starts a critically damped spring (stiffness 400) with the
   fling's speed. Every visual (home fade, drawer rise and fade, wallpaper dim) is read from it in
