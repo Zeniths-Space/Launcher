@@ -118,6 +118,9 @@ private val LocalDark = staticCompositionLocalOf { false }
 /** Whether the pure black (AMOLED) surfaces are showing: dark mode with the setting on. */
 internal val LocalPureBlack = staticCompositionLocalOf { false }
 
+/** Settings cards on the pure black page: neutral grey. */
+internal val PureBlackCard = Color(0xFF1A1A1A)
+
 object ZenithColors {
     /** Selected/active pill: the secondary accent washed over a card. */
     val indicator: Color

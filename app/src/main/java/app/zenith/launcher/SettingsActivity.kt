@@ -19,7 +19,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -514,12 +513,10 @@ private fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
 internal fun SegmentedGroup(segments: List<@Composable () -> Unit>, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         segments.forEachIndexed { i, segment ->
-            // Pure black: cards as black as the page, told apart by a thin outline.
-            val pureBlack = LocalPureBlack.current
+            // Pure black: a neutral grey, without the ladder's blue tint.
             Surface(
-                color = if (pureBlack) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = if (LocalPureBlack.current) PureBlackCard else MaterialTheme.colorScheme.surfaceContainerHigh,
                 shape = groupShape(i, segments.size),
-                border = if (pureBlack) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                 modifier = Modifier.fillMaxWidth(),
             ) { segment() }
         }
