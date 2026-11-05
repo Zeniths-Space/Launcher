@@ -28,8 +28,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * An app being opened: where its icon was (window pixels), the icon, and the colour and icon its
@@ -49,9 +47,9 @@ fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
  * One UI Home grows the app's window out of its icon. Android keeps that animation for the system's
  * own launcher, so this draws the same zoom inside the launcher instead: a rounded rectangle in the
  * app's splash colour grows from the icon to the full screen while the icon grows into the app's
- * splash icon, then the app starts with the system animation turned off. Android's splash screen
- * (requested with its icon) or the app's window then covers the zoom wherever it has got to, which
- * reads as One UI's snap to full screen when the app is ready.
+ * splash icon. Only once it fills the screen does the app start, with the system animation turned
+ * off, so Android's splash screen (requested with its icon) or the app's window replaces it at full
+ * size. Starting during the zoom, as One UI's snap to full screen does, read as a stutter.
  * Measured from One UI on a Galaxy S24 Ultra (Play Store): the window grows steadily, about 55% at
  * 70 ms and 80% at 134 ms, then snaps to full when the app is ready (about 30 ms in when the app is
  * already running); the splash icon never fades.
@@ -60,11 +58,6 @@ private const val ZoomMillis = 420
 /** The shape of the One UI growth above (within 2% at 300 ms), stretched: 300 ms felt snappy. */
 private val ZoomEasing = CubicBezierEasing(0.1f, 0.3f, 0.3f, 1f)
 private val EndCorner = 28.dp
-/**
- * Started at about 80% grown, where One UI snaps: the app's window (or Android's splash screen, for
- * an app that is not running) then covers the zoom at full size.
- */
-private const val StartAppAfterMillis = 180L
 /**
  * Android's splash screen lays the icon out in a 108 dp box (an adaptive icon's size) and scales
  * that box to 192 dp when the icon has no background of its own, so fixed-size artwork grows too.
@@ -83,13 +76,9 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
     val t = remember { Animatable(0f) }
     val splashIcon = remember { launching.splashIcon?.mutate() }
     LaunchedEffect(Unit) {
-        launch {
-            // Started during the zoom; if the app's window is slow to appear, the finished zoom
-            // holds in its place.
-            delay(StartAppAfterMillis)
-            onStart()
-        }
         t.animateTo(1f, tween(ZoomMillis, easing = ZoomEasing))
+        // The finished zoom holds in the app's place until its window appears.
+        onStart()
     }
     val b = launching.bounds
     Canvas(Modifier.fillMaxSize()) {
