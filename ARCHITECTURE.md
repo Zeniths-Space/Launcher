@@ -43,9 +43,11 @@ No other ecosystem app is needed.
   `windowSplashScreenAnimatedIcon` (or grows to 160 dp when there is none), laid out in a 108 dp
   box scaled to 192 dp as Android's splash does. Apps that draw their own splash get only the
   colour, and Android's plain colour splash (`SPLASH_SCREEN_STYLE_SOLID_COLOR`), so two splashes
-  do not stack: detected as a splash icon that draws nothing (Nekogram, Kontract, Samsung
-  Settings' `sec_ic_blank`) or no splash icon with a launch-screen drawable as the window
-  background (Flutter apps such as Artha; its corner pixel gives the colour). The app starts once the zoom fills the screen
+  do not stack. Detected from the theme alone, so it applies to any installed app: a splash icon
+  that draws nothing (Nekogram, Kontract), or no splash icon with a launch-screen drawable as the
+  window background (the pre-Android 12 splash pattern; Flutter apps such as Artha; its corner
+  pixel gives the colour). System apps that blank the icon (Samsung Settings' `sec_ic_blank`)
+  have no splash at all, so they keep the launcher icon in the zoom. The app starts once the zoom fills the screen
   (starting it part way, as One UI snaps to full when the app is ready, read as a stutter), with
   `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
   launch from a non-home app gets a plain colour splash, a blank screen). Android's splash or the
