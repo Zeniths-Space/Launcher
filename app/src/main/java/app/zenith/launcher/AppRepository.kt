@@ -1,5 +1,6 @@
 package app.zenith.launcher
 
+import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -16,6 +17,7 @@ import android.os.Looper
 import android.os.UserHandle
 import android.os.UserManager
 import android.util.TypedValue
+import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -109,7 +111,14 @@ class AppRepository(context: Context) {
             .setComponent(ComponentName(app.packageName, app.className))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_NO_ANIMATION)
         intent.sourceBounds = bounds
-        return runCatching { context.startActivity(intent) }.isSuccess
+        // Without this, an app started by anything but the home app gets a plain colour splash
+        // with no icon, which shows as a blank screen between the zoom and the app.
+        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityOptions.makeBasic().setSplashScreenStyle(SplashScreen.SPLASH_SCREEN_STYLE_ICON).toBundle()
+        } else {
+            null
+        }
+        return runCatching { context.startActivity(intent, options) }.isSuccess
     }
 
     /** Whether [app] can be started by [launchWithoutAnimation]. */
