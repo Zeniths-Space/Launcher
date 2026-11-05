@@ -22,8 +22,12 @@ Application ID `app.zenith.launcher`.
 - Long-press the home screen for a menu at your finger: Wallpaper and Settings.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (coming
-  soon), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures (coming
-  soon) and About.
+  soon), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
+- Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
+  nothing), double tap can lock the screen. They need Zenith gestures, an accessibility service
+  you turn on once from Settings > Gestures: Android lets a third-party launcher open the panel or
+  lock the screen only that way. It asks for no events and cannot read your screen. On Android 13+
+  a sideloaded app's switch may be greyed out until App info > ⋮ > Allow restricted settings.
 - Wallpaper: long-press the home screen > Wallpaper. Pick a photo with Android's photo picker,
   then crop and set it with the system's wallpaper screen. No storage permission.
 
