@@ -45,6 +45,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -97,12 +99,12 @@ class SettingsActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     gesturesOn = gesturesOn,
                     versionName = versionName,
-                    startPage = Page.entries.firstOrNull { it.name.equals(intent.getStringExtra(EXTRA_PAGE), ignoreCase = true) } ?: Page.Main,
+                    startPage = if (intent.getStringExtra(EXTRA_PAGE) == PAGE_GESTURES) Page.Gestures else Page.Main,
                     onBack = ::finish,
-                    onChooseHome = { open(Intent(Settings.ACTION_HOME_SETTINGS)) },
+                    onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
                     onWallpaper = rememberWallpaperPicker(),
-                    onAccessibility = { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-                    onAppInfo = { open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))) },
+                    onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
+                    onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
                 )
             }
         }
@@ -115,20 +117,19 @@ class SettingsActivity : ComponentActivity() {
         gesturesOn = GestureService.isEnabled(this)
     }
 
-    private fun open(intent: Intent) {
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, R.string.settings_unavailable, Toast.LENGTH_SHORT).show()
-        }
-    }
-
     companion object {
-        /** Opens settings on a page: [PAGE_GESTURES], [PAGE_HOME] or [PAGE_DOCK]. */
+        /** Opens settings on a page: [PAGE_GESTURES]. */
         const val EXTRA_PAGE = "page"
         const val PAGE_GESTURES = "gestures"
-        const val PAGE_HOME = "home"
-        const val PAGE_DOCK = "dock"
+    }
+}
+
+/** Opens a system settings screen, or says it isn't there (some devices leave screens out). */
+fun Context.openSystem(action: String, data: Uri? = null) {
+    try {
+        startActivity(Intent(action, data))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(this, R.string.settings_unavailable, Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -140,11 +141,11 @@ fun isDefaultHome(context: Context): Boolean {
 }
 
 /** The settings pages: a list of categories, each opening its own page. */
-private enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, About }
+internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, About }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(
+internal fun SettingsScreen(
     settings: LauncherSettings,
     store: SettingsStore,
     isDefaultHome: Boolean,
@@ -156,6 +157,8 @@ private fun SettingsScreen(
     onWallpaper: () -> Unit,
     onAccessibility: () -> Unit,
     onAppInfo: () -> Unit,
+    // In the home sheet, which already sits below the status bar.
+    inSheet: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -166,6 +169,7 @@ private fun SettingsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
         containerColor = cs.surface,
+        contentWindowInsets = if (inSheet) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(page.title)) },
@@ -176,6 +180,7 @@ private fun SettingsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface, scrolledContainerColor = cs.surfaceContainer),
                 scrollBehavior = scroll,
+                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
             )
         },
     ) { padding ->

@@ -4,12 +4,12 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
-    <string name="home_menu_settings">Settings</string>
     <string name="home_menu_show_dock">Show dock</string>
     <string name="home_menu_title">Home screen</string>
     <string name="home_menu_add_app">Add app</string>
     <string name="home_menu_add_page">Add page</string>
     <string name="home_menu_remove_page">Remove page</string>
+    <string name="home_menu_pull">Pull up for all settings</string>
     <string name="home_menu_lock">Lock layout</string>
     <string name="home_menu_unlock">Unlock layout</string>
     <string name="home_menu_locked">Layout locked: apps can\'t be moved, added or removed</string>

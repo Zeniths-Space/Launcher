@@ -46,6 +46,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.SheetValue
+import androidx.compose.animation.Crossfade
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -136,8 +139,9 @@ fun LauncherScreen(
     settings: LauncherSettings,
     drawerOpen: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
-    onOpenSettings: (page: String?) -> Unit,
+    onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
+    allSettings: @Composable (onBack: () -> Unit) -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
@@ -220,7 +224,7 @@ fun LauncherScreen(
     ) {
         HomeScreen(
             settings,
-            onOpenSettings = onOpenSettings,
+            allSettings = allSettings,
             onSettings = onSettings,
             onAddApp = {
                 picking = true
@@ -303,7 +307,7 @@ fun LauncherScreen(
                 onPull = dragBy,
                 onRelease = settle,
                 isOpen = { motion.progress == 1f },
-                onOpenSettings = { onOpenSettings(null) },
+                onOpenSettings = onOpenSettings,
                 modifier = Modifier
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
@@ -324,7 +328,7 @@ fun LauncherScreen(
 @Composable
 private fun HomeScreen(
     settings: LauncherSettings,
-    onOpenSettings: (page: String?) -> Unit,
+    allSettings: @Composable (onBack: () -> Unit) -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onAddApp: () -> Unit,
     onAddPage: () -> Unit,
@@ -350,6 +354,7 @@ private fun HomeScreen(
         if (menu) {
             HomeSheet(
                 onDismiss = { menu = false },
+                allSettings = allSettings,
                 locked = settings.locked,
                 onLockedChange = { on -> onSettings { setLocked(on) } },
                 items = listOf(
@@ -391,14 +396,40 @@ private class MenuItem(val icon: ImageVector, val label: String, val enabled: Bo
 private class QuickToggle(val icon: ImageVector, val label: String, val on: Boolean, val onChange: (Boolean) -> Unit)
 
 /**
- * The home screen's long-press menu: a sheet that rises from the bottom edge. A row of tiles opens
- * the wallpaper picker and settings pages (the scalloped badges of the settings page); below it,
- * switches for the home screen settings, which apply at once and leave the sheet open. Drag it
- * down, tap outside or press Back to close it.
+ * The home screen's long-press menu: a sheet that rises halfway from the bottom edge, with the
+ * layout lock, a row of actions (add app, add or remove page, wallpaper) and switches for home
+ * screen settings that apply at once. Pulled up, it turns into the whole settings screen
+ * ([allSettings]); its back arrow returns to the actions. Drag it down, tap outside or press Back
+ * to close it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeSheet(
+    onDismiss: () -> Unit,
+    allSettings: @Composable (onBack: () -> Unit) -> Unit,
+    locked: Boolean,
+    onLockedChange: (Boolean) -> Unit,
+    items: List<MenuItem>,
+    toggles: List<QuickToggle>,
+) {
+    val colors = MaterialTheme.colorScheme
+    val state = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = state,
+        // Pulled up, it takes the settings screen's colour, so the two read as one surface.
+        containerColor = if (state.targetValue == SheetValue.Expanded) colors.surface else colors.surfaceContainer,
+    ) {
+        // Full height, so the sheet opens halfway and pulls up into the whole settings.
+        Crossfade(state.targetValue == SheetValue.Expanded, Modifier.fillMaxHeight(), label = "home sheet") { full ->
+            if (full) allSettings { scope.launch { state.partialExpand() } } else HomeSheetActions(onDismiss, locked, onLockedChange, items, toggles)
+        }
+    }
+}
+
+@Composable
+private fun HomeSheetActions(
     onDismiss: () -> Unit,
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
@@ -406,79 +437,77 @@ private fun HomeSheet(
     toggles: List<QuickToggle>,
 ) {
     val colors = MaterialTheme.colorScheme
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.surfaceContainer,
+    Column(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-                    if (locked) Text(stringResource(R.string.home_menu_locked), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                }
-                // Filled while locked, so the state reads at a glance.
-                FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
-                    Icon(
-                        if (locked) Icons.Lock else Icons.LockOpen,
-                        contentDescription = stringResource(if (locked) R.string.home_menu_unlock else R.string.home_menu_lock),
+        Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                Text(
+                    stringResource(if (locked) R.string.home_menu_locked else R.string.home_menu_pull),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+            // Filled while locked, so the state reads at a glance.
+            FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
+                Icon(
+                    if (locked) Icons.Lock else Icons.LockOpen,
+                    contentDescription = stringResource(if (locked) R.string.home_menu_unlock else R.string.home_menu_lock),
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.forEach { item ->
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(colors.surfaceContainerHighest)
+                        .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
+                        .clickable(enabled = item.enabled, role = Role.Button) {
+                            onDismiss()
+                            item.onClick()
+                        }
+                        .padding(horizontal = 4.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    ScallopBadge(item.icon)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        item.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.onSurface,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        toggles.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items.forEach { item ->
-                    Column(
+                pair.forEach { t ->
+                    // Filled when on, like an M3 Expressive toggle button.
+                    val bg by animateColorAsState(if (t.on) colors.primaryContainer else colors.surfaceContainerHighest, label = "toggle")
+                    val fg = if (t.on) colors.onPrimaryContainer else colors.onSurfaceVariant
+                    Row(
                         Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(colors.surfaceContainerHighest)
-                            .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
-                            .clickable(enabled = item.enabled, role = Role.Button) {
-                                onDismiss()
-                                item.onClick()
-                            }
-                            .padding(horizontal = 4.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .clip(RoundedCornerShape(if (t.on) 28.dp else 16.dp))
+                            .background(bg)
+                            .toggleable(value = t.on, role = Role.Switch, onValueChange = t.onChange)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ScallopBadge(item.icon)
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            item.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = colors.onSurface,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Icon(t.icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(t.label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-            }
-            Spacer(Modifier.height(8.dp))
-            toggles.chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pair.forEach { t ->
-                        // Filled when on, like an M3 Expressive toggle button.
-                        val bg by animateColorAsState(if (t.on) colors.primaryContainer else colors.surfaceContainerHighest, label = "toggle")
-                        val fg = if (t.on) colors.onPrimaryContainer else colors.onSurfaceVariant
-                        Row(
-                            Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(if (t.on) 28.dp else 16.dp))
-                                .background(bg)
-                                .toggleable(value = t.on, role = Role.Switch, onValueChange = t.onChange)
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(t.icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text(t.label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
-                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
