@@ -381,8 +381,8 @@ private fun AppDrawer(
     val open: (AppEntry, Rect?, ImageBitmap?) -> Unit = { app, bounds, icon ->
         keyboard?.hide()
         if (bounds != null && animationsEnabled() && repository.isOwnProfile(app)) {
-            val color = repository.windowColor(app, context)?.let { Color(it) } ?: fallbackColor
-            onLaunch(Launching(app, bounds, icon, color))
+            val splash = repository.splash(app, context)
+            onLaunch(Launching(app, bounds, icon, splash.color?.let { Color(it) } ?: fallbackColor, splash.icon))
         } else {
             repository.launch(app, bounds)
         }

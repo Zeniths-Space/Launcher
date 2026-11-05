@@ -8,6 +8,7 @@ import android.content.pm.LauncherApps
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
 import android.os.Handler
@@ -116,21 +117,24 @@ class AppRepository(context: Context) {
         synchronized(infos) { infos[app.key] }?.user == Process.myUserHandle()
 
     /**
-     * The colour the app's window opens with (its splash screen background, else its window
-     * background), so the launcher's zoom ends on the colour the app then shows. Null if unknown.
+     * What the app's splash screen shows: its background colour (splash background, else window
+     * background) and, on Android 12 and later, its splash icon. The launcher draws these itself,
+     * because starting an app without the system animation also skips the system splash screen.
      */
-    fun windowColor(app: AppEntry, context: Context): Int? = runCatching {
+    fun splash(app: AppEntry, context: Context): AppSplash = runCatching {
         val activity = context.packageManager.getActivityInfo(ComponentName(app.packageName, app.className), 0)
-        val theme = activity.themeResource.takeIf { it != 0 } ?: return null
+        val theme = activity.themeResource.takeIf { it != 0 } ?: return AppSplash(null, null)
         val appContext = context.createPackageContext(app.packageName, 0).apply { setTheme(theme) }
-        val attrs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            intArrayOf(android.R.attr.windowSplashScreenBackground, android.R.attr.windowBackground)
+        val s = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        val attrs = if (s) {
+            intArrayOf(android.R.attr.windowSplashScreenBackground, android.R.attr.windowBackground, android.R.attr.windowSplashScreenAnimatedIcon)
         } else {
             intArrayOf(android.R.attr.windowBackground)
         }
         val a = appContext.obtainStyledAttributes(attrs)
         try {
-            (0 until a.length()).firstNotNullOfOrNull { i ->
+            val colors = if (s) 0..1 else 0..0
+            val color = colors.firstNotNullOfOrNull { i ->
                 val v = a.peekValue(i) ?: return@firstNotNullOfOrNull null
                 val color = if (v.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT) {
                     v.data
@@ -140,13 +144,19 @@ class AppRepository(context: Context) {
                 // Unset splash colours read as transparent; fall through to the window background.
                 color?.takeIf { android.graphics.Color.alpha(it) == 255 }
             }
+            val iconIndex = attrs.indexOf(android.R.attr.windowSplashScreenAnimatedIcon)
+            val icon = if (iconIndex >= 0) runCatching { a.getDrawable(iconIndex) }.getOrNull() else null
+            AppSplash(color, icon)
         } finally {
             a.recycle()
         }
-    }.getOrNull()
+    }.getOrElse { AppSplash(null, null) }
 
     fun openAppInfo(app: AppEntry) {
         val info = synchronized(infos) { infos[app.key] } ?: return
         runCatching { launcherApps.startAppDetailsActivity(ComponentName(app.packageName, app.className), info.user, null, null) }
     }
 }
+
+/** An app's splash screen colour and icon, each null when the app does not set one. */
+data class AppSplash(val color: Int?, val icon: Drawable?)
