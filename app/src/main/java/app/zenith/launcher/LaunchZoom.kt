@@ -67,6 +67,8 @@ private val FallbackEndCorner = 0.dp
  * the splash replaces the card as it lands (98.5% grown) instead of after a still frame.
  */
 private const val StartAppLeadMillis = 50L
+/** Part of the zoom over which the icon fades, in place. */
+private const val IconFadeEnd = 0.3f
 
 @Composable
 fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = key(launching) {
@@ -99,12 +101,12 @@ fun LaunchZoom(launching: Launching, iconSizePx: Float, onStart: () -> Unit) = k
         // Starts as the icon's own rounded shape, ends as a rounded screen.
         val corner = lerp(b.width() * 0.3f, endCorner ?: FallbackEndCorner.toPx(), f)
         drawRoundRect(launching.color, Offset(left, top), Size(right - left, bottom - top), CornerRadius(corner))
-        val cx = (left + right) / 2
-        val cy = (top + bottom) / 2
-        // Fades over the whole zoom: fading it early left an empty card travelling for 200 ms.
-        val iconAlpha = 1f - f
+        // The icon stays where it was tapped, at its size, and fades as the card grows out from
+        // under it; carried to the centre of the card, it was seen travelling across the screen.
+        val cx = b.exactCenterX()
+        val cy = b.exactCenterY()
+        val iconAlpha = 1f - (f / IconFadeEnd).coerceIn(0f, 1f)
         launching.icon?.takeIf { iconAlpha > 0f }?.let { icon ->
-            // The icon keeps its size and fades in place at the centre of the growing card.
             val s = iconSizePx.roundToInt()
             drawImage(
                 icon,
