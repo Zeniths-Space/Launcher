@@ -11,6 +11,8 @@ No other ecosystem app is needed.
 | `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
 | `Dock.kt` | The dock grid: tap to open, long-press menu, drag to rearrange. |
+| `HomeGrid.kt` | Home screen pages of apps in a `HorizontalPager`: tap, long-press menu, drag across slots and pages. |
+| `HomePages.kt` | Home pages as slot lists: stored form, moving with room made, adding, removing (unit tested). |
 | `GestureService.kt` | `GestureAction`, `Gestures` (status bar expand, service fallback) and the accessibility service for locking. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
@@ -75,6 +77,15 @@ No other ecosystem app is needed.
   there, pushing the apps from that slot one back toward the slot it left, up to the first gap.
   That layout shows live and is the one saved when the finger lifts; callbacks go
   through `rememberUpdatedState`, as the gesture outlives the composition it started in.
+- **Home screen grid.** Pages of app keys by slot, "" for empty, stored as one string (slots by
+  line break, pages by "|"); empty pages are dropped on save. The grid reads its gestures on the
+  container, not the icons, so a drag survives its page being swiped away: long-press finds the
+  slot under the finger, an app starts a drag (its icon drawn over the pager) and an empty slot
+  opens the home menu. The pager's own swiping is off while dragging, and a drag adds a page past
+  the last to drop on; holding 500 ms at a side edge scrolls to the next page. The page dots row
+  always keeps its height, and cell sizes are read without restarting the gesture, so the grid
+  never resizes or drops a drag midway. Icons take taps themselves, so a double-tap gesture on the
+  wallpaper does not delay opening apps.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
 - **Wallpaper through the photo picker.** `ACTION_SET_WALLPAPER` on Samsung lists only live
