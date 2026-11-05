@@ -33,6 +33,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -93,6 +94,9 @@ fun HomeGrid(
     iconSize: Dp,
     showLabels: Boolean,
     showDots: Boolean,
+    locked: Boolean,
+    page: Int,
+    onPageChange: (Int) -> Unit,
     onPagesChange: (List<List<String>>) -> Unit,
     onLongPressEmpty: (Offset) -> Unit,
     onDoubleTap: (() -> Unit)?,
@@ -116,6 +120,11 @@ fun HomeGrid(
     val slop = LocalViewConfiguration.current.touchSlop
     val edge = with(LocalDensity.current) { 32.dp.toPx() }
     val change by rememberUpdatedState(onPagesChange)
+    val isLocked by rememberUpdatedState(locked)
+    val pageChange by rememberUpdatedState(onPageChange)
+    LaunchedEffect(pager) { snapshotFlow { pager.currentPage }.collect { pageChange(it) } }
+    // A page asked for from outside (a page added or removed from the home menu), once it exists.
+    LaunchedEffect(page, local.size) { if (page != pager.currentPage && page < pager.pageCount) pager.animateScrollToPage(page) }
     val known by rememberUpdatedState(apps)
     val empty by rememberUpdatedState(onLongPressEmpty)
     val window = remember { arrayOfNulls<LayoutCoordinates>(1) }
@@ -171,7 +180,8 @@ fun HomeGrid(
                                     empty(at + (window[0]?.takeIf { it.isAttached }?.positionInWindow() ?: Offset.Zero))
                                 } else {
                                     menuFor = key
-                                    drag = HomeDrag(key, page, slot, center(slot))
+                                    // Locked: the menu only, no drag.
+                                    if (!isLocked) drag = HomeDrag(key, page, slot, center(slot))
                                 }
                             },
                             onDrag = { change, amount ->
@@ -238,8 +248,9 @@ fun HomeGrid(
                                     menu = menuFor == app.key,
                                     onMenuDismiss = { menuFor = null },
                                     canTap = { drag == null && menuFor == null },
-                                    canMoveLeft = i > 0,
-                                    canMoveRight = i < capacity - 1,
+                                    canMoveLeft = !locked && i > 0,
+                                    canMoveRight = !locked && i < capacity - 1,
+                                    canRemove = !locked,
                                     onMove = { by -> HomePages.move(local, page, i, page, i + by, capacity)?.let(commit) },
                                     onRemove = { commit(HomePages.remove(local, app.key)) },
                                     modifier = Modifier
@@ -298,6 +309,7 @@ private fun HomeIcon(
     canTap: () -> Boolean,
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
+    canRemove: Boolean,
     onMove: (Int) -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier,
@@ -329,18 +341,20 @@ private fun HomeIcon(
                     customActions = buildList {
                         if (canMoveLeft) add(CustomAccessibilityAction(moveLeft) { onMove(-1); true })
                         if (canMoveRight) add(CustomAccessibilityAction(moveRight) { onMove(1); true })
-                        add(CustomAccessibilityAction(remove) { onRemove(); true })
+                        if (canRemove) add(CustomAccessibilityAction(remove) { onRemove(); true })
                     }
                 },
         )
         DropdownMenu(expanded = menu, onDismissRequest = onMenuDismiss) {
-            DropdownMenuItem(
-                text = { Text(remove) },
-                onClick = {
-                    onMenuDismiss()
-                    onRemove()
-                },
-            )
+            if (canRemove) {
+                DropdownMenuItem(
+                    text = { Text(remove) },
+                    onClick = {
+                        onMenuDismiss()
+                        onRemove()
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.app_info)) },
                 onClick = {

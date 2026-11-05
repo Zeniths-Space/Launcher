@@ -44,6 +44,8 @@ data class LauncherSettings(
     val homeLabels: Boolean = true,
     /** Dots under the home screen pages showing which one is shown. */
     val homeDots: Boolean = true,
+    /** Home screen and dock apps can't be moved, added or removed. */
+    val locked: Boolean = false,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -79,6 +81,7 @@ class SettingsStore(context: Context) {
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 homeLabels = p[HOME_LABELS] ?: true,
                 homeDots = p[HOME_DOTS] ?: true,
+                locked = p[LOCKED] ?: false,
             )
         }
 
@@ -102,6 +105,7 @@ class SettingsStore(context: Context) {
     suspend fun setHomeIconSize(dp: Int) = store.edit { it[HOME_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setHomeLabels(on: Boolean) = set(HOME_LABELS, on)
     suspend fun setHomeDots(on: Boolean) = set(HOME_DOTS, on)
+    suspend fun setLocked(on: Boolean) = set(LOCKED, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -135,6 +139,7 @@ class SettingsStore(context: Context) {
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")
         val HOME_LABELS = booleanPreferencesKey("home_labels")
         val HOME_DOTS = booleanPreferencesKey("home_dots")
+        val LOCKED = booleanPreferencesKey("locked")
     }
 }
 

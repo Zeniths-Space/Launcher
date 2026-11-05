@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.DropdownMenuItem
@@ -156,6 +157,9 @@ fun LauncherScreen(
         val byKey = apps.orEmpty().associateBy { it.key }
         List(settings.dockCapacity) { byKey[dockKeys.getOrNull(it)] }
     }
+    // The home page shown, and whether the drawer was opened to pick an app for it.
+    var homePage by remember { mutableIntStateOf(0) }
+    var picking by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
@@ -179,7 +183,10 @@ fun LauncherScreen(
     }
     // Back or the home button (a release has already started its own settle).
     LaunchedEffect(drawerOpen) {
-        if (!drawerOpen) keyboard?.hide()
+        if (!drawerOpen) {
+            keyboard?.hide()
+            picking = false
+        }
         motion.settle(scope, if (drawerOpen) 1f else 0f, null)
     }
     BackHandler(enabled = drawerOpen) { onDrawerOpenChange(false) }
@@ -215,6 +222,19 @@ fun LauncherScreen(
             settings,
             onOpenSettings = onOpenSettings,
             onSettings = onSettings,
+            onAddApp = {
+                picking = true
+                onDrawerOpenChange(true)
+            },
+            onAddPage = {
+                onHomeChange(homePages.ifEmpty { listOf(emptyList()) } + listOf(emptyList()))
+                homePage = homePages.size.coerceAtLeast(1)
+            },
+            // The page shown goes, with its apps (they stay installed); there is always one page.
+            onRemovePage = if (homePages.size > 1) ({
+                onHomeChange(homePages.filterIndexed { i, _ -> i != homePage })
+                homePage = homePage.coerceAtMost(homePages.size - 2)
+            }) else null,
             onDoubleTap = { onGesture(settings.doubleTap) },
             modifier = Modifier
                 .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
@@ -233,6 +253,9 @@ fun LauncherScreen(
                     iconSize = settings.homeIconSize.dp,
                     showLabels = settings.homeLabels,
                     showDots = settings.homeDots,
+                    locked = settings.locked,
+                    page = homePage,
+                    onPageChange = { homePage = it },
                     onPagesChange = onHomeChange,
                     onLongPressEmpty = onLongPressEmpty,
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,
@@ -249,6 +272,7 @@ fun LauncherScreen(
                         iconSize = settings.dockIconSize.dp,
                         rowGap = settings.dockRowGap.dp,
                         showBar = settings.dockBar,
+                        locked = settings.locked,
                         // Slots past a smaller grid stay as they were.
                         onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },
                         onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
@@ -267,6 +291,11 @@ fun LauncherScreen(
                 dockCapacity = settings.dockCapacity,
                 onDockChange = onDockChange,
                 homeKeys = homeKeys,
+                locked = settings.locked,
+                onPick = if (picking) ({ app ->
+                    if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage))
+                    onDrawerOpenChange(false)
+                }) else null,
                 onHomeToggle = { app ->
                     onHomeChange(if (app.key in homeKeys) HomePages.remove(homePages, app.key) else HomePages.add(homePages, app.key, settings.homeCapacity))
                 },
@@ -297,6 +326,9 @@ private fun HomeScreen(
     settings: LauncherSettings,
     onOpenSettings: (page: String?) -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
+    onAddApp: () -> Unit,
+    onAddPage: () -> Unit,
+    onRemovePage: (() -> Unit)?,
     onDoubleTap: () -> Unit,
     modifier: Modifier,
     grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
@@ -318,11 +350,13 @@ private fun HomeScreen(
         if (menu) {
             HomeSheet(
                 onDismiss = { menu = false },
+                locked = settings.locked,
+                onLockedChange = { on -> onSettings { setLocked(on) } },
                 items = listOf(
+                    MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
+                    MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
+                    MenuItem(Icons.Delete, stringResource(R.string.home_menu_remove_page), enabled = !settings.locked && onRemovePage != null) { onRemovePage?.invoke() },
                     MenuItem(Icons.Wallpaper, stringResource(R.string.settings_wallpaper)) { pickWallpaper() },
-                    MenuItem(Icons.Home, stringResource(R.string.home_menu_home)) { onOpenSettings(SettingsActivity.PAGE_HOME) },
-                    MenuItem(Icons.Dock, stringResource(R.string.settings_section_dock)) { onOpenSettings(SettingsActivity.PAGE_DOCK) },
-                    MenuItem(Icons.Settings, stringResource(R.string.home_menu_settings)) { onOpenSettings(null) },
                 ),
                 toggles = listOf(
                     QuickToggle(Icons.Clock, stringResource(R.string.settings_clock), settings.showClock) { onSettings { setShowClock(it) } },
@@ -352,7 +386,7 @@ private fun HomeScreen(
     }
 }
 
-private class MenuItem(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+private class MenuItem(val icon: ImageVector, val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
 private class QuickToggle(val icon: ImageVector, val label: String, val on: Boolean, val onChange: (Boolean) -> Unit)
 
@@ -364,7 +398,13 @@ private class QuickToggle(val icon: ImageVector, val label: String, val on: Bool
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>, toggles: List<QuickToggle>) {
+private fun HomeSheet(
+    onDismiss: () -> Unit,
+    locked: Boolean,
+    onLockedChange: (Boolean) -> Unit,
+    items: List<MenuItem>,
+    toggles: List<QuickToggle>,
+) {
     val colors = MaterialTheme.colorScheme
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -375,6 +415,19 @@ private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>, toggles: Lis
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                    if (locked) Text(stringResource(R.string.home_menu_locked), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+                // Filled while locked, so the state reads at a glance.
+                FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
+                    Icon(
+                        if (locked) Icons.Lock else Icons.LockOpen,
+                        contentDescription = stringResource(if (locked) R.string.home_menu_unlock else R.string.home_menu_lock),
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items.forEach { item ->
                     Column(
@@ -382,7 +435,8 @@ private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>, toggles: Lis
                             .weight(1f)
                             .clip(RoundedCornerShape(28.dp))
                             .background(colors.surfaceContainerHighest)
-                            .clickable(role = Role.Button) {
+                            .graphicsLayer { alpha = if (item.enabled) 1f else 0.38f }
+                            .clickable(enabled = item.enabled, role = Role.Button) {
                                 onDismiss()
                                 item.onClick()
                             }
@@ -393,7 +447,7 @@ private fun HomeSheet(onDismiss: () -> Unit, items: List<MenuItem>, toggles: Lis
                         Spacer(Modifier.height(10.dp))
                         Text(
                             item.label,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
                             color = colors.onSurface,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
@@ -524,6 +578,8 @@ private fun AppDrawer(
     dockCapacity: Int,
     onDockChange: (List<String>) -> Unit,
     homeKeys: Set<String>,
+    locked: Boolean,
+    onPick: ((AppEntry) -> Unit)?,
     onHomeToggle: (AppEntry) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
@@ -560,9 +616,10 @@ private fun AppDrawer(
         }
     }
     // Android plays its own open animation; the icon's bounds tell it where the app came from.
+    // Picking for the home screen, a tap adds the app instead.
     val open: (AppEntry, Rect?) -> Unit = { app, bounds ->
         keyboard?.hide()
-        repository.launch(app, bounds)
+        if (onPick != null) onPick(app) else repository.launch(app, bounds)
     }
     Column(
         modifier
@@ -584,6 +641,15 @@ private fun AppDrawer(
             }) {
                 Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
             }
+        }
+        if (onPick != null) {
+            Text(
+                stringResource(R.string.drawer_pick),
+                style = MaterialTheme.typography.labelLarge.copy(shadow = WallpaperShadow),
+                color = OnWallpaper,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
         }
         when {
             shown == null -> Unit
@@ -612,6 +678,7 @@ private fun AppDrawer(
                             onDockChange(if (app.key in dockKeys) DockSlots.remove(dockKeys, app.key) else DockSlots.add(dockKeys, app.key, dockCapacity))
                         },
                         onHome = app.key in homeKeys,
+                        canEdit = !locked,
                         drawerOpen = drawerOpen,
                         onHomeToggle = { onHomeToggle(app) },
                         onOpen = open,
@@ -664,6 +731,7 @@ private fun AppTile(
     dockFull: Boolean,
     onDockToggle: () -> Unit,
     onHome: Boolean,
+    canEdit: Boolean,
     drawerOpen: Boolean,
     onHomeToggle: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
@@ -711,14 +779,17 @@ private fun AppTile(
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(if (onHome) R.string.home_remove else R.string.home_add)) },
-                onClick = {
-                    menu = false
-                    onHomeToggle()
-                },
-            )
-            if (inDock || !dockFull) {
+            // Locked: the layout can't change, so only App info.
+            if (canEdit) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (onHome) R.string.home_remove else R.string.home_add)) },
+                    onClick = {
+                        menu = false
+                        onHomeToggle()
+                    },
+                )
+            }
+            if (canEdit && (inDock || !dockFull)) {
                 DropdownMenuItem(
                     text = { Text(stringResource(if (inDock) R.string.dock_remove else R.string.dock_add)) },
                     onClick = {

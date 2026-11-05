@@ -10,7 +10,7 @@ class HomePagesTest {
         assertEquals(pages, HomePages.parse(HomePages.format(pages)))
     }
 
-    @Test fun emptyPagesAreDropped() = assertEquals(listOf(listOf("a")), HomePages.parse(HomePages.format(listOf(listOf("", ""), listOf("a")))))
+    @Test fun emptyPagesAreKept() = assertEquals(listOf(emptyList(), listOf("a"), emptyList()), HomePages.parse(HomePages.format(listOf(listOf("", ""), listOf("a"), emptyList()))))
 
     @Test fun nothingStoredIsNoPages() = assertEquals(emptyList<List<String>>(), HomePages.parse(null))
 
@@ -28,6 +28,8 @@ class HomePagesTest {
         assertEquals(listOf(listOf("a", "k")), HomePages.add(listOf(listOf("a")), "k", 2))
         assertEquals(listOf(listOf("a", "b"), listOf("k")), HomePages.add(listOf(listOf("a", "b")), "k", 2))
     }
+
+    @Test fun addPrefersGivenPage() = assertEquals(listOf(listOf("a"), listOf("b", "c")), HomePages.add(listOf(listOf("a"), listOf("b")), "c", 2, first = 1))
 
     @Test fun removeLeavesGap() = assertEquals(listOf(listOf("", "b")), HomePages.remove(listOf(listOf("a", "b")), "a"))
 }

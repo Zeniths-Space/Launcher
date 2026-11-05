@@ -72,6 +72,7 @@ fun Dock(
     iconSize: Dp,
     rowGap: Dp,
     showBar: Boolean,
+    locked: Boolean,
     onArrange: (List<AppEntry?>) -> Unit,
     onRemove: (AppEntry) -> Unit,
     modifier: Modifier = Modifier,
@@ -129,14 +130,17 @@ fun Dock(
                         size = icon,
                         lifted = held,
                         offset = { position.value - home },
-                        canMoveLeft = i > 0,
-                        canMoveRight = i < slots.lastIndex,
+                        canMoveLeft = !locked && i > 0,
+                        canMoveRight = !locked && i < slots.lastIndex,
+                        canRemove = !locked,
                         onMove = { by -> arrange(DockSlots.place(slots, i, i + by)) },
                         onDragStart = {
+                            // Locked: the menu opens, the app stays put.
+                            if (locked) return@DockIcon
                             dragging = i
                             drag = Offset.Zero
                         },
-                        onDrag = { drag += it },
+                        onDrag = { if (dragging == i) drag += it },
                         onDragEnd = {
                             val to = previewOf()
                             // drag is left as is: zeroing it would snap the icon back to its old slot
@@ -200,6 +204,7 @@ private fun DockIcon(
     offset: () -> Offset,
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
+    canRemove: Boolean,
     onMove: (Int) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
@@ -275,13 +280,15 @@ private fun DockIcon(
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(size)) }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.dock_remove)) },
-                onClick = {
-                    menu = false
-                    onRemove()
-                },
-            )
+            if (canRemove) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.dock_remove)) },
+                    onClick = {
+                        menu = false
+                        onRemove()
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.app_info)) },
                 onClick = {
