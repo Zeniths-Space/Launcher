@@ -4,7 +4,7 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
-    <string name="home_menu_show_dock">Show dock</string>
+    <string name="home_menu_widgets">Widgets</string>
     <string name="home_menu_title">Home screen</string>
     <string name="home_menu_add_app">Add app</string>
     <string name="home_menu_add_page">Add page</string>

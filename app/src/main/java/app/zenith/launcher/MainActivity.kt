@@ -50,14 +50,14 @@ class MainActivity : ComponentActivity() {
                     onSettings = { edit -> lifecycleScope.launch { store.edit() } },
                     // The same settings as the settings screen, in the home sheet pulled up. Built
                     // each time it opens, so the home app and gesture checks are current.
-                    allSettings = { onBack ->
+                    allSettings = { startPage, onBack ->
                         SettingsScreen(
                             settings = settings,
                             store = store,
                             isDefaultHome = remember { isDefaultHome(this) },
                             gesturesOn = remember { GestureService.isEnabled(this) },
                             versionName = remember { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() },
-                            startPage = Page.Main,
+                            startPage = startPage,
                             onBack = onBack,
                             onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
                             onWallpaper = rememberWallpaperPicker(),

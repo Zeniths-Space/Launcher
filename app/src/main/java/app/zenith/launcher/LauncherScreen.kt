@@ -12,8 +12,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -46,9 +44,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.material3.SheetValue
-import androidx.compose.animation.Crossfade
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -133,7 +133,7 @@ private val HomeLift = 16.dp
 private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
 
 @Composable
-fun LauncherScreen(
+internal fun LauncherScreen(
     repository: AppRepository,
     motion: DrawerMotion,
     settings: LauncherSettings,
@@ -141,7 +141,7 @@ fun LauncherScreen(
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
-    allSettings: @Composable (onBack: () -> Unit) -> Unit,
+    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
@@ -328,7 +328,7 @@ fun LauncherScreen(
 @Composable
 private fun HomeScreen(
     settings: LauncherSettings,
-    allSettings: @Composable (onBack: () -> Unit) -> Unit,
+    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onAddApp: () -> Unit,
     onAddPage: () -> Unit,
@@ -338,7 +338,6 @@ private fun HomeScreen(
     grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
     dock: @Composable () -> Unit,
 ) {
-    val pickWallpaper = rememberWallpaperPicker()
     var menu by remember { mutableStateOf(false) }
     Box(
         modifier
@@ -361,15 +360,8 @@ private fun HomeScreen(
                     MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
                     MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
                     MenuItem(Icons.Delete, stringResource(R.string.home_menu_remove_page), enabled = !settings.locked && onRemovePage != null) { onRemovePage?.invoke() },
-                    MenuItem(Icons.Wallpaper, stringResource(R.string.settings_wallpaper)) { pickWallpaper() },
-                ),
-                toggles = listOf(
-                    QuickToggle(Icons.Clock, stringResource(R.string.settings_clock), settings.showClock) { onSettings { setShowClock(it) } },
-                    QuickToggle(Icons.SwipeUp, stringResource(R.string.settings_hint), settings.showHint) { onSettings { setShowHint(it) } },
-                    QuickToggle(Icons.Label, stringResource(R.string.settings_home_labels), settings.homeLabels) { onSettings { setHomeLabels(it) } },
-                    QuickToggle(Icons.Dots, stringResource(R.string.settings_home_dots), settings.homeDots) { onSettings { setHomeDots(it) } },
-                    QuickToggle(Icons.Dock, stringResource(R.string.home_menu_show_dock), settings.showDock) { onSettings { setShowDock(it) } },
-                    QuickToggle(Icons.DarkMode, stringResource(R.string.settings_pure_black), settings.pureBlack) { onSettings { setPureBlack(it) } },
+                    // shortcut: no widget hosting yet, so the tile is shown but off; wire it to AppWidgetHost with the widgets work.
+                    MenuItem(Icons.Widgets, stringResource(R.string.home_menu_widgets), enabled = false) {},
                 ),
             )
         }
@@ -393,52 +385,70 @@ private fun HomeScreen(
 
 private class MenuItem(val icon: ImageVector, val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
-private class QuickToggle(val icon: ImageVector, val label: String, val on: Boolean, val onChange: (Boolean) -> Unit)
-
 /**
- * The home screen's long-press menu: a sheet that rises halfway from the bottom edge, with the
- * layout lock, a row of actions (add app, add or remove page, wallpaper) and switches for home
- * screen settings that apply at once. Pulled up, it turns into the whole settings screen
- * ([allSettings]); its back arrow returns to the actions. Drag it down, tap outside or press Back
- * to close it.
+ * The home screen's long-press menu: a sheet from the bottom edge with the layout lock, a row of
+ * actions (add app, add or remove page, widgets) and the first settings categories. Pull it up, or
+ * pick a category, and it grows into the whole settings screen ([allSettings]); its back arrow or
+ * Back returns to the actions. Drag it down, tap outside or press Back to close it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeSheet(
     onDismiss: () -> Unit,
-    allSettings: @Composable (onBack: () -> Unit) -> Unit,
+    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
     items: List<MenuItem>,
-    toggles: List<QuickToggle>,
 ) {
     val colors = MaterialTheme.colorScheme
-    val state = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
+    // The settings page to show, or null for the actions. Not M3's half-expanded stop: that is
+    // fixed at half the screen, shorter than the actions.
+    var settingsPage by remember { mutableStateOf<Page?>(null) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = state,
-        // Pulled up, it takes the settings screen's colour, so the two read as one surface.
-        containerColor = if (state.targetValue == SheetValue.Expanded) colors.surface else colors.surfaceContainer,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        // The settings screen's colour, so its categories and pages look the same here.
+        containerColor = colors.surface,
     ) {
-        // Full height, so the sheet opens halfway and pulls up into the whole settings.
-        Crossfade(state.targetValue == SheetValue.Expanded, Modifier.fillMaxHeight(), label = "home sheet") { full ->
-            if (full) allSettings { scope.launch { state.partialExpand() } } else HomeSheetActions(onDismiss, locked, onLockedChange, items, toggles)
+        // Inside the sheet, whose window takes Back before the activity does.
+        BackHandler(enabled = settingsPage != null) { settingsPage = null }
+        AnimatedContent(settingsPage, label = "home sheet") { page ->
+            if (page != null) {
+                Box(Modifier.fillMaxHeight()) { allSettings(page) { settingsPage = null } }
+            } else {
+                HomeSheetActions(locked, onLockedChange, items, onDismiss, onSettings = { settingsPage = it })
+            }
         }
     }
 }
 
 @Composable
 private fun HomeSheetActions(
-    onDismiss: () -> Unit,
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
     items: List<MenuItem>,
-    toggles: List<QuickToggle>,
+    onDismiss: () -> Unit,
+    onSettings: (Page) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val pull = with(LocalDensity.current) { 48.dp.toPx() }
     Column(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        Modifier
+            .fillMaxWidth()
+            // A pull up opens the whole settings. Watched, not consumed, so taps and the sheet's own drag still work.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var dy = 0f
+                    // Switched when the finger lifts: switching mid-drag left the sheet's drag hanging and lost the next tap.
+                    do {
+                        val event = awaitPointerEvent()
+                        dy += event.changes.first().positionChangeIgnoreConsumed().y
+                    } while (event.changes.any { it.pressed })
+                    if (dy <= -pull) onSettings(Page.Main)
+                }
+            }
+            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -487,29 +497,8 @@ private fun HomeSheetActions(
             }
         }
         Spacer(Modifier.height(8.dp))
-        toggles.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { t ->
-                    // Filled when on, like an M3 Expressive toggle button.
-                    val bg by animateColorAsState(if (t.on) colors.primaryContainer else colors.surfaceContainerHighest, label = "toggle")
-                    val fg = if (t.on) colors.onPrimaryContainer else colors.onSurfaceVariant
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(if (t.on) 28.dp else 16.dp))
-                            .background(bg)
-                            .toggleable(value = t.on, role = Role.Switch, onValueChange = t.onChange)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(t.icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(t.label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
+        // The settings page's first categories, opening in the sheet.
+        SegmentedGroup(categoryTiles("", onSettings).take(4))
     }
 }
 

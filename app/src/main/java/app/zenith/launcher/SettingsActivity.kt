@@ -207,16 +207,7 @@ internal fun SettingsScreen(
                     Page.Main -> {
                         HomeAppCard(isDefaultHome, onChooseHome)
                         Spacer(Modifier.height(24.dp))
-                        SegmentedGroup(
-                            listOf(
-                                { CategoryTile(Icons.Wallpaper, Page.Appearance, stringResource(R.string.settings_appearance_sub)) { page = it } },
-                                { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_dock_sub)) { page = it } },
-                                { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub)) { page = it } },
-                                { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub)) { page = it } },
-                                { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub)) { page = it } },
-                                { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName)) { page = it } },
-                            ),
-                        )
+                        SegmentedGroup(categoryTiles(versionName) { page = it })
                     }
                     Page.Appearance -> SegmentedGroup(
                         listOf(
@@ -456,6 +447,16 @@ private fun SectionHeader(title: String) {
     )
 }
 
+/** The main page's categories, in order; the home sheet shows the first four. */
+internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@Composable () -> Unit> = listOf(
+    { CategoryTile(Icons.Wallpaper, Page.Appearance, stringResource(R.string.settings_appearance_sub), onOpen) },
+    { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_dock_sub), onOpen) },
+    { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub), onOpen) },
+    { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub), onOpen) },
+    { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub), onOpen) },
+    { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName), onOpen) },
+)
+
 /** A row on the main page that opens a category's page. */
 @Composable
 private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen: (Page) -> Unit) {
@@ -509,7 +510,7 @@ private fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
 
 /** Rounded segments stacked with small gaps (M3 Expressive grouped list). */
 @Composable
-private fun SegmentedGroup(segments: List<@Composable () -> Unit>, modifier: Modifier = Modifier) {
+internal fun SegmentedGroup(segments: List<@Composable () -> Unit>, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         segments.forEachIndexed { i, segment ->
             Surface(
