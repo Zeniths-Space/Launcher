@@ -219,6 +219,7 @@ fun LauncherScreen(
                 apps = dockApps.take(settings.dockCapacity),
                 repository = repository,
                 columns = settings.dockColumns,
+                rows = settings.dockRows,
                 iconSize = settings.dockIconSize.dp,
                 showBar = settings.dockBar,
                 // Apps hidden past a shrunken grid stay after the shown ones.

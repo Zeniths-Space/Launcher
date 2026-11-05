@@ -53,8 +53,8 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
 /**
- * The dock: apps in a grid of [columns] at the bottom of the home screen, icons only, a partly
- * filled last row centred. Tap opens an app. Long-press opens a menu (remove, app info); keep
+ * The dock: a fixed grid of [columns] by [rows] at the bottom of the home screen, icons only, apps
+ * filling it from the top left in reading order; empty slots keep their space. Tap opens an app. Long-press opens a menu (remove, app info); keep
  * holding and drag to move the app, the others making room as it passes. Screen readers get
  * Move left / Move right instead.
  */
@@ -63,6 +63,7 @@ fun Dock(
     apps: List<AppEntry>,
     repository: AppRepository,
     columns: Int,
+    rows: Int,
     iconSize: Dp,
     showBar: Boolean,
     onReorder: (List<AppEntry>) -> Unit,
@@ -87,12 +88,7 @@ fun Dock(
         val icon = minOf(iconSize, with(density) { (slot * 0.85f).toDp() })
         val iconPx = with(density) { icon.toPx() }
         val rowHeight = iconPx + with(density) { 20.dp.toPx() }
-        val rowCount = (apps.size + columns - 1) / columns
-        fun center(index: Int): Offset {
-            val row = index / columns
-            val inRow = minOf(columns, apps.size - row * columns)
-            return Offset((width - inRow * slot) / 2 + (index % columns + 0.5f) * slot, (row + 0.5f) * rowHeight)
-        }
+        fun center(index: Int) = Offset((index % columns + 0.5f) * slot, (index / columns + 0.5f) * rowHeight)
         // Read when the drag ends too, not only from this composition: the gesture outlives it.
         val targetOf = {
             if (dragging < 0) -1 else {
@@ -103,7 +99,7 @@ fun Dock(
         val target = targetOf()
         val order = if (dragging < 0) null else (apps.indices - dragging).toMutableList().apply { add(target, dragging) }
 
-        Box(Modifier.fillMaxWidth().height(with(density) { (rowCount * rowHeight).toDp() })) {
+        Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() })) {
             apps.forEachIndexed { i, app ->
                 val home = center(i)
                 // Where this app is drawn: following the finger, or in its slot once the dragged one is placed.

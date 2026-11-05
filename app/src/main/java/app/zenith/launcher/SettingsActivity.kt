@@ -273,7 +273,7 @@ private fun SettingsScreen(
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.Rows, stringResource(R.string.settings_dock_rows), stringResource(R.string.settings_dock_rows_sub), settings.dockRows, DockGridRange) {
+                                    SliderTile(Icons.Rows, stringResource(R.string.settings_dock_rows), null, settings.dockRows, DockGridRange) {
                                         save { store.setDockRows(it) }
                                     }
                                 },
