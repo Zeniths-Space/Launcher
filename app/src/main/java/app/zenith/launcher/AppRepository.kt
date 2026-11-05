@@ -8,7 +8,9 @@ import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
@@ -32,6 +34,7 @@ import kotlinx.coroutines.withContext
  * Icons are drawn once per app and size, on demand, and kept in memory.
  */
 class AppRepository(context: Context) {
+    private val pm = context.packageManager
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
     private val density = context.resources.displayMetrics.densityDpi
@@ -83,7 +86,7 @@ class AppRepository(context: Context) {
         val cacheKey = "${app.key}@$sizePx"
         synchronized(infos) { icons[cacheKey] }?.let { return@withContext it }
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
-        val drawable = runCatching { info.getBadgedIcon(density) }.getOrNull()
+        val drawable = runCatching { pm.getUserBadgedIcon(info.getIcon(density).inSystemShape(), info.user) }.getOrNull()
             ?: return@withContext null
         val bitmap = createBitmap(sizePx, sizePx)
         drawable.setBounds(0, 0, sizePx, sizePx)
@@ -173,3 +176,14 @@ private fun Drawable.cornerColor(): Int {
     bounds = old
     return bitmap.getPixel(0, 0).also { bitmap.recycle() }
 }
+
+/**
+ * Legacy (non-adaptive) icons are drawn as they are, square or shapeless, next to adaptive icons in
+ * the system shape. Like Launcher3, place them on white inside an adaptive icon so Android masks
+ * them to the same shape: scaled to 70% of the visible area, the layer being 1.5 times that area.
+ */
+private fun Drawable.inSystemShape(): Drawable =
+    if (this is AdaptiveIconDrawable) this
+    else AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(this, LegacyIconInset))
+
+private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
