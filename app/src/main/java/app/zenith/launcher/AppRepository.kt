@@ -4,7 +4,6 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.graphics.Canvas
@@ -92,7 +91,6 @@ class AppRepository(context: Context) {
         bitmap.asImageBitmap().also { synchronized(infos) { icons[cacheKey] = it } }
     }
 
-    /** Starts [app]; with its icon's window [bounds] and the [view] it sits in, the app's window grows out of the icon. */
     /** Starts [app] with the system's own animation; [bounds] tell the app where it was opened from. */
     fun launch(app: AppEntry, bounds: Rect?) {
         val info = synchronized(infos) { infos[app.key] } ?: return
@@ -104,7 +102,7 @@ class AppRepository(context: Context) {
      * the icon. Only for apps of this profile (other profiles start through LauncherApps, which
      * cannot drop the animation). False if it could not be started this way.
      */
-    fun launchWithoutAnimation(app: AppEntry, bounds: Rect?, context: Context, plainSplash: Boolean): Boolean {
+    fun launchWithoutAnimation(app: AppEntry, bounds: Rect?, context: Context): Boolean {
         val info = synchronized(infos) { infos[app.key] } ?: return false
         if (info.user != Process.myUserHandle()) return false
         val intent = Intent(Intent.ACTION_MAIN)
@@ -112,12 +110,10 @@ class AppRepository(context: Context) {
             .setComponent(ComponentName(app.packageName, app.className))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_NO_ANIMATION)
         intent.sourceBounds = bounds
-        // An app started by anything but the home app gets a plain colour splash with no icon,
-        // which shows as a blank screen between the zoom and the app, so the icon is asked for;
-        // apps that draw their own splash get the plain one, so two splashes do not stack.
-        val style = if (plainSplash) SplashScreen.SPLASH_SCREEN_STYLE_SOLID_COLOR else SplashScreen.SPLASH_SCREEN_STYLE_ICON
+        // Each app's own splash screen, as Android shows it for launches from the home app: an app
+        // started any other way gets a plain colour splash with no icon.
         val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityOptions.makeBasic().setSplashScreenStyle(style).toBundle()
+            ActivityOptions.makeBasic().setSplashScreenStyle(SplashScreen.SPLASH_SCREEN_STYLE_ICON).toBundle()
         } else {
             null
         }
@@ -129,78 +125,43 @@ class AppRepository(context: Context) {
         synchronized(infos) { infos[app.key] }?.user == Process.myUserHandle()
 
     /**
-     * What the app's splash screen shows: its background colour (splash background, else window
-     * background) and, on Android 12 and later, its splash icon. The launcher draws these itself,
-     * because starting an app without the system animation also skips the system splash screen.
+     * The colour the app's splash screen opens with (its splash background, else its window
+     * background), so the launcher's zoom ends on the colour Android's splash then shows. Null if
+     * unknown.
      */
-    fun splash(app: AppEntry, context: Context): AppSplash = runCatching {
+    fun windowColor(app: AppEntry, context: Context): Int? = runCatching {
         val activity = context.packageManager.getActivityInfo(ComponentName(app.packageName, app.className), 0)
-        val theme = activity.themeResource.takeIf { it != 0 } ?: return AppSplash(null, null, false)
+        val theme = activity.themeResource.takeIf { it != 0 } ?: return null
         val appContext = context.createPackageContext(app.packageName, 0).apply { setTheme(theme) }
-        val s = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        val attrs = if (s) {
-            intArrayOf(android.R.attr.windowSplashScreenBackground, android.R.attr.windowBackground, android.R.attr.windowSplashScreenAnimatedIcon)
+        val attrs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            intArrayOf(android.R.attr.windowSplashScreenBackground, android.R.attr.windowBackground)
         } else {
             intArrayOf(android.R.attr.windowBackground)
         }
         val a = appContext.obtainStyledAttributes(attrs)
         try {
-            val colors = if (s) 0..1 else 0..0
-            var launchScreen = false
-            val color = colors.firstNotNullOfOrNull { i ->
+            (0 until a.length()).firstNotNullOfOrNull { i ->
                 val v = a.peekValue(i) ?: return@firstNotNullOfOrNull null
                 val color = if (v.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT) {
                     v.data
                 } else {
                     // A launch-screen drawable (Flutter's, Artha's) is a logo on a background: its
-                    // corner is the colour Android's splash shows around the icon.
-                    runCatching { a.getDrawable(i) }.getOrNull()?.let {
-                        if (it !is ColorDrawable && i == colors.last) launchScreen = true
-                        (it as? ColorDrawable)?.color ?: it.cornerColor()
-                    }
+                    // corner is the colour around the logo.
+                    runCatching { a.getDrawable(i) }.getOrNull()?.let { (it as? ColorDrawable)?.color ?: it.cornerColor() }
                 }
                 // Unset splash colours read as transparent; fall through to the window background.
                 color?.takeIf { android.graphics.Color.alpha(it) == 255 }
             }
-            val iconIndex = attrs.indexOf(android.R.attr.windowSplashScreenAnimatedIcon)
-            val icon = if (iconIndex >= 0) runCatching { a.getDrawable(iconIndex) }.getOrNull() else null
-            // Read from the theme, so it holds for any app: a splash icon set to draw nothing
-            // (Nekogram, Kontract), or no splash icon but a launch-screen window background (the
-            // pre-Android 12 splash pattern; Flutter apps such as Artha), means the app shows its
-            // own splash once it starts. System apps (Samsung Settings, Camera) blank the icon to
-            // have no splash at all, so they keep the launcher icon in the zoom.
-            val blank = icon?.isBlank() == true
-            val system = activity.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
-            AppSplash(color, icon.takeUnless { blank }, ownSplash = (blank && !system) || (icon == null && launchScreen))
         } finally {
             a.recycle()
         }
-    }.getOrElse { AppSplash(null, null, false) }
+    }.getOrNull()
 
     fun openAppInfo(app: AppEntry) {
         val info = synchronized(infos) { infos[app.key] } ?: return
         runCatching { launcherApps.startAppDetailsActivity(ComponentName(app.packageName, app.className), info.user, null, null) }
     }
 }
-
-/** Whether [this] draws nothing, checked at its own size (fixed-size layers ignore smaller bounds). */
-private fun Drawable.isBlank(): Boolean {
-    val size = maxOf(intrinsicWidth, intrinsicHeight).coerceIn(32, 256)
-    val bitmap = createBitmap(size, size)
-    val old = copyBounds()
-    setBounds(0, 0, size, size)
-    draw(Canvas(bitmap))
-    bounds = old
-    val pixels = IntArray(size * size).also { bitmap.getPixels(it, 0, size, 0, 0, size, size) }
-    bitmap.recycle()
-    return pixels.none { android.graphics.Color.alpha(it) != 0 }
-}
-
-/**
- * An app's splash screen colour and icon, each null when the app does not set one, and whether it
- * hides the icon from Android's splash to show its own splash instead.
- */
-data class AppSplash(val color: Int?, val icon: Drawable?, val ownSplash: Boolean)
 
 /** The colour at the top-left corner of [this], drawn on a small bitmap. */
 private fun Drawable.cornerColor(): Int {
