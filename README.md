@@ -21,8 +21,12 @@ Application ID `app.zenith.launcher`.
   never by polling.
 - Long-press the home screen for a menu at your finger: Wallpaper and Settings.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
-  it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (coming
-  soon), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
+  it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
+  off, background bar), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
+- Dock: up to five apps at the bottom of the home screen, icons only (a background bar is a
+  setting). It starts with your default Phone, Messages, Browser and Camera apps. Long-press an
+  app in the drawer to add or remove it; long-press a dock app for Remove and App info, or keep
+  holding and drag it sideways to move it. Screen readers get Move left and Move right.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
   nothing), with nothing to set up. Double tap can lock the screen; that one needs Zenith
   gestures, an accessibility service you turn on once from Settings > Gestures, since Android has
