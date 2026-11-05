@@ -2,9 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        No permissions. LauncherApps lists and starts apps without QUERY_ALL_PACKAGES or INTERNET.
-        The gestures accessibility service below is off unless the user turns it on.
+        LauncherApps lists and starts apps without QUERY_ALL_PACKAGES or INTERNET. The one
+        permission, granted at install, lets swipe down open the notification panel. The gestures
+        accessibility service below is off unless the user turns it on.
     -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
     <!-- Package visibility (Android 11+): see exactly the apps that have a launcher icon, no more. -->
     <queries>

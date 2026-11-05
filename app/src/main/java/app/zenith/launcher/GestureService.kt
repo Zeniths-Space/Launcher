@@ -2,12 +2,14 @@ package app.zenith.launcher
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import java.lang.ref.WeakReference
+import java.lang.reflect.Method
 
 /** What a home screen gesture does. */
 enum class GestureAction {
@@ -28,13 +30,47 @@ enum class GestureAction {
 }
 
 /**
- * Opens the notification panel and quick settings, and locks the screen, for the home screen's
- * gestures. Android offers these to a third-party launcher only through an accessibility service's
- * global actions (expanding the panel directly is a hidden API). The service asks for no events and
- * cannot read window content (see res/xml/gesture_service.xml): it only performs those actions, and
- * only when a gesture asks. It runs in the launcher's process; the user turns it on in Android's
- * accessibility settings.
+ * Performs home screen gestures. The notification panel and quick settings open through
+ * StatusBarManager's expand methods, as Niagara, Nova and Lawnchair do: hidden from the SDK
+ * (@UnsupportedAppUsage, reached by reflection) but allowed, with the install-time
+ * EXPAND_STATUS_BAR permission, so nothing has to be turned on. Locking the screen has no such
+ * route, so it, and the panel if Android ever blocks those methods, go through this
+ * accessibility service's global actions. The service asks for no events and cannot read window
+ * content (see res/xml/gesture_service.xml), and runs only when the user turns it on.
  */
+object Gestures {
+    /** Performs [action]; false if it needs [GestureService] and the service is off. */
+    fun perform(context: Context, action: GestureAction): Boolean = when (action) {
+        GestureAction.Notifications -> expand(context, "expandNotificationsPanel") || GestureService.perform(action)
+        GestureAction.QuickSettings -> expand(context, "expandSettingsPanel") || GestureService.perform(action)
+        else -> GestureService.perform(action)
+    }
+
+    /** Whether [action] can only work with [GestureService] on. */
+    fun needsService(context: Context, action: GestureAction): Boolean = when (action) {
+        GestureAction.None -> false
+        GestureAction.Notifications -> statusBarMethod(context, "expandNotificationsPanel") == null
+        GestureAction.QuickSettings -> statusBarMethod(context, "expandSettingsPanel") == null
+        GestureAction.LockScreen -> true
+    }
+
+    private fun expand(context: Context, name: String): Boolean {
+        val bar = context.getSystemService(STATUS_BAR_SERVICE) ?: return false
+        val method = statusBarMethod(context, name) ?: return false
+        return runCatching { method.invoke(bar) }.isSuccess
+    }
+
+    // shortcut: hidden StatusBarManager methods by reflection; if a future Android blocks them, the accessibility fallback takes over.
+    @SuppressLint("WrongConstant", "PrivateApi", "DiscouragedPrivateApi")
+    private fun statusBarMethod(context: Context, name: String): Method? = runCatching {
+        context.getSystemService(STATUS_BAR_SERVICE)?.javaClass?.getMethod(name)
+    }.getOrNull()
+
+    /** Context.STATUS_BAR_SERVICE, which is hidden from the SDK. */
+    private const val STATUS_BAR_SERVICE = "statusbar"
+}
+
+/** The accessibility service behind gestures that have no other route (see [Gestures]). */
 class GestureService : AccessibilityService() {
 
     override fun onServiceConnected() {

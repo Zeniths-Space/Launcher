@@ -64,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -249,8 +250,11 @@ private fun SettingsScreen(
                     )
                     Page.Dock -> ComingSoon(Icons.Dock, stringResource(R.string.settings_dock_soon))
                     Page.Gestures -> {
-                        GesturesCard(gesturesOn, onAccessibility)
-                        if (!gesturesOn) {
+                        // The service is only asked for when a chosen gesture needs it (locking).
+                        val context = LocalContext.current
+                        val needed = Gestures.needsService(context, settings.swipeDown) || Gestures.needsService(context, settings.doubleTap)
+                        if (needed || gesturesOn) GesturesCard(gesturesOn, onAccessibility)
+                        if (needed && !gesturesOn) {
                             Text(
                                 stringResource(R.string.gesture_service_restricted),
                                 style = MaterialTheme.typography.bodySmall,
