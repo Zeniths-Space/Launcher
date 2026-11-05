@@ -14,8 +14,13 @@
     <string name="settings_home_change">Tap to choose a different home app</string>
     <string name="settings_home_choose">Tap to make it the home app. You can switch back here any time.</string>
     <string name="settings_section_home">Home screen</string>
-    <string name="settings_section_style">Wallpaper &amp; style</string>
-    <string name="settings_style_sub">Wallpaper, pure black</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_appearance_sub">Wallpaper, pure black</string>
+    <string name="settings_section_dock">Dock</string>
+    <string name="settings_section_gestures">Gestures</string>
+    <string name="settings_coming_soon">Coming soon</string>
+    <string name="settings_dock_soon">Dock settings will be here in a later version.</string>
+    <string name="settings_gestures_soon">Gesture settings will be here in a later version.</string>
     <string name="settings_home_sub">Clock, swipe hint</string>
     <string name="settings_drawer_sub">App names</string>
     <string name="settings_wallpaper">Wallpaper</string>

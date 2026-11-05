@@ -61,10 +61,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-/** The launcher's settings: home app status, then one page each for style, home screen, app drawer and about. */
+/** The launcher's settings: home app status, then one page each for appearance, dock, home screen, app drawer, gestures and about. */
 class SettingsActivity : ComponentActivity() {
 
     private val store by lazy { SettingsStore(this) }
@@ -113,7 +114,7 @@ fun isDefaultHome(context: Context): Boolean {
 }
 
 /** The settings pages: a list of categories, each opening its own page. */
-private enum class Page { Main, Style, Home, Drawer, About }
+private enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, About }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,14 +174,16 @@ private fun SettingsScreen(
                         Spacer(Modifier.height(24.dp))
                         SegmentedGroup(
                             listOf(
-                                { CategoryTile(Icons.Wallpaper, Page.Style, stringResource(R.string.settings_style_sub)) { page = it } },
+                                { CategoryTile(Icons.Wallpaper, Page.Appearance, stringResource(R.string.settings_appearance_sub)) { page = it } },
+                                { CategoryTile(Icons.Dock, Page.Dock, stringResource(R.string.settings_coming_soon)) { page = it } },
                                 { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub)) { page = it } },
                                 { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub)) { page = it } },
+                                { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_coming_soon)) { page = it } },
                                 { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName)) { page = it } },
                             ),
                         )
                     }
-                    Page.Style -> SegmentedGroup(
+                    Page.Appearance -> SegmentedGroup(
                         listOf(
                             {
                                 GroupTile(
@@ -223,6 +226,8 @@ private fun SettingsScreen(
                         ),
                         Modifier.padding(top = 8.dp),
                     )
+                    Page.Dock -> ComingSoon(Icons.Dock, stringResource(R.string.settings_dock_soon))
+                    Page.Gestures -> ComingSoon(Icons.Gesture, stringResource(R.string.settings_gestures_soon))
                     Page.About -> SegmentedGroup(
                         listOf(
                             {
@@ -245,11 +250,33 @@ private fun SettingsScreen(
 private val Page.title
     get() = when (this) {
         Page.Main -> R.string.settings_title
-        Page.Style -> R.string.settings_section_style
+        Page.Appearance -> R.string.settings_section_appearance
+        Page.Dock -> R.string.settings_section_dock
         Page.Home -> R.string.settings_section_home
         Page.Drawer -> R.string.settings_section_drawer
+        Page.Gestures -> R.string.settings_section_gestures
         Page.About -> R.string.settings_section_about
     }
+
+/** A category with no settings yet: says so plainly instead of showing an empty list. */
+@Composable
+private fun ComingSoon(icon: ImageVector, text: String) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ScallopBadge(icon)
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.settings_coming_soon), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
 
 /** A row on the main page that opens a category's page. */
 @Composable
