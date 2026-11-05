@@ -24,11 +24,12 @@ Application ID `app.zenith.launcher`.
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
   off, background bar, columns, rows, icon size), Home screen (clock, swipe hint), App drawer (app names under icons), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
-  20 rows (5 by 1 to start), filled from the top left; empty slots keep their space. Icon size is a setting (32 to 96 dp); icons
+  20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. A background bar is a setting. Making the
   grid smaller hides apps past it without forgetting them. It starts with your default Phone, Messages, Browser and Camera apps. Long-press an
   app in the drawer to add or remove it; long-press a dock app for Remove and App info, or keep
-  holding and drag it to another place to move it. Screen readers get Move left and Move right.
+  holding and drag it to any slot: an empty slot takes it, an app there swaps places with it.
+  Changing the column count rewraps the slots in reading order. Screen readers get Move left and Move right.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
   nothing), with nothing to set up. Double tap can lock the screen; that one needs Zenith
   gestures, an accessibility service you turn on once from Settings > Gestures, since Android has

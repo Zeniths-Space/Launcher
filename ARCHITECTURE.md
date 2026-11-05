@@ -64,14 +64,15 @@ No other ecosystem app is needed.
   asks for it only when a chosen gesture needs it. A swipe down counts when it starts on the home
   screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
   it is set.
-- **Dock.** App keys, in reading order, in the settings DataStore; apps that are uninstalled drop
-  out. Columns, rows and icon size are stored with it; only the first columns times rows apps
-  show, and the rest stay stored, after the shown ones when they are reordered. The grid is
+- **Dock.** App keys by slot in reading order, "" for an empty slot, in the settings DataStore
+  (`DockSlots` does the edits); an app that is uninstalled leaves its slot empty. Columns, rows
+  and icon size are stored with it; only the first columns times rows slots show, and the rest
+  stay stored. The grid is
   always columns by rows high; each app is placed at its slot's centre, so it needs no lazy layout. Seeded once (a flag in the same edit) from the apps that resolve `DIAL`, `SENDTO
   smsto:`, `VIEW https` and `STILL_IMAGE_CAMERA`, which the manifest's `<queries>` make visible.
   It sits outside the home screen's long-press area, so holding a dock app does not open the home
-  menu, but inside the swipe-up area. Drag after long-press drops the app on the nearest slot centre, the others shown in
-  their new places as it moves; callbacks go
+  menu, but inside the swipe-up area. Drag after long-press drops the app on the nearest slot centre, moving it there or
+  swapping with the app there, which is shown in its new place as the finger passes; callbacks go
   through `rememberUpdatedState`, as the gesture outlives the composition it started in.
 - **Settings in DataStore.** One file, read as a Flow: a change in settings shows on the home
   screen without a reload. A damaged file reads as defaults.
