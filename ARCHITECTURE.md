@@ -42,12 +42,12 @@ No other ecosystem app is needed.
   from its theme through `createPackageContext`), while the launcher icon hands over to the app's
   `windowSplashScreenAnimatedIcon` (or grows to 160 dp when there is none), laid out in a 108 dp
   box scaled to 192 dp as Android's splash does (a splash icon that draws nothing, such as Samsung
-  Settings' `sec_ic_blank`, counts as none). The app starts 180 ms in, at about 80% grown,
-  with `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
+  Settings' `sec_ic_blank`, counts as none). The app starts once the zoom fills the screen
+  (starting it part way, as One UI snaps to full when the app is ready, read as a stutter), with
+  `FLAG_ACTIVITY_NO_ANIMATION` and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise a
   launch from a non-home app gets a plain colour splash, a blank screen). Android's splash or the
-  app's window then covers the zoom at full size, like One UI's snap when the app is ready; a
-  zero-length `makeCustomAnimation` was tried instead of the flag and Android played its own
-  centre zoom. Skipped when animations are off, for other profiles
+  app's window then replaces the finished zoom in place; a zero-length `makeCustomAnimation` was
+  tried instead of the flag and Android played its own centre zoom. Skipped when animations are off, for other profiles
   (LauncherApps cannot drop the animation) and without a tile. Cleared in `onStop`.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and
   `excludeFromRecents`: one fresh home that never appears in Recents. It also keeps a LAUNCHER
