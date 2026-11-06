@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -138,7 +139,7 @@ private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction
             Spacer(Modifier.width(14.dp))
             Text(
                 app.label,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                 color = cs.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -192,4 +193,4 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
 }
 
 private val MenuWidth = 296.dp
-private val HeaderIconSize = 48.dp
+private val HeaderIconSize = 42.dp
