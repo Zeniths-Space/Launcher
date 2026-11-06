@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -124,15 +126,24 @@ private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction
     val cs = MaterialTheme.colorScheme
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
+    val pureBlack = LocalPureBlack.current
     Column(
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(8.dp)
             .width(MenuWidth)
             .shadow(8.dp, shape)
-            .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh, shape),
+            .clip(shape)
+            .background(if (pureBlack) PureBlackCard else cs.surfaceContainerHigh),
     ) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // The app's own section, a step lighter than the actions below it.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(if (pureBlack) PureBlackHeader else cs.surfaceContainerHighest)
+                .padding(start = 16.dp, end = 4.dp, top = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(Modifier.size(HeaderIconSize)) {
                 icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(HeaderIconSize)) }
             }
@@ -150,8 +161,9 @@ private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction
             }
         }
         if (actions.isNotEmpty()) {
+            HorizontalDivider(color = cs.outlineVariant)
             Row(
-                Modifier.padding(start = 8.dp, end = 8.dp, bottom = 12.dp),
+                Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
@@ -168,7 +180,7 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
             .weight(1f)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -192,5 +204,8 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
     }
 }
 
-private val MenuWidth = 296.dp
+private val MenuWidth = 264.dp
+
+/** The header on the pure black card: a step lighter than [PureBlackCard]. */
+private val PureBlackHeader = Color(0xFF262626)
 private val HeaderIconSize = 42.dp
