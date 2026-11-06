@@ -42,8 +42,8 @@ Application ID `app.zenith.launcher`.
   Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
   into that app. Long-press a folder to drag it, or for Customize and Remove (it and its apps
   leave the home screen; they stay installed). Customize sets, per folder: Small or Large (2 × 2
-  cells, needing the cells to its right and below free; its first apps show full size and open
-  with a tap, and with more than four the last place shows the rest), Apps or Folder icon (small
+  cells, needing the cells to its right and below free; its apps show three by three from the
+  top-left and open with a tap, and with more than nine the last place shows the rest), Apps or Folder icon (small
   app icons, or a folder symbol), and the tile colour (the default tint or one of nine colours).
   A large folder drags on its own to free cells; drop an app anywhere over its middle to add it. Remove from Home in the drawer also takes an app out of its folder.
 - Long-press an empty spot on the home screen for a sheet from the bottom: Add app (the drawer
