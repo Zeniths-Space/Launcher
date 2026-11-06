@@ -159,7 +159,9 @@ internal fun LauncherScreen(
     widgetHost: WidgetHost,
     onWidgetsChange: (List<HomeWidget>) -> Unit,
 ) {
-    val apps by repository.apps.collectAsState()
+    val loaded by repository.apps.collectAsState()
+    // Every app under the name the user gave it, so the drawer, search, home and dock agree.
+    val apps = remember(loaded, settings.labels) { loaded?.let { renameApps(it, settings.labels) } }
     val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
     // Home pages by key; an app that is gone leaves its slot empty. Kept as stored until apps load.
     val homePages = remember(apps, settings.home) {

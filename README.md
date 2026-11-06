@@ -23,10 +23,13 @@ Application ID `app.zenith.launcher`.
 - Search at the top of the drawer. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Tap to open, with Android's own open animation and the app's own splash screen.
-  Long-press for the app's menu, above the icon: its icon, name and App info, then Add to or Remove from Home,
+  Long-press for the app's menu, above the icon: its icon, name and App info, then Rename, Add to or Remove from Home,
   Add to or Remove from Dock, and Uninstall (Android asks to confirm; not shown for apps that came
   with the device). A locked layout hides the Home and Dock actions. The menu grows out of the
   app and shrinks back into it.
+- Rename, in every app's menu (drawer, home screen, dock, folders), gives the app a name of your own,
+  used everywhere in the launcher, search and drawer order included; saving it empty gives back the
+  app's own name. Names stay on the device with the other settings.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
@@ -40,7 +43,7 @@ Application ID `app.zenith.launcher`.
   room once the finger rests, so passing over an app on the way doesn't make a folder. Tap a
   folder to open it: tap its name to rename it, tap an app to open it, long-press an app for
   Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
-  into that app. Long-press a folder to drag it, or for Customize and Remove (it and its apps
+  into that app. Long-press a folder to drag it, or for Rename, Customize and Remove (it and its apps
   leave the home screen; they stay installed). Customize opens a sheet from the bottom (swipe down or tap outside to close; the folder stays in view, so each change shows at once) that sets, per folder: Small, 2 × 2 or 3 × 3
   cells (a larger one needs the cells to its right and below it free; its apps show three by three from the
   top-left and open with a tap, and with more than nine the last place shows the rest), Apps or Folder icon (small

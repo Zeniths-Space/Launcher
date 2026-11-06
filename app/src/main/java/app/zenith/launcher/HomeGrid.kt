@@ -206,6 +206,7 @@ fun HomeGrid(
     val dragLift by animateFloatAsState(if (drag?.moved == true) DragLift else 1f, label = "drag lift")
     var customizing by remember { mutableStateOf<Int?>(null) }
     var shownCustomize by remember { mutableStateOf<Int?>(null) }
+    var renamingFolder by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(pager.currentPage) { resizing = null }
     LaunchedEffect(resets) {
         openFolder = null
@@ -516,6 +517,7 @@ fun HomeGrid(
                                             openFolder = folder.id
                                             shownFolder = folder.id
                                         },
+                                        onRename = { renamingFolder = folder.id },
                                         onCustomize = {
                                             customizing = folder.id
                                             shownCustomize = folder.id
@@ -620,6 +622,18 @@ fun HomeGrid(
                     val (p, f) = HomeFolders.removeApp(local, localFolders, key)
                     commitLayout(HomePages.add(p, key, capacity, first = pager.currentPage, blocked = blockedOf), f)
                 },
+            )
+        }
+        renamingFolder?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
+            val default = stringResource(R.string.folder_default)
+            RenameDialog(
+                current = folder.name.ifEmpty { default },
+                original = default,
+                onSave = { name ->
+                    val clean = HomeFolders.clean(name)
+                    if (clean != folder.name) commitLayout(local, localFolders.map { if (it.id == folder.id) it.copy(name = clean) else it })
+                },
+                onDismiss = { renamingFolder = null },
             )
         }
         shownCustomize?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->

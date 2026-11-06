@@ -31,6 +31,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +70,9 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 
+/** Opens the rename dialog for an app; null where apps can't be renamed. Set by the launcher, so every app menu gets Rename. */
+internal val LocalRenameApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { null }
+
 /** One action in an app's menu; the menu closes before it runs. [danger] marks one that removes something. */
 internal class MenuAction(val icon: ImageVector, val label: String, val danger: Boolean = false, val onClick: () -> Unit)
 
@@ -74,7 +92,9 @@ internal fun AppMenu(
 ) {
     val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
     val header by produceState(icon, app.key) { if (value == null) value = repository.icon(app, headerPx) }
-    MenuPopup(expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, actions, onDismiss)
+    val rename = LocalRenameApp.current
+    val all = if (rename == null) actions else listOf(MenuAction(Icons.Edit, stringResource(R.string.menu_rename)) { rename(app) }) + actions
+    MenuPopup(expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss)
 }
 
 /**
@@ -220,6 +240,43 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
         )
     }
 }
+
+/**
+ * Asks for a new name for [current] (an app or folder). Saving an empty name gives back [original],
+ * the name it has of its own, which the empty field shows.
+ */
+@Composable
+internal fun RenameDialog(current: String, original: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(TextFieldValue(current, TextRange(0, current.length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val save = { onSave(name.text); onDismiss() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Edit, contentDescription = null) },
+        title = { Text(stringResource(R.string.rename_title, current), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { if (it.text.length <= MaxNameLength) name = it },
+                label = { Text(stringResource(R.string.rename_name)) },
+                placeholder = { Text(original) },
+                supportingText = { Text(stringResource(R.string.rename_blank, original)) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { save() }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        },
+        confirmButton = { TextButton(onClick = save) { Text(stringResource(R.string.rename_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.rename_cancel)) } },
+        containerColor = if (LocalPureBlack.current) PureBlackCard else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(28.dp),
+    )
+}
+
+private const val MaxNameLength = 40
 
 private val MenuWidth = 264.dp
 

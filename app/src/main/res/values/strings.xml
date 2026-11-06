@@ -10,6 +10,12 @@
     <string name="menu_remove_dock">Remove from Dock</string>
     <string name="menu_uninstall">Uninstall</string>
     <string name="widget_resize">Resize</string>
+    <string name="menu_rename">Rename</string>
+    <string name="rename_title">Rename %1$s</string>
+    <string name="rename_name">Name</string>
+    <string name="rename_blank">Leave empty for “%1$s”</string>
+    <string name="rename_save">Save</string>
+    <string name="rename_cancel">Cancel</string>
     <string name="folder_default">Folder</string>
     <plurals name="folder_description">
         <item quantity="one">%1$s folder, %2$d app</item>

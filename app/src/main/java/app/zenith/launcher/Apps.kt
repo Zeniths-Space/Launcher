@@ -38,3 +38,19 @@ fun searchApps(apps: List<AppEntry>, query: String): List<AppEntry> {
 /** Lowercase without accents, so "camera" finds "Caméra". */
 private fun fold(s: String): String =
     java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+
+/** [apps] with the names the user gave them ([labels] by [AppEntry.key]), in order by the new names. */
+fun renameApps(apps: List<AppEntry>, labels: Map<String, String>, locale: Locale = Locale.getDefault()): List<AppEntry> =
+    if (labels.isEmpty()) apps else sortApps(apps.map { app -> labels[app.key]?.let { app.copy(label = it) } ?: app }, locale)
+
+/** App names, a line each: key, tab, name. Keys have no tab; names are kept to one line without tabs. */
+object AppLabels {
+    fun parse(stored: String?): Map<String, String> = stored.orEmpty().lines().mapNotNull { line ->
+        val (key, label) = line.split('\t', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+        (key to label).takeIf { key.isNotEmpty() && label.isNotEmpty() }
+    }.toMap()
+
+    fun format(labels: Map<String, String>): String = labels.entries.joinToString("\n") { "${it.key}\t${clean(it.value)}" }
+
+    fun clean(name: String) = name.replace(Regex("[\\t\\r\\n]"), " ").trim()
+}

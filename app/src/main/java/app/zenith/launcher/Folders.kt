@@ -111,6 +111,7 @@ internal fun FolderIcon(
     canTap: () -> Boolean,
     canEdit: Boolean,
     onOpen: () -> Unit,
+    onRename: () -> Unit,
     onCustomize: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier,
@@ -143,6 +144,7 @@ internal fun FolderIcon(
             icon = null,
             onInfo = null,
             actions = buildList {
+                if (canEdit) add(MenuAction(Icons.Edit, stringResource(R.string.menu_rename), onClick = onRename))
                 if (canEdit) add(MenuAction(Icons.Palette, stringResource(R.string.folder_customize), onClick = onCustomize))
                 // Takes the folder and its apps off the home screen; they stay installed.
                 if (canEdit) add(MenuAction(Icons.Uninstall, stringResource(R.string.folder_remove), danger = true, onClick = onRemove))

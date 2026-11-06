@@ -39,6 +39,8 @@ data class LauncherSettings(
     val home: List<List<String>> = emptyList(),
     /** Folders on the home screen, each in a slot of [home] by [HomeFolders.key]. */
     val folders: List<HomeFolder> = emptyList(),
+    /** Names the user gave apps, by [AppEntry.key]; an app not here has its own name. */
+    val labels: Map<String, String> = emptyMap(),
     /** Widgets on the home screen pages. */
     val widgets: List<HomeWidget> = emptyList(),
     val homeColumns: Int = 4,
@@ -88,6 +90,7 @@ class SettingsStore(context: Context) {
                 home = HomePages.parse(p[HOME]),
                 folders = HomeFolders.parse(p[HOME_FOLDERS]),
                 widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
+                labels = AppLabels.parse(p[APP_LABELS]),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
@@ -122,6 +125,13 @@ class SettingsStore(context: Context) {
         it[HOME_FOLDERS] = HomeFolders.format(folders)
     }
     suspend fun setFolders(folders: List<HomeFolder>) = store.edit { it[HOME_FOLDERS] = HomeFolders.format(folders) }
+    /** Names [key] [label]; a blank one gives the app back its own name. */
+    suspend fun setAppLabel(key: String, label: String) = store.edit {
+        val labels = AppLabels.parse(it[APP_LABELS]).toMutableMap()
+        val clean = AppLabels.clean(label)
+        if (clean.isEmpty()) labels.remove(key) else labels[key] = clean
+        it[APP_LABELS] = AppLabels.format(labels)
+    }
     suspend fun setWidgets(widgets: List<HomeWidget>) = store.edit { it[HOME_WIDGETS] = HomeWidgets.format(widgets) }
     suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
     suspend fun setHomeRows(n: Int) = store.edit { it[HOME_ROWS] = n.coerceIn(DockGridRange) }
@@ -163,6 +173,7 @@ class SettingsStore(context: Context) {
         val HOME = stringPreferencesKey("home")
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
         val HOME_FOLDERS = stringPreferencesKey("home_folders")
+        val APP_LABELS = stringPreferencesKey("app_labels")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")

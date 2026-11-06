@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,6 +16,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,43 +48,58 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(apps != null) {
                 apps?.let { list -> store.seedDock(repository.defaultDock(list, this@MainActivity).map { it.key }) }
             }
+            // The app being renamed, from any app's menu.
+            var renaming by remember { mutableStateOf<AppEntry?>(null) }
+            val focus = LocalFocusManager.current
             ZenithTheme(pureBlack = settings.pureBlack) {
-                LauncherScreen(
-                    repository = repository,
-                    motion = drawer,
-                    settings = settings,
-                    drawerOpen = drawerOpen,
-                    resets = resets,
-                    onDrawerOpenChange = { drawerOpen = it },
-                    onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                    onSettings = { edit -> lifecycleScope.launch { store.edit() } },
-                    // The same settings as the settings screen, in the home sheet pulled up. Built
-                    // each time it opens, so the home app and gesture checks are current.
-                    homeAppCard = { HomeAppCard(remember { isDefaultHome(this) }) { openSystem(Settings.ACTION_HOME_SETTINGS) } },
-                    allSettings = { startPage, onBack ->
-                        SettingsScreen(
-                            settings = settings,
-                            store = store,
-                            repository = repository,
-                            isDefaultHome = remember { isDefaultHome(this) },
-                            gesturesOn = remember { GestureService.isEnabled(this) },
-                            versionName = remember { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() },
-                            startPage = startPage,
-                            onBack = onBack,
-                            onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
-                            onWallpaper = rememberWallpaperPicker(),
-                            onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
-                            onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
-                            inSheet = true,
-                        )
-                    },
-                    onGesture = ::onGesture,
-                    onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
-                    onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
-                    onLayoutChange = { pages, folders -> lifecycleScope.launch { store.setHomeLayout(pages, folders) } },
-                    widgetHost = widgets,
-                    onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
-                )
+                CompositionLocalProvider(LocalRenameApp provides { renaming = it }) {
+                    LauncherScreen(
+                        repository = repository,
+                        motion = drawer,
+                        settings = settings,
+                        drawerOpen = drawerOpen,
+                        resets = resets,
+                        onDrawerOpenChange = { drawerOpen = it },
+                        onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                        onSettings = { edit -> lifecycleScope.launch { store.edit() } },
+                        // The same settings as the settings screen, in the home sheet pulled up. Built
+                        // each time it opens, so the home app and gesture checks are current.
+                        homeAppCard = { HomeAppCard(remember { isDefaultHome(this) }) { openSystem(Settings.ACTION_HOME_SETTINGS) } },
+                        allSettings = { startPage, onBack ->
+                            SettingsScreen(
+                                settings = settings,
+                                store = store,
+                                repository = repository,
+                                isDefaultHome = remember { isDefaultHome(this) },
+                                gesturesOn = remember { GestureService.isEnabled(this) },
+                                versionName = remember { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() },
+                                startPage = startPage,
+                                onBack = onBack,
+                                onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
+                                onWallpaper = rememberWallpaperPicker(),
+                                onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
+                                onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
+                                inSheet = true,
+                            )
+                        },
+                        onGesture = ::onGesture,
+                        onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
+                        onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
+                        onLayoutChange = { pages, folders -> lifecycleScope.launch { store.setHomeLayout(pages, folders) } },
+                        widgetHost = widgets,
+                        onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
+                    )
+                }
+                renaming?.let { app ->
+                    RenameDialog(
+                        current = app.label,
+                        // The app's own name, as Android gives it, before any rename.
+                        original = apps?.firstOrNull { it.key == app.key }?.label ?: app.label,
+                        onSave = { name -> lifecycleScope.launch { store.setAppLabel(app.key, name) } },
+                        // Focus would otherwise come back to the drawer's search field, keyboard and all.
+                        onDismiss = { renaming = null; focus.clearFocus(force = true) },
+                    )
+                }
             }
         }
     }
