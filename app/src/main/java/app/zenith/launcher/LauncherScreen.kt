@@ -315,6 +315,7 @@ internal fun LauncherScreen(
                 iconSize = settings.drawerIconSize.dp,
                 rowGap = settings.drawerRowGap.dp,
                 sidePadding = settings.drawerPadding.dp,
+                keepPosition = settings.drawerKeepPosition,
                 dockKeys = dockKeys,
                 dockCapacity = settings.dockCapacity,
                 onDockChange = onDockChange,
@@ -704,6 +705,7 @@ private fun AppDrawer(
     iconSize: Dp,
     rowGap: Dp,
     sidePadding: Dp,
+    keepPosition: Boolean,
     dockKeys: List<String>,
     dockCapacity: Int,
     onDockChange: (List<String>) -> Unit,
@@ -821,7 +823,11 @@ private fun AppDrawer(
     // A new search starts at the top of the results.
     LaunchedEffect(query) { if (shown?.isNotEmpty() == true) grid.scrollToItem(0) }
     // Each opening starts fresh: no old search, list at the top.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) query = "" }
+    LaunchedEffect(drawerOpen) {
+        if (drawerOpen) return@LaunchedEffect
+        query = ""
+        if (!keepPosition) grid.scrollToItem(0)
+    }
 }
 
 @Composable
@@ -849,6 +855,46 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Un
             }
         },
     )
+}
+
+/** What a drawer tile draws: the icon, and the name under it. Shared with the settings preview. */
+@Composable
+internal fun AppTileContent(
+    icon: ImageBitmap?,
+    label: String,
+    showLabels: Boolean,
+    iconSize: Dp,
+    modifier: Modifier = Modifier,
+    iconModifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                // Shrinks to the column, staying square, when the icon is wider than it.
+                .widthIn(max = iconSize)
+                .aspectRatio(1f)
+                .then(iconModifier),
+        ) {
+            icon?.let { Image(it, contentDescription = if (showLabels) null else label, modifier = Modifier.fillMaxSize()) }
+        }
+        if (showLabels) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium.copy(shadow = WallpaperShadow),
+                color = OnWallpaper,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+    }
 }
 
 /** Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for App info. */
@@ -882,36 +928,16 @@ private fun AppTile(
     // The drawer stays composed when shut; its menu must not outlive it.
     LaunchedEffect(drawerOpen) { if (!drawerOpen) menu = false }
     Box {
-        Column(
+        AppTileContent(
+            icon,
+            app.label,
+            showLabels,
+            iconSize,
             Modifier
-                .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true })
-                .padding(vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                Modifier
-                    // Shrinks to the column, staying square, when the icon is wider than it.
-                    .widthIn(max = iconSize)
-                    .aspectRatio(1f)
-                    .onGloballyPositioned { iconCoords[0] = it },
-            ) {
-                icon?.let { Image(it, contentDescription = if (showLabels) null else app.label, modifier = Modifier.fillMaxSize()) }
-            }
-            if (showLabels) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    app.label,
-                    style = MaterialTheme.typography.labelMedium.copy(shadow = WallpaperShadow),
-                    color = OnWallpaper,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
-        }
+                .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true }),
+            iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
+        )
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             // Locked: the layout can't change, so only App info.
             if (canEdit) {

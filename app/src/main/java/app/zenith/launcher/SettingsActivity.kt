@@ -1,5 +1,14 @@
 package app.zenith.launcher
 
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -81,6 +90,7 @@ import androidx.compose.material3.Slider
 class SettingsActivity : ComponentActivity() {
 
     private val store by lazy { SettingsStore(this) }
+    private val repository by lazy { AppRepository(this) }
     private var isDefaultHome by mutableStateOf(false)
     private var gesturesOn by mutableStateOf(false)
 
@@ -94,6 +104,7 @@ class SettingsActivity : ComponentActivity() {
                 SettingsScreen(
                     settings = settings,
                     store = store,
+                    repository = repository,
                     isDefaultHome = isDefaultHome,
                     gesturesOn = gesturesOn,
                     versionName = versionName,
@@ -146,6 +157,7 @@ internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, About
 internal fun SettingsScreen(
     settings: LauncherSettings,
     store: SettingsStore,
+    repository: AppRepository,
     isDefaultHome: Boolean,
     gesturesOn: Boolean,
     versionName: String,
@@ -192,10 +204,17 @@ internal fun SettingsScreen(
             },
             label = "settings page",
         ) { shown ->
+            // What the drawer sliders show while dragging, before the stored values catch up.
+            var columns by remember(settings.drawerColumns) { mutableIntStateOf(settings.drawerColumns) }
+            var iconSize by remember(settings.drawerIconSize) { mutableIntStateOf(settings.drawerIconSize) }
+            var rowGap by remember(settings.drawerRowGap) { mutableIntStateOf(settings.drawerRowGap) }
+            var sidePadding by remember(settings.drawerPadding) { mutableIntStateOf(settings.drawerPadding) }
+            Column(Modifier.fillMaxSize().padding(padding)) {
+            // Pinned above the list, so it stays in view while any slider is dragged.
+            if (shown == Page.Drawer) DrawerPreview(repository, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
             Column(
                 Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .navigationBarsPadding(),
@@ -264,36 +283,43 @@ internal fun SettingsScreen(
                         ),
                         Modifier.padding(top = 8.dp),
                     )
-                    Page.Drawer -> SegmentedGroup(
-                        listOf(
-                            {
-                                SwitchTile(Icons.Label, stringResource(R.string.settings_labels), stringResource(R.string.settings_labels_sub), settings.showLabels) {
-                                    save { store.setShowLabels(it) }
-                                }
-                            },
-                            {
-                                SliderTile(Icons.Columns, stringResource(R.string.settings_drawer_columns), null, settings.drawerColumns, DrawerColumnRange) {
-                                    save { store.setDrawerColumns(it) }
-                                }
-                            },
-                            {
-                                SliderTile(Icons.IconSize, stringResource(R.string.settings_drawer_icon_size), null, settings.drawerIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp) {
-                                    save { store.setDrawerIconSize(it) }
-                                }
-                            },
-                            {
-                                SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
-                                    save { store.setDrawerRowGap(it) }
-                                }
-                            },
-                            {
-                                SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
-                                    save { store.setDrawerPadding(it) }
-                                }
-                            },
-                        ),
-                        Modifier.padding(top = 8.dp),
-                    )
+                    Page.Drawer -> {
+                        SegmentedGroup(
+                            listOf(
+                                {
+                                    SwitchTile(Icons.Label, stringResource(R.string.settings_labels), stringResource(R.string.settings_labels_sub), settings.showLabels) {
+                                        save { store.setShowLabels(it) }
+                                    }
+                                },
+                                {
+                                    SwitchTile(Icons.History, stringResource(R.string.settings_drawer_keep), stringResource(R.string.settings_drawer_keep_sub), settings.drawerKeepPosition) {
+                                        save { store.setDrawerKeepPosition(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.Columns, stringResource(R.string.settings_drawer_columns), null, settings.drawerColumns, DrawerColumnRange, onLive = { columns = it }) {
+                                        save { store.setDrawerColumns(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_drawer_icon_size), null, settings.drawerIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp, onLive = { iconSize = it }) {
+                                        save { store.setDrawerIconSize(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp, onLive = { rowGap = it }) {
+                                        save { store.setDrawerRowGap(it) }
+                                    }
+                                },
+                                {
+                                    SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp, onLive = { sidePadding = it }) {
+                                        save { store.setDrawerPadding(it) }
+                                    }
+                                },
+                            ),
+                            Modifier.padding(top = 16.dp),
+                        )
+                    }
                     Page.Dock -> {
                         SegmentedGroup(
                             listOf(
@@ -378,6 +404,7 @@ internal fun SettingsScreen(
                     )
                 }
                 Spacer(Modifier.height(24.dp))
+            }
             }
         }
     }
@@ -577,6 +604,41 @@ private fun GroupTile(
     }
 }
 
+/** The first drawer rows, drawn like the drawer at the screen's full width, so columns and side padding look as they will. */
+@Composable
+private fun DrawerPreview(repository: AppRepository, showLabels: Boolean, columns: Int, iconSize: Dp, rowGap: Dp, sidePadding: Dp) {
+    val context = LocalContext.current
+    val apps by repository.apps.collectAsState()
+    // Opened from the launcher the list is already there; on its own, settings loads it once.
+    LaunchedEffect(repository) { if (repository.apps.value == null) repository.load(context.packageName) }
+    // One size for every slider position: the image scales, so dragging doesn't redraw icons.
+    val sizePx = with(LocalDensity.current) { DockIconRange.last.dp.roundToPx() }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(PreviewHeight)
+            .clipToBounds()
+            .background(Color.Black)
+            .clearAndSetSemantics {}
+            .padding(horizontal = sidePadding, vertical = 8.dp),
+    ) {
+        Column(Modifier.wrapContentHeight(Alignment.Top, unbounded = true), verticalArrangement = Arrangement.spacedBy(rowGap)) {
+            apps.orEmpty().take(columns * PreviewRows).chunked(columns).forEach { row ->
+                Row {
+                    row.forEach { app ->
+                        val icon by produceState<ImageBitmap?>(null, app.key) { value = repository.icon(app, sizePx) }
+                        AppTileContent(icon, app.label, showLabels, iconSize, Modifier.weight(1f))
+                    }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+private val PreviewHeight = 200.dp
+private const val PreviewRows = 3
+
 /** A tile whose whole row toggles a switch (one touch target, announced as a switch). */
 @Composable
 private fun SwitchTile(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
@@ -606,6 +668,7 @@ private fun SliderTile(
     range: IntRange,
     step: Int = 1,
     format: Int? = null,
+    onLive: (Int) -> Unit = {},
     onChange: (Int) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -627,7 +690,10 @@ private fun SliderTile(
         }
         Slider(
             value = shown,
-            onValueChange = { shown = it },
+            onValueChange = {
+                shown = it
+                onLive(it.roundToInt())
+            },
             onValueChangeFinished = { if (shown.roundToInt() != value) onChange(shown.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = (range.last - range.first) / step - 1,

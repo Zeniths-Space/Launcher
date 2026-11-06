@@ -50,6 +50,8 @@ data class LauncherSettings(
     val drawerRowGap: Int = 12,
     /** Space between the app drawer grid and the screen's left and right edges in dp. */
     val drawerPadding: Int = 8,
+    /** The app drawer opens where it was left instead of at the top. */
+    val drawerKeepPosition: Boolean = false,
     /** Home screen and dock apps can't be moved, added or removed. */
     val locked: Boolean = false,
 ) {
@@ -91,6 +93,7 @@ class SettingsStore(context: Context) {
                 drawerIconSize = (p[DRAWER_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 drawerRowGap = (p[DRAWER_ROW_GAP] ?: 12).coerceIn(DrawerSpacingRange),
                 drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerSpacingRange),
+                drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
                 locked = p[LOCKED] ?: false,
             )
         }
@@ -119,6 +122,7 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerIconSize(dp: Int) = store.edit { it[DRAWER_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setDrawerRowGap(dp: Int) = store.edit { it[DRAWER_ROW_GAP] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerSpacingRange) }
+    suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
@@ -157,6 +161,7 @@ class SettingsStore(context: Context) {
         val DRAWER_ICON_SIZE = intPreferencesKey("drawer_icon_size")
         val DRAWER_ROW_GAP = intPreferencesKey("drawer_row_gap")
         val DRAWER_PADDING = intPreferencesKey("drawer_padding")
+        val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
         val LOCKED = booleanPreferencesKey("locked")
     }
 }

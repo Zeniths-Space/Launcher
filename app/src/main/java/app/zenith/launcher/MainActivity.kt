@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             settings = settings,
                             store = store,
+                            repository = repository,
                             isDefaultHome = remember { isDefaultHome(this) },
                             gesturesOn = remember { GestureService.isEnabled(this) },
                             versionName = remember { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() },
