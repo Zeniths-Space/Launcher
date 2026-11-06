@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** The home screen. One instance (singleTask); pressing home while it shows closes the drawer. */
@@ -37,7 +39,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         repository.onChanged = { reload() }
         repository.register()
-        reload()
+        reload(wait = 0)
         // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.
         lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
         setContent {
@@ -111,8 +113,15 @@ class MainActivity : ComponentActivity() {
         startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, SettingsActivity.PAGE_GESTURES))
     }
 
-    private fun reload() {
-        lifecycleScope.launch { repository.load(packageName) }
+    // A burst of package events (an app store updating many apps) makes one reload, not one each.
+    private var reloading: Job? = null
+
+    private fun reload(wait: Long = ReloadDelayMs) {
+        reloading?.cancel()
+        reloading = lifecycleScope.launch {
+            delay(wait)
+            repository.load(packageName)
+        }
     }
 
     // Home pressed while already home: back to the home screen, like every launcher.
@@ -151,3 +160,5 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 }
+
+private const val ReloadDelayMs = 300L

@@ -55,11 +55,17 @@ class AppRepository(context: Context) {
     /** Any package change reloads the list (cheap: one LauncherApps call per profile). */
     var onChanged: () -> Unit = {}
     private val callback = object : LauncherApps.Callback() {
-        override fun onPackageRemoved(packageName: String, user: UserHandle) = onChanged()
-        override fun onPackageAdded(packageName: String, user: UserHandle) = onChanged()
-        override fun onPackageChanged(packageName: String, user: UserHandle) = onChanged()
-        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = onChanged()
-        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = onChanged()
+        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(packageName)
+        override fun onPackageAdded(packageName: String, user: UserHandle) = changed(packageName)
+        override fun onPackageChanged(packageName: String, user: UserHandle) = changed(packageName)
+        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(*packageNames)
+        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(*packageNames)
+    }
+
+    // Only the changed packages' icons are drawn again (an update may bring a new icon); the rest stay cached.
+    private fun changed(vararg packageNames: String) {
+        synchronized(infos) { icons.keys.removeAll { key -> packageNames.any { key.startsWith("$it/") } } }
+        onChanged()
     }
 
     fun register() = launcherApps.registerCallback(callback, Handler(Looper.getMainLooper()))
@@ -80,8 +86,8 @@ class AppRepository(context: Context) {
         synchronized(infos) {
             infos.clear()
             infos.putAll(found)
-            // Drop icons of apps that are gone or changed; changed apps redraw on next use.
-            icons.keys.retainAll(found.keys)
+            // Drop icons of apps that are gone. Cache keys are "<app key>@<size>".
+            icons.keys.retainAll { it.substringBeforeLast('@') in found }
         }
         _apps.value = sortApps(entries)
     }
