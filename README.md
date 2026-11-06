@@ -1,4 +1,4 @@
-# Zenith Launcher
+# Elara Launcher
 
 A private, offline Android home screen. Part of the Zenith's Space app collection.
 Application ID `app.zenith.launcher`.
@@ -7,7 +7,7 @@ Application ID `app.zenith.launcher`.
 
 - Home screen over your wallpaper. There is no built-in clock: add a clock widget instead.
 - Widgets: long-press the home screen, then Widgets, for every app's widgets with a preview and
-  size; tap one to add it. Android asks once whether Zenith may show widget content, and a widget
+  size; tap one to add it. Android asks once whether Elara may show widget content, and a widget
   with a setup screen opens it. A widget goes in the first free spot of the page shown (else
   another page, else a new one), at least as big as its smallest size. Long-press a widget for its
   name, App info, Resize and Remove; keep holding and drag to move it to free cells (an outline
@@ -75,7 +75,7 @@ Application ID `app.zenith.launcher`.
   holding and drag it to any slot: the other apps make room as you go, and an empty slot just takes it.
   Changing the column count rewraps the slots in reading order. Screen readers get Move left and Move right.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
-  nothing), with nothing to set up. Double tap can lock the screen; that one needs Zenith
+  nothing), with nothing to set up. Double tap can lock the screen; that one needs Elara
   gestures, an accessibility service you turn on once from Settings > Gestures, since Android has
   no other way for a third-party launcher to lock the screen. It asks for no events and cannot
   read your screen. On Android 13+ a sideloaded app's switch may be greyed out until App info >
@@ -86,10 +86,10 @@ Application ID `app.zenith.launcher`.
 ## Try it and make it your home app
 
 The launcher also has an ordinary app icon, so you can try it without changing anything:
-open **Zenith Launcher** from your current launcher.
+open **Elara Launcher** from your current launcher.
 
 To use it as the home screen, tap the card at the top of its settings, or go to Settings > Apps > Default apps > Home app (Samsung: Settings >
-Apps > Choose default apps > Home app) and pick Zenith Launcher. To go back, pick your previous
+Apps > Choose default apps > Home app) and pick Elara Launcher. To go back, pick your previous
 home app (for example One UI Home) in the same place. Your old launcher stays installed.
 
 ## Limitations
@@ -98,7 +98,7 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   through `StatusBarManager`'s expand methods, which are not in the public SDK but are allowed
   for apps (the same route Niagara, Nova and Lawnchair use), with the install-time
   `EXPAND_STATUS_BAR` permission. If a future Android blocks them, swipe down falls back to the
-  Zenith gestures accessibility service and asks for it.
+  Elara gestures accessibility service and asks for it.
 
 - **App open and close animation.** One UI Home animates the app's real window out of its icon and
   back into it, through remote app transitions, a permission Android grants only to the system's
@@ -129,7 +129,7 @@ Requirements: JDK 17 and the Android SDK with platform 37.
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug builds use the application ID `app.zenith.launcher.dev` and show as "Zenith Launcher Dev",
+Debug builds use the application ID `app.zenith.launcher.dev` and show as "Elara Launcher Dev",
 so they install beside the release without a signature clash.
 
 ### Signed release build

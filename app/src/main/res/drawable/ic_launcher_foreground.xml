@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A home screen: four rounded app tiles, one lit in the accent blue. -->
+<!-- Elara: a crescent moon with a star in its curve. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,9 +7,9 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#FFDCE3F5"
-        android:pathData="M38.0,32.0h7a6,6 0 0 1 6,6v7a6,6 0 0 1 -6,6h-7a6,6 0 0 1 -6,-6v-7a6,6 0 0 1 6,-6zM63.0,32.0h7a6,6 0 0 1 6,6v7a6,6 0 0 1 -6,6h-7a6,6 0 0 1 -6,-6v-7a6,6 0 0 1 6,-6zM38.0,57.0h7a6,6 0 0 1 6,6v7a6,6 0 0 1 -6,6h-7a6,6 0 0 1 -6,-6v-7a6,6 0 0 1 6,-6z" />
-    <!-- One tile lit in the accent blue. -->
+        android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z" />
+    <!-- The star in the accent blue. -->
     <path
         android:fillColor="#FF8FB4FF"
-        android:pathData="M63.0,57.0h7a6,6 0 0 1 6,6v7a6,6 0 0 1 -6,6h-7a6,6 0 0 1 -6,-6v-7a6,6 0 0 1 6,-6z" />
+        android:pathData="M71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM79.5,50.5m-2,0a2,2 0 1,1 4,0a2,2 0 1,1 -4,0" />
 </vector>

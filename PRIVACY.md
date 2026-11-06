@@ -4,7 +4,7 @@
   granted at install, with no prompt. `EXPAND_STATUS_BAR` only lets swipe down open the notification
   panel; it gives no access to your notifications. `REQUEST_DELETE_PACKAGES` only lets an app's
   menu open Android's uninstall prompt; nothing is removed unless you confirm there.
-- **Zenith gestures (accessibility service), off unless you turn it on.** It exists only so double
+- **Elara gestures (accessibility service), off unless you turn it on.** It exists only so double
   tap can lock the screen (and as a fallback for swipe down), which Android allows a third-party
   launcher only through an accessibility service. It asks Android
   for no accessibility events and cannot read window content, so it does not see what is on your
@@ -15,8 +15,8 @@
 - **What it stores:** on/off settings (swipe hint, app names in the drawer and on the
   home screen, page indicator, pure black, layout lock, remember drawer scroll position), the two gesture choices, which apps are on the home screen pages and
   in the dock, folders and their names, each widget's place and size on the home screen, the grid sizes of both, the app drawer layout, in the app's private storage. Search text is kept only while the drawer is open.
-- **Widgets:** a widget shows content from its own app. Android asks before Zenith may host
-  widgets; once allowed, Zenith draws what widgets send, like any home app, and keeps none of it.
+- **Widgets:** a widget shows content from its own app. Android asks before Elara may host
+  widgets; once allowed, Elara draws what widgets send, like any home app, and keeps none of it.
 - **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's
   wallpaper screen (read access to that one photo). The launcher gets no access to your other
   photos and keeps no copy.

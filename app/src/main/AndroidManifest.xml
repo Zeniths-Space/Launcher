@@ -73,7 +73,7 @@
         </activity>
 
         <!--
-            Zenith gestures: lets home screen gestures open the notification panel or lock the
+            Elara gestures: lets home screen gestures open the notification panel or lock the
             screen. Off until the user turns it on in accessibility settings; only the system can
             bind it (BIND_ACCESSIBILITY_SERVICE).
         -->

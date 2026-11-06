@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Zenith Launcher</string>
+    <string name="app_name">Elara Launcher</string>
     <string name="home_swipe_hint">Swipe up for apps</string>
     <string name="drawer_title">Apps</string>
     <string name="drawer_search">Search apps</string>
@@ -67,7 +67,7 @@
     <string name="settings_layout">Layout</string>
     <string name="settings_hero_is_home">Your home app</string>
     <string name="settings_hero_set_home">Set as home app</string>
-    <string name="settings_home_is_default">Zenith Launcher is your home app</string>
+    <string name="settings_home_is_default">Elara Launcher is your home app</string>
     <string name="settings_home_not_default">Not your home app yet</string>
     <string name="settings_home_change">Tap to choose a different home app</string>
     <string name="settings_home_choose">Tap to make it the home app. You can switch back here any time.</string>
@@ -99,15 +99,15 @@
     <string name="dock_move_left">Move left</string>
     <string name="dock_move_right">Move right</string>
     <string name="settings_gestures_sub">Swipe down, double tap</string>
-    <string name="gesture_service_label">Zenith gestures</string>
+    <string name="gesture_service_label">Elara gestures</string>
     <string name="gesture_service_summary">Lets double tap on the home screen lock the screen</string>
-    <string name="gesture_service_description">Lets double tap on Zenith Launcher\'s home screen lock the screen. It asks for no events and cannot read anything on your screen.</string>
-    <string name="gesture_service_on">Zenith gestures is on</string>
-    <string name="gesture_service_off">Turn on Zenith gestures</string>
+    <string name="gesture_service_description">Lets double tap on Elara Launcher\'s home screen lock the screen. It asks for no events and cannot read anything on your screen.</string>
+    <string name="gesture_service_on">Elara gestures is on</string>
+    <string name="gesture_service_off">Turn on Elara gestures</string>
     <string name="gesture_service_on_sub">Double tap can lock the screen</string>
-    <string name="gesture_service_off_sub">Needed for double tap to lock the screen. It cannot read your screen. Tap, then turn on Zenith gestures.</string>
+    <string name="gesture_service_off_sub">Needed for double tap to lock the screen. It cannot read your screen. Tap, then turn on Elara gestures.</string>
     <string name="gesture_service_restricted">Switch greyed out? Open App info, tap ⋮, then Allow restricted settings.</string>
-    <string name="gesture_needs_service">Turn on Zenith gestures to use this gesture</string>
+    <string name="gesture_needs_service">Turn on Elara gestures to use this gesture</string>
     <string name="gesture_swipe_down">Swipe down</string>
     <string name="gesture_double_tap">Double tap</string>
     <string name="gesture_none">Nothing</string>

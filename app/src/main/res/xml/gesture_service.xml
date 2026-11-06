@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Zenith gestures: global actions only (notification panel, quick settings, lock screen).
+    Elara gestures: global actions only (notification panel, quick settings, lock screen).
     No event types, no window content, no gestures of its own: it sees nothing on screen.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"

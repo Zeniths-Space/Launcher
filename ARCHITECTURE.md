@@ -51,7 +51,7 @@ No other ecosystem app is needed.
   launch it does not count as from the home app a plain colour splash), and Android animates
   the open and shows each app's own splash. A launcher-drawn zoom from the icon was tried and
   removed (2026-11-05): Android ignores launch animations requested through `ActivityOptions`
-  (scale-up, clip-reveal, a zero-length custom animation; re-tested with Zenith as the default
+  (scale-up, clip-reveal, a zero-length custom animation; re-tested with Elara as the default
   home), an icon morph of the real window needs remote transitions (a system-only permission),
   and a drawn imitation never handed over to the app's splash cleanly.
 - **Home activity flags.** `singleTask`, `stateNotNeeded`, `clearTaskOnLaunch` and

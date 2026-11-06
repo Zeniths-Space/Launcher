@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Tells the dev build apart from the release in the launcher and home-app picker. -->
-    <string name="app_name" translatable="false">Zenith Launcher Dev</string>
+    <string name="app_name" translatable="false">Elara Launcher Dev</string>
 </resources>
