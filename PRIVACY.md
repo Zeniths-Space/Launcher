@@ -13,7 +13,7 @@
   LauncherApps API, to show and start them. It does not read app data, notifications or usage.
 - **What it stores:** on/off settings (clock, swipe hint, app names in the drawer and on the
   home screen, page indicator, pure black, layout lock), the two gesture choices, which apps are on the home screen pages and
-  in the dock, and the grid sizes of both, in the app's private storage. Search text is kept only while the drawer is open.
+  in the dock, the grid sizes of both, the app drawer layout, in the app's private storage. Search text is kept only while the drawer is open.
 - **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's
   wallpaper screen (read access to that one photo). The launcher gets no access to your other
   photos and keeps no copy.
