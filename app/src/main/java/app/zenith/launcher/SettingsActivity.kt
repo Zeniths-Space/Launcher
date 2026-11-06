@@ -378,7 +378,7 @@ internal fun SettingsScreen(
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.Columns, stringResource(R.string.settings_dock_column_gap), null, settings.dockColumnGap, DockColumnGapRange, step = 4, format = R.string.settings_value_dp) {
+                                    SliderTile(Icons.Columns, stringResource(R.string.settings_dock_column_gap), null, settings.dockColumnGap, DockColumnGapRange, step = 2, format = R.string.settings_value_dp) {
                                         save { store.setDockColumnGap(it) }
                                     }
                                 },
