@@ -35,6 +35,8 @@ data class LauncherSettings(
     val dockIconSize: Int = 52,
     /** Space between dock rows in dp, also above the first and below the last (half each). */
     val dockRowGap: Int = 20,
+    /** Space between dock icons side to side in dp; at most the even spread across the dock. */
+    val dockColumnGap: Int = 28,
     /** Home screen pages, each app keys by slot in reading order, "" for an empty slot. */
     val home: List<List<String>> = emptyList(),
     /** Folders on the home screen, each in a slot of [home] by [HomeFolders.key]. */
@@ -89,6 +91,7 @@ class SettingsStore(context: Context) {
                 dockRows = (p[DOCK_ROWS] ?: 1).coerceIn(DockGridRange),
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 dockRowGap = (p[DOCK_ROW_GAP] ?: 20).coerceIn(DockRowGapRange),
+                dockColumnGap = (p[DOCK_COLUMN_GAP] ?: 28).coerceIn(DockColumnGapRange),
                 home = HomePages.parse(p[HOME]),
                 folders = HomeFolders.parse(p[HOME_FOLDERS]),
                 widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
@@ -121,6 +124,7 @@ class SettingsStore(context: Context) {
     suspend fun setDockRows(n: Int) = store.edit { it[DOCK_ROWS] = n.coerceIn(DockGridRange) }
     suspend fun setDockIconSize(dp: Int) = store.edit { it[DOCK_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setDockRowGap(dp: Int) = store.edit { it[DOCK_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
+    suspend fun setDockColumnGap(dp: Int) = store.edit { it[DOCK_COLUMN_GAP] = dp.coerceIn(DockColumnGapRange) }
     suspend fun setHome(pages: List<List<String>>) = store.edit { it[HOME] = HomePages.format(pages) }
     /** Pages and folders together, so a folder and its slot never disagree. */
     suspend fun setHomeLayout(pages: List<List<String>>, folders: List<HomeFolder>) = store.edit {
@@ -178,6 +182,7 @@ class SettingsStore(context: Context) {
         val DOCK_ROWS = intPreferencesKey("dock_rows")
         val DOCK_ICON_SIZE = intPreferencesKey("dock_icon_size")
         val DOCK_ROW_GAP = intPreferencesKey("dock_row_gap")
+        val DOCK_COLUMN_GAP = intPreferencesKey("dock_column_gap")
         val HOME = stringPreferencesKey("home")
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
         val HOME_FOLDERS = stringPreferencesKey("home_folders")
@@ -211,6 +216,9 @@ val DrawerSpacingRange = 0..96
 
 /** Space between dock rows, in dp. */
 val DockRowGapRange = 0..40
+
+/** Space between dock columns, in dp. */
+val DockColumnGapRange = 0..64
 
 // App keys contain "/" and "#", never a line break.
 private const val DockSeparator = "\n"

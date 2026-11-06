@@ -82,6 +82,7 @@
     <string name="settings_dock_rows">Rows</string>
     <string name="settings_dock_icon_size">Icon size</string>
     <string name="settings_dock_row_gap">Row spacing</string>
+    <string name="settings_dock_column_gap">Column spacing</string>
     <string name="settings_value_dp">%1$d dp</string>
     <string name="settings_dock_hint">Long-press an app in the drawer to add it to the dock. Long-press a dock app and drag it to move it.</string>
     <string name="home_remove">Remove from home screen</string>
@@ -113,7 +114,12 @@
     <string name="settings_home_sub">Swipe hint, grid, app names</string>
     <string name="settings_drawer_sub">Columns, icon size, spacing</string>
     <string name="settings_wallpaper">Wallpaper</string>
-    <string name="settings_wallpaper_sub">Pick a photo, then crop and set it</string>
+    <string name="settings_wallpaper_sub">Pick a photo, then choose home screen, lock screen or both</string>
+    <string name="wallpaper_where">Set wallpaper on</string>
+    <string name="wallpaper_home">Home screen</string>
+    <string name="wallpaper_lock">Lock screen</string>
+    <string name="wallpaper_both">Home and lock screens</string>
+    <string name="wallpaper_set">Wallpaper set</string>
     <string name="settings_hint">Swipe hint</string>
     <string name="settings_hint_sub">"“Swipe up for apps” at the bottom"</string>
     <string name="settings_section_drawer">App drawer</string>

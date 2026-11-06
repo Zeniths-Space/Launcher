@@ -69,6 +69,7 @@ fun Dock(
     rows: Int,
     iconSize: Dp,
     rowGap: Dp,
+    columnGap: Dp,
     showBar: Boolean,
     locked: Boolean,
     onArrange: (List<AppEntry?>) -> Unit,
@@ -93,12 +94,15 @@ fun Dock(
     ) {
         val density = LocalDensity.current
         val width = constraints.maxWidth.toFloat()
-        val slot = width / columns
+        val even = width / columns
         // Icons shrink to fit narrow columns.
-        val icon = minOf(iconSize, with(density) { (slot * 0.85f).toDp() })
+        val icon = minOf(iconSize, with(density) { (even * 0.85f).toDp() })
         val iconPx = with(density) { icon.toPx() }
+        // Columns [columnGap] apart, centred; never wider than spread evenly across the dock.
+        val slot = minOf(even, iconPx + with(density) { columnGap.toPx() })
+        val left = (width - slot * columns) / 2
         val rowHeight = iconPx + with(density) { rowGap.toPx() }
-        fun center(index: Int) = Offset((index % columns + 0.5f) * slot, (index / columns + 0.5f) * rowHeight)
+        fun center(index: Int) = Offset(left + (index % columns + 0.5f) * slot, (index / columns + 0.5f) * rowHeight)
         // The layout if the finger lifted now. Read when the drag ends too: the gesture outlives this composition.
         val previewOf = {
             if (dragging < 0) slots else {

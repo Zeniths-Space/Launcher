@@ -317,6 +317,7 @@ internal fun LauncherScreen(
                         rows = settings.dockRows,
                         iconSize = settings.dockIconSize.dp,
                         rowGap = settings.dockRowGap.dp,
+                        columnGap = settings.dockColumnGap.dp,
                         showBar = settings.dockBar,
                         locked = settings.locked,
                         // Slots past a smaller grid stay as they were.
