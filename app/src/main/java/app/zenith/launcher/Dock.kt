@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -279,23 +277,19 @@ private fun DockIcon(
         ) {
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(size)) }
         }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            if (canRemove) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.dock_remove)) },
-                    onClick = {
-                        menu = false
-                        onRemove()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.app_info)) },
-                onClick = {
-                    menu = false
-                    repository.openAppInfo(app)
-                },
-            )
-        }
+        AppMenu(
+            menu,
+            app,
+            repository,
+            buildList {
+                // Locked: the layout can't change, so no remove.
+                if (canRemove) add(MenuAction(Icons.DockBottom, stringResource(R.string.menu_remove_dock), onClick = onRemove))
+                if (repository.canUninstall(app)) {
+                    add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
+                }
+            },
+            onDismiss = { menu = false },
+            icon = icon,
+        )
     }
 }

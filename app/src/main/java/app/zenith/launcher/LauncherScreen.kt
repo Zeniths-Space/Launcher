@@ -936,25 +936,24 @@ private fun AppTile(
                 .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true }),
             iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
         )
-        if (menu) {
-            AppMenu(
-                app,
-                icon,
-                repository,
-                // Locked: the layout can't change, so no home or dock actions.
-                buildList {
-                    if (canEdit) {
-                        add(MenuAction(if (onHome) Icons.RemoveHome else Icons.AddHome, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onClick = onHomeToggle))
-                    }
-                    if (canEdit && (inDock || !dockFull)) {
-                        add(MenuAction(Icons.DockBottom, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onClick = onDockToggle))
-                    }
-                    if (repository.canUninstall(app)) {
-                        add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
-                    }
-                },
-                onDismiss = { menu = false },
-            )
-        }
+        AppMenu(
+            menu,
+            app,
+            repository,
+            // Locked: the layout can't change, so no home or dock actions.
+            buildList {
+                if (canEdit) {
+                    add(MenuAction(if (onHome) Icons.RemoveHome else Icons.AddHome, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onClick = onHomeToggle))
+                }
+                if (canEdit && (inDock || !dockFull)) {
+                    add(MenuAction(Icons.DockBottom, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onClick = onDockToggle))
+                }
+                if (repository.canUninstall(app)) {
+                    add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
+                }
+            },
+            onDismiss = { menu = false },
+            icon = icon,
+        )
     }
 }

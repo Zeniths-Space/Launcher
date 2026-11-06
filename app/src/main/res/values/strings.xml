@@ -51,7 +51,6 @@
     <string name="settings_home_icon_size">Icon size</string>
     <string name="settings_home_labels">App names</string>
     <string name="settings_home_labels_sub">Names under home screen apps</string>
-    <string name="dock_remove">Remove from dock</string>
     <string name="dock_move_left">Move left</string>
     <string name="dock_move_right">Move right</string>
     <string name="settings_gestures_sub">Swipe down, double tap</string>

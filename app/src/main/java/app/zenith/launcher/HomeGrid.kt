@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -345,24 +343,19 @@ private fun HomeIcon(
                     }
                 },
         )
-        DropdownMenu(expanded = menu, onDismissRequest = onMenuDismiss) {
-            if (canRemove) {
-                DropdownMenuItem(
-                    text = { Text(remove) },
-                    onClick = {
-                        onMenuDismiss()
-                        onRemove()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.app_info)) },
-                onClick = {
-                    onMenuDismiss()
-                    repository.openAppInfo(app)
-                },
-            )
-        }
+        AppMenu(
+            menu,
+            app,
+            repository,
+            buildList {
+                // Locked: the layout can't change, so no remove.
+                if (canRemove) add(MenuAction(Icons.RemoveHome, stringResource(R.string.menu_remove_home), onClick = onRemove))
+                if (repository.canUninstall(app)) {
+                    add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
+                }
+            },
+            onDismiss = onMenuDismiss,
+        )
     }
 }
 
