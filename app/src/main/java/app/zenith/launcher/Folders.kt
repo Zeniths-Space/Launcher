@@ -1,6 +1,14 @@
 package app.zenith.launcher
 
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -10,16 +18,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -326,59 +329,71 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
                         .size(width = 36.dp, height = 4.dp)
                         .background(cs.onSurfaceVariant.copy(alpha = 0.4f), CircleShape),
                 )
-                Text(stringResource(R.string.folder_customize), style = MaterialTheme.typography.titleLarge, color = cs.onSurface)
-                Spacer(Modifier.height(20.dp))
-                Choice(
-                    stringResource(R.string.folder_size),
+                Text(stringResource(R.string.folder_customize), style = MaterialTheme.typography.headlineSmall, color = cs.onSurface)
+                Text(folder.name.ifEmpty { stringResource(R.string.folder_default) }, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(4.dp))
+                Section(stringResource(R.string.folder_size))
+                Tiles(
                     listOf(stringResource(R.string.folder_size_small), stringResource(R.string.folder_size_2), stringResource(R.string.folder_size_3)),
                     selected = folder.span - 1,
-                ) { i -> if (!onChange(folder.copy(span = i + 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() }
-                Spacer(Modifier.height(16.dp))
-                Choice(
-                    stringResource(R.string.folder_style),
+                    onSelect = { i -> if (!onChange(folder.copy(span = i + 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() },
+                ) { i, tint -> Canvas(Modifier.size(20.dp)) { sizeGlyph(i + 1, tint) } }
+                Section(stringResource(R.string.folder_style))
+                Tiles(
                     listOf(stringResource(R.string.folder_style_apps), stringResource(R.string.folder_style_symbol)),
                     selected = folder.style.ordinal,
-                ) { i -> onChange(folder.copy(style = FolderStyle.entries[i])) }
+                    onSelect = { i -> onChange(folder.copy(style = FolderStyle.entries[i])) },
+                ) { i, tint ->
+                    if (i == 0) Canvas(Modifier.size(20.dp)) { appsGlyph(tint) }
+                    else Icon(Icons.FolderFilled, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+                }
                 // How a large folder's apps are laid out.
                 if (folder.large && folder.style == FolderStyle.Apps) {
-                    Spacer(Modifier.height(16.dp))
-                    Choice(
-                        stringResource(R.string.folder_layout),
+                    Section(stringResource(R.string.folder_layout))
+                    Tiles(
                         listOf(stringResource(R.string.folder_layout_grid), stringResource(R.string.folder_layout_hexagon), stringResource(R.string.folder_layout_circle)),
                         selected = folder.layout.ordinal,
-                    ) { i -> onChange(folder.copy(layout = FolderLayout.entries[i])) }
+                        onSelect = { i -> onChange(folder.copy(layout = FolderLayout.entries[i])) },
+                    ) { i, tint -> Canvas(Modifier.size(20.dp)) { layoutGlyph(FolderLayout.entries[i], tint) } }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(tileColor())
                         .toggleable(folder.transparent, role = Role.Switch) { onChange(folder.copy(transparent = it)) }
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(stringResource(R.string.folder_transparent), style = MaterialTheme.typography.bodyLarge, color = cs.onSurface, modifier = Modifier.weight(1f))
                     Switch(checked = folder.transparent, onCheckedChange = null)
                 }
-                Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.folder_color), style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
-                Spacer(Modifier.height(10.dp))
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FolderColors.forEachIndexed { i, color ->
-                        val picked = i == folder.color
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .border(if (picked) 3.dp else 1.dp, if (picked) cs.primary else cs.outlineVariant, CircleShape)
-                                .padding(if (picked) 5.dp else 0.dp)
-                                .clip(CircleShape)
-                                // The default tint is see-through: show it over a dark disc, as on the wallpaper.
-                                .background(if (i == 0) Color(0xFF2A2A2A) else Color.Transparent)
-                                .background(color)
-                                .selectable(picked, role = Role.RadioButton) { onChange(folder.copy(color = i)) }
-                                .semantics { contentDescription = colorNames[i] },
-                        )
+                Section(stringResource(R.string.folder_color))
+                // Ten colours: two rows of five, each swatch as wide as its share of the row.
+                FolderColors.indices.chunked(5).forEachIndexed { r, row ->
+                    if (r > 0) Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        row.forEach { i ->
+                            val picked = i == folder.color
+                            val corner by animateDpAsState(if (picked) 14.dp else 28.dp, label = "swatch")
+                            val swatch = RoundedCornerShape(corner)
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .height(36.dp)
+                                    .clip(swatch)
+                                    // The default tint is see-through: show it over a dark disc, as on the wallpaper.
+                                    .background(if (i == 0) Color(0xFF2A2A2A) else Color.Transparent)
+                                    .background(FolderColors[i])
+                                    .border(if (picked) 3.dp else 0.dp, if (picked) cs.primary else Color.Transparent, swatch)
+                                    .selectable(picked, role = Role.RadioButton) { onChange(folder.copy(color = i)) }
+                                    .semantics { contentDescription = colorNames[i] },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (picked) Icon(Icons.Done, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -387,17 +402,83 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
 }
 
 @Composable
-private fun Choice(title: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+private fun tileColor() = if (LocalPureBlack.current) Color(0xFF262626) else MaterialTheme.colorScheme.surfaceContainerHighest
+
+@Composable
+private fun Section(title: String) {
+    Spacer(Modifier.height(14.dp))
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Spacer(Modifier.height(8.dp))
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+}
+
+/** One choice of a few, as tiles with a small picture beside each label; the picked tile fills and rounds out. */
+@Composable
+private fun Tiles(options: List<String>, selected: Int, onSelect: (Int) -> Unit, glyph: @Composable (index: Int, tint: Color) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val idle = tileColor()
+    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEachIndexed { i, label ->
-            SegmentedButton(
-                selected = i == selected,
-                onClick = { onSelect(i) },
-                shape = SegmentedButtonDefaults.itemShape(i, options.size),
-            ) { Text(label) }
+            val picked = i == selected
+            val background by animateColorAsState(if (picked) cs.primaryContainer else idle, label = "tile")
+            val content by animateColorAsState(if (picked) cs.onPrimaryContainer else cs.onSurfaceVariant, label = "tileContent")
+            val corner by animateDpAsState(if (picked) 28.dp else 16.dp, label = "tileCorner")
+            Row(
+                Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(corner))
+                    .background(background)
+                    .selectable(picked, role = Role.RadioButton) { onSelect(i) }
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                glyph(i, content)
+                Text(label, style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
+    }
+}
+
+/** A 3 by 3 grid of cells, the top-left [span] by [span] of them filled: the folder's share of the grid. */
+private fun DrawScope.sizeGlyph(span: Int, tint: Color) {
+    val gap = size.minDimension * 0.1f
+    val cell = (size.minDimension - gap * 2) / 3
+    for (r in 0 until 3) for (c in 0 until 3) {
+        drawRoundRect(
+            if (r < span && c < span) tint else tint.copy(alpha = 0.25f),
+            topLeft = Offset(c * (cell + gap), r * (cell + gap)),
+            size = Size(cell, cell),
+            cornerRadius = CornerRadius(cell * 0.3f),
+        )
+    }
+}
+
+/** Four small app squares on a tile. */
+private fun DrawScope.appsGlyph(tint: Color) {
+    val s = size.minDimension
+    drawRoundRect(tint.copy(alpha = 0.25f), cornerRadius = CornerRadius(s * 0.28f))
+    val cell = s * 0.28f
+    val gap = s * 0.1f
+    val start = (s - cell * 2 - gap) / 2
+    for (r in 0 until 2) for (c in 0 until 2) {
+        drawRoundRect(tint, topLeft = Offset(start + c * (cell + gap), start + r * (cell + gap)), size = Size(cell, cell), cornerRadius = CornerRadius(cell * 0.3f))
+    }
+}
+
+/** Dots placed as the [layout] places apps. */
+private fun DrawScope.layoutGlyph(layout: FolderLayout, tint: Color) {
+    val s = size.minDimension
+    val dot = s * 0.09f
+    val mid = Offset(s / 2, s / 2)
+    fun ring(count: Int, radius: Float, start: Double) = repeat(count) { k ->
+        val a = start + 2 * PI / count * k
+        drawCircle(tint, dot, mid + Offset((cos(a) * radius).toFloat(), (sin(a) * radius).toFloat()))
+    }
+    when (layout) {
+        FolderLayout.Grid -> for (r in 0 until 3) for (c in 0 until 3) drawCircle(tint, dot, Offset(s * (0.18f + 0.32f * c), s * (0.18f + 0.32f * r)))
+        FolderLayout.Hexagon -> { drawCircle(tint, dot, mid); ring(6, s * 0.36f, 0.0) }
+        FolderLayout.Circle -> ring(8, s * 0.4f, -PI / 2)
     }
 }
 
