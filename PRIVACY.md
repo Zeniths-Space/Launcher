@@ -1,8 +1,9 @@
 # Privacy
 
-- **No internet permission.** The launcher cannot open network connections. Its one permission,
-  `EXPAND_STATUS_BAR` (granted at install, no prompt), only lets swipe down open the notification
-  panel; it gives no access to your notifications.
+- **No internet permission.** The launcher cannot open network connections. Its two permissions are
+  granted at install, with no prompt. `EXPAND_STATUS_BAR` only lets swipe down open the notification
+  panel; it gives no access to your notifications. `REQUEST_DELETE_PACKAGES` only lets an app's
+  menu open Android's uninstall prompt; nothing is removed unless you confirm there.
 - **Zenith gestures (accessibility service), off unless you turn it on.** It exists only so double
   tap can lock the screen (and as a fallback for swipe down), which Android allows a third-party
   launcher only through an accessibility service. It asks Android
