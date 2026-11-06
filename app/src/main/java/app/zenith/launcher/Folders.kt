@@ -138,8 +138,8 @@ internal fun FolderIcon(
 
 /**
  * A folder's look: a [tile] in its colour with small icons of its first apps, or a folder symbol;
- * its name under it. A large folder's first apps are full-size and open on tap ([onLaunch]); with
- * more than four, the last place shows the rest, small.
+ * its name under it. A large folder shows its first apps three by three from the top-left, each
+ * opening on tap ([onLaunch]); with more than nine, the last place shows the rest, small.
  */
 @Composable
 internal fun FolderFace(
@@ -154,8 +154,8 @@ internal fun FolderFace(
 ) {
     val members = folder.apps.mapNotNull(apps::get)
     val pad = tile * (if (large) 0.1f else 0.14f)
-    val gap = tile * 0.06f
-    val inner = (tile - pad * 2 - gap) / 2
+    val gap = tile * (if (large) 0.05f else 0.06f)
+    val inner = (tile - pad * 2 - gap * (LargeColumns - 1)) / LargeColumns
     Column(modifier, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -163,15 +163,17 @@ internal fun FolderFace(
                 .clip(RoundedCornerShape(tile * (if (large) 0.2f else 0.3f)))
                 .background(folderColor(folder.color))
                 .padding(pad),
-            contentAlignment = Alignment.Center,
+            // A large folder fills from the top-left; a small one and the symbol sit in the middle.
+            contentAlignment = if (large && folder.style == FolderStyle.Apps) Alignment.TopStart else Alignment.Center,
         ) {
             when {
                 folder.style == FolderStyle.Symbol -> Icon(Icons.FolderFilled, contentDescription = null, tint = Color.White, modifier = Modifier.size(tile * 0.5f))
                 large -> {
-                    // Four places: apps, the last one showing the rest when there are more than four.
-                    val shown = if (members.size > 4) members.take(3) else members.take(4)
-                    val rest = if (members.size > 4) members.drop(3) else emptyList()
-                    val places: List<@Composable () -> Unit> = shown.map { app ->
+                    // Nine places: apps, the last one showing the rest when there are more than nine.
+                    val places = LargeColumns * LargeColumns
+                    val shown = if (members.size > places) members.take(places - 1) else members
+                    val rest = if (members.size > places) members.drop(places - 1) else emptyList()
+                    val items: List<@Composable () -> Unit> = shown.map { app ->
                         @Composable {
                             Box(Modifier.size(inner).pointerInput(app.key) { detectTapGestures(onTap = { onLaunch?.invoke(app) }) }) {
                                 AppIcon(app, repository, inner)
@@ -179,7 +181,7 @@ internal fun FolderFace(
                         }
                     } + if (rest.isEmpty()) emptyList() else listOf(@Composable { MiniGrid(rest, repository, inner) })
                     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-                        places.chunked(2).forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(gap)) { row.forEach { it() } } }
+                        items.chunked(LargeColumns).forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(gap)) { row.forEach { it() } } }
                     }
                 }
                 else -> MiniGrid(members, repository, tile - pad * 2)
@@ -199,6 +201,8 @@ internal fun FolderFace(
         }
     }
 }
+
+private const val LargeColumns = 3
 
 // Up to four apps, small, two by two in [size].
 @Composable
