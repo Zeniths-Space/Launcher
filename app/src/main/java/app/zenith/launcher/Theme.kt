@@ -113,7 +113,7 @@ private val AppTypography = Typography().let { t ->
     )
 }
 
-private val LocalDark = staticCompositionLocalOf { false }
+internal val LocalDark = staticCompositionLocalOf { false }
 
 /** Whether the pure black (AMOLED) surfaces are showing: dark mode with the setting on. */
 internal val LocalPureBlack = staticCompositionLocalOf { false }

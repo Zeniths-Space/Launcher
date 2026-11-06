@@ -48,6 +48,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -349,6 +350,8 @@ internal fun LauncherScreen(
                     onDrawerOpenChange(false)
                 }) else null,
                 onHide = { app -> onSettings { setHidden(app.key, true) } },
+                hiddenApps = remember(apps, settings.hidden) { apps.orEmpty().filter { it.key in settings.hidden } },
+                onUnhide = { app -> onSettings { setHidden(app.key, false) } },
                 onHomeToggle = { app ->
                     if (app.key in homeKeys) {
                         HomeFolders.removeApp(homePages, settings.folders, app.key).let { (p, f) -> onLayoutChange(p, f) }
@@ -517,6 +520,12 @@ private fun HomeSheet(
                 settling = launch { animate(offset, open, 0f, SheetSpring) { v, _ -> offset = v } }
             }
         }
+        // A category opens over the whole sheet, so it rises all the way first.
+        val openPage = { p: Page ->
+            page = p
+            settling?.cancel()
+            settling = scope.launch { animate(offset, 0f, 0f, SheetSpring) { v, _ -> offset = v } }
+        }
         BackHandler(enabled = page == null) { close() }
         // A category's page: back to the sheet (its own sub-pages go back first, registered later).
         BackHandler(enabled = page != null) { page = null }
@@ -634,7 +643,7 @@ private fun HomeSheet(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            val categories = categoryTiles("") { page = it }
+            val categories = categoryTiles("") { openPage(it) }
             SegmentedGroup(categories.take(4), Modifier.onGloballyPositioned { headBottom = (it.positionInParent().y + it.size.height).roundToInt() })
             // The rest of the settings, below where the sheet first stops.
             Spacer(Modifier.height(8.dp))
@@ -642,12 +651,22 @@ private fun HomeSheet(
             Spacer(Modifier.height(8.dp))
             homeAppCard()
         }
-        // A category's page, slid in over the sheet.
+        // A category's page, in the sheet's own frame: an opaque panel that slides in from the end
+        // over the sheet and back out, so the two never show through each other.
         AnimatedContent(
             page,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(with(density) { sheetHeight.toDp() })
+                .graphicsLayer { translationY = offset }
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
             transitionSpec = {
-                (slideInHorizontally(tween(300)) { it / 10 } + fadeIn(tween(150, delayMillis = 75)))
-                    .togetherWith(slideOutHorizontally(tween(300)) { it / 10 } + fadeOut(tween(75)))
+                (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it })
+                    .togetherWith(slideOutHorizontally(tween(300, easing = FastOutSlowInEasing)) { it })
+                    // The page is drawn over the sheet both ways; the frame keeps its size, so the page doesn't shrink as it leaves.
+                    .apply { targetContentZIndex = if (targetState != null) 1f else -1f }
+                    .using(null)
             },
             label = "sheet page",
         ) { p ->
@@ -721,6 +740,8 @@ private fun AppDrawer(
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
     onHide: (AppEntry) -> Unit,
+    hiddenApps: List<AppEntry>,
+    onUnhide: (AppEntry) -> Unit,
     onHomeToggle: (AppEntry) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
@@ -731,6 +752,11 @@ private fun AppDrawer(
 ) {
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
+    var showHidden by remember { mutableStateOf(false) }
+    // Closing the drawer (back, home) hides them again.
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) showHidden = false }
+    if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
+    val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
     val grid = rememberLazyGridState()
@@ -804,6 +830,9 @@ private fun AppDrawer(
                 }
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
+                }
+                IconButton(onClick = unlockHidden) {
+                    Icon(Icons.MoreVert, contentDescription = stringResource(R.string.settings_hidden), tint = OnWallpaper)
                 }
             }
         }

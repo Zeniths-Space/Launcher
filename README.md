@@ -24,7 +24,7 @@ Application ID `app.zenith.launcher`.
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Tap to open, with Android's own open animation and the app's own splash screen.
-  Long-press for the app's menu, above the icon: its icon, name and App info, then Rename, Add to or Remove from Home,
+  Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
   Add to or Remove from Dock, Hide, and Uninstall (Android asks to confirm; not shown for apps that came
   with the device). A locked layout hides the Home and Dock actions. The menu grows out of the
   app and shrinks back into it.
@@ -32,7 +32,7 @@ Application ID `app.zenith.launcher`.
   used everywhere in the launcher, search and drawer order included; saving it empty gives back the
   app's own name. Names stay on the device with the other settings.
 - Hide, in the drawer's app menu, takes an app out of the drawer and its search; a copy on the home
-  screen or dock stays. Settings > App drawer > Hidden apps lists them, each with Unhide.
+  screen or dock stays. The drawer's ⋮ button lists them, each with Unhide.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
@@ -64,8 +64,8 @@ Application ID `app.zenith.launcher`.
   same list goes on with Gestures, About and the home app card. A category slides its page in
   over the sheet; Back returns to it. Drag it down, tap outside, or press Back or Home to close it.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
-  it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
-  off, background bar, columns, rows, icon size, row spacing), Home screen (swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview; hidden apps), Gestures and About.
+  it, then a page per category: Appearance (wallpaper: pick a photo, move and zoom it under a faded dock, then set it on the home screen, lock screen or both; pure black in dark mode), Dock (on or
+  off, background bar, columns, rows, icon size, row and column spacing), Home screen (swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the

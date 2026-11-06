@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -58,7 +58,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -77,7 +76,7 @@ internal val LocalRenameApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { 
 internal class MenuAction(val icon: ImageVector, val label: String, val danger: Boolean = false, val onClick: () -> Unit)
 
 /**
- * An app's long-press menu: its icon, name and App info, then a row of [actions]. It opens above
+ * An app's long-press menu: its icon, name and App info, then a list of [actions]. It opens above
  * the app, or below when there's no room above, growing out of the app and shrinking back into it.
  * [icon] is the app's icon if the caller has it; otherwise the menu draws its own.
  */
@@ -99,7 +98,7 @@ internal fun AppMenu(
 
 /**
  * The popup behind [AppMenu], also used for widgets: [icon] and [title] with an info button
- * ([onInfo]) on top, then a row of [actions].
+ * ([onInfo]) on top, then a list of [actions].
  */
 @Composable
 internal fun MenuPopup(
@@ -168,7 +167,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(8.dp)
-            .width(maxOf(MenuWidth, ActionWidth * actions.size + 16.dp))
+            .width(MenuWidth)
             .shadow(8.dp, shape)
             .clip(shape)
             .background(if (pureBlack) PureBlackCard else cs.surfaceContainerHigh),
@@ -206,10 +205,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
         }
         if (actions.isNotEmpty()) {
             HorizontalDivider(color = cs.outlineVariant)
-            Row(
-                Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            Column(Modifier.padding(8.dp)) {
                 actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
             }
         }
@@ -217,26 +213,26 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: MenuAction, onClick: () -> Unit) {
+private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Column(
+    Row(
         Modifier
-            .weight(1f)
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The label below names it.
+        // The label beside it names it.
         Icon(action.icon, contentDescription = null, tint = if (action.danger) cs.error else cs.onSurface)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.width(16.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = cs.onSurface,
-            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (action.danger) cs.error else cs.onSurface,
             maxLines = 2,
-            modifier = Modifier.fillMaxWidth(),
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -278,8 +274,7 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuWidth = 264.dp
-private val ActionWidth = 64.dp
+private val MenuWidth = 248.dp
 
 /** The header on the pure black card: a step lighter than [PureBlackCard]. */
 private val PureBlackHeader = Color(0xFF262626)

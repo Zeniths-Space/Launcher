@@ -39,6 +39,8 @@
     </queries>
 
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- Fingerprint, face or screen lock before showing hidden apps. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:allowBackup="false"
@@ -91,6 +93,12 @@
         <!-- Opened from the home screen's long-press menu and the drawer; not reachable by other apps. -->
         <activity
             android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Launcher.Settings" />
+
+        <!-- Places a picked photo as the wallpaper; opened from the wallpaper setting only. -->
+        <activity
+            android:name=".WallpaperActivity"
             android:exported="false"
             android:theme="@style/Theme.Launcher.Settings" />
     </application>

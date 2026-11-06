@@ -61,6 +61,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -175,45 +178,47 @@ internal fun SettingsScreen(
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val save: (suspend () -> Unit) -> Unit = { block -> scope.launch { block() } }
-    val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     var page by rememberSaveable { mutableStateOf(startPage) }
     val leave = { if (page == Page.Main || (inSheet && page == startPage)) onBack() else page = Page.Main }
     BackHandler(enabled = page != Page.Main && !(inSheet && page == startPage)) { page = Page.Main }
-    Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
-        containerColor = cs.surface,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(page.title)) },
-                navigationIcon = {
-                    IconButton(onClick = leave) {
-                        Icon(Icons.Previous, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface, scrolledContainerColor = cs.surfaceContainer),
-                scrollBehavior = scroll,
-            )
+    // Material's shared-axis X: a sub-page slides in from the end with its own title, back slides it out.
+    AnimatedContent(
+        targetState = page,
+        modifier = Modifier.fillMaxSize().background(cs.surface),
+        transitionSpec = {
+            val forward = targetState != Page.Main
+            val shift = { width: Int -> (if (forward) width else -width) / 10 }
+            (slideInHorizontally(tween(300)) { shift(it) } + fadeIn(tween(150, delayMillis = 75)))
+                .togetherWith(slideOutHorizontally(tween(300)) { -shift(it) } + fadeOut(tween(75)))
         },
-    ) { padding ->
-        // Material's shared-axis X: a sub-page slides in from the end, back slides it out.
-        AnimatedContent(
-            targetState = page,
-            transitionSpec = {
-                val forward = targetState != Page.Main
-                val shift = { width: Int -> (if (forward) width else -width) / 10 }
-                (slideInHorizontally(tween(300)) { shift(it) } + fadeIn(tween(150, delayMillis = 75)))
-                    .togetherWith(slideOutHorizontally(tween(300)) { -shift(it) } + fadeOut(tween(75)))
-            },
-            label = "settings page",
-        ) { shown ->
-            // What the drawer sliders show while dragging, before the stored values catch up.
-            var columns by remember(settings.drawerColumns) { mutableIntStateOf(settings.drawerColumns) }
-            var iconSize by remember(settings.drawerIconSize) { mutableIntStateOf(settings.drawerIconSize) }
-            var rowGap by remember(settings.drawerRowGap) { mutableIntStateOf(settings.drawerRowGap) }
-            var sidePadding by remember(settings.drawerPadding) { mutableIntStateOf(settings.drawerPadding) }
-            Column(Modifier.fillMaxSize().padding(padding)) {
+        label = "settings page",
+    ) { shown ->
+        // Each page's own title bar, beside the back button, so the title slides with its page.
+        val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+        // What the drawer sliders show while dragging, before the stored values catch up.
+        var columns by remember(settings.drawerColumns) { mutableIntStateOf(settings.drawerColumns) }
+        var iconSize by remember(settings.drawerIconSize) { mutableIntStateOf(settings.drawerIconSize) }
+        var rowGap by remember(settings.drawerRowGap) { mutableIntStateOf(settings.drawerRowGap) }
+        var sidePadding by remember(settings.drawerPadding) { mutableIntStateOf(settings.drawerPadding) }
+            Column(Modifier.fillMaxSize().background(cs.surface).nestedScroll(scroll.nestedScrollConnection)) {
+            val title = @Composable { Text(stringResource(shown.title)) }
+            val back = @Composable {
+                IconButton(onClick = leave) {
+                    Icon(Icons.Previous, contentDescription = stringResource(R.string.back))
+                }
+            }
+            val barColors = TopAppBarDefaults.topAppBarColors(containerColor = cs.surface, scrolledContainerColor = cs.surface)
+            TopAppBar(
+                title = title,
+                navigationIcon = back,
+                colors = barColors,
+                scrollBehavior = scroll,
+                // The home sheet already starts below the status bar; full screen, the bar makes room for it.
+                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
+            )
             // Pinned above the list, so it stays in view while any slider is dragged.
             if (shown == Page.Drawer) DrawerPreview(repository, settings.hidden, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
+            CompositionLocalProvider(LocalAccent provides shown.accent) {
             Column(
                 Modifier
                     .weight(1f)
@@ -223,9 +228,12 @@ internal fun SettingsScreen(
             ) {
                 when (shown) {
                     Page.Main -> {
-                        HomeAppCard(isDefaultHome, onChooseHome)
-                        Spacer(Modifier.height(24.dp))
-                        SegmentedGroup(categoryTiles(versionName) { page = it })
+                        SettingsHero(repository, settings, isDefaultHome, onChooseHome, onWallpaper)
+                        Spacer(Modifier.height(20.dp))
+                        val categories = categoryTiles(versionName) { page = it }
+                        SegmentedGroup(categories.take(4))
+                        Spacer(Modifier.height(16.dp))
+                        SegmentedGroup(categories.drop(4))
                     }
                     Page.Appearance -> SegmentedGroup(
                         listOf(
@@ -245,7 +253,8 @@ internal fun SettingsScreen(
                         ),
                         Modifier.padding(top = 8.dp),
                     )
-                    Page.Home -> SegmentedGroup(
+                    Page.Home -> {
+                    SegmentedGroup(
                         listOf(
                             {
                                 SwitchTile(Icons.SwipeUp, stringResource(R.string.settings_hint), stringResource(R.string.settings_hint_sub), settings.showHint) {
@@ -262,6 +271,12 @@ internal fun SettingsScreen(
                                     save { store.setHomeDots(it) }
                                 }
                             },
+                        ),
+                        Modifier.padding(top = 8.dp),
+                    )
+                    SectionHeader(stringResource(R.string.settings_layout))
+                    SegmentedGroup(
+                        listOf(
                             {
                                 SliderTile(Icons.Columns, stringResource(R.string.settings_home_columns), null, settings.homeColumns, DockGridRange) {
                                     save { store.setHomeColumns(it) }
@@ -278,8 +293,8 @@ internal fun SettingsScreen(
                                 }
                             },
                         ),
-                        Modifier.padding(top = 8.dp),
                     )
+                    }
                     Page.Drawer -> {
                         SegmentedGroup(
                             listOf(
@@ -293,6 +308,12 @@ internal fun SettingsScreen(
                                         save { store.setDrawerKeepPosition(it) }
                                     }
                                 },
+                            ),
+                            Modifier.padding(top = 16.dp),
+                        )
+                        SectionHeader(stringResource(R.string.settings_layout))
+                        SegmentedGroup(
+                            listOf(
                                 {
                                     SliderTile(Icons.Columns, stringResource(R.string.settings_drawer_columns), null, settings.drawerColumns, DrawerColumnRange, onLive = { columns = it }) {
                                         save { store.setDrawerColumns(it) }
@@ -316,8 +337,6 @@ internal fun SettingsScreen(
                             ),
                             Modifier.padding(top = 16.dp),
                         )
-                        SectionHeader(stringResource(R.string.settings_hidden))
-                        HiddenApps(repository, settings) { key -> save { store.setHidden(key, false) } }
                     }
                     Page.Dock -> {
                         SegmentedGroup(
@@ -332,6 +351,12 @@ internal fun SettingsScreen(
                                         save { store.setDockBar(it) }
                                     }
                                 },
+                            ),
+                            Modifier.padding(top = 8.dp),
+                        )
+                        SectionHeader(stringResource(R.string.settings_layout))
+                        SegmentedGroup(
+                            listOf(
                                 {
                                     SliderTile(Icons.Columns, stringResource(R.string.settings_dock_columns), null, settings.dockColumns, DockGridRange) {
                                         save { store.setDockColumns(it) }
@@ -410,7 +435,7 @@ internal fun SettingsScreen(
                 Spacer(Modifier.height(24.dp))
             }
             }
-        }
+            }
     }
 }
 
@@ -469,7 +494,7 @@ private fun ChoiceGroup(options: List<GestureAction>, selected: GestureAction, o
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(stringResource(option.label), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
-                        RadioButton(selected = option == selected, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = cs.secondary))
+                        RadioButton(selected = option == selected, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = LocalAccent.current?.strong ?: cs.secondary))
                     }
                 }
             },
@@ -490,7 +515,7 @@ private fun SectionHeader(title: String) {
     Text(
         title,
         style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.secondary,
+        color = LocalAccent.current?.strong ?: MaterialTheme.colorScheme.secondary,
         modifier = Modifier.padding(start = 8.dp, top = 28.dp, bottom = 10.dp),
     )
 }
@@ -508,7 +533,7 @@ internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@C
 /** A row on the main page that opens a category's page. */
 @Composable
 private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen: (Page) -> Unit) {
-    GroupTile(badge = { ScallopBadge(icon) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
+    GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
 }
 
 /** The first thing on the page: whether this is the home app, and the way to change it. */
@@ -640,43 +665,6 @@ private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLa
     }
 }
 
-/** Each hidden app that is still installed, with Unhide; or a line saying how to hide one. */
-@Composable
-private fun HiddenApps(repository: AppRepository, settings: LauncherSettings, onUnhide: (String) -> Unit) {
-    val apps by repository.apps.collectAsState()
-    val hidden = remember(apps, settings.hidden, settings.labels) {
-        apps.orEmpty().filter { it.key in settings.hidden }.let { renameApps(it, settings.labels) }
-    }
-    if (hidden.isEmpty()) {
-        Text(
-            stringResource(R.string.settings_hidden_none),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 8.dp),
-        )
-        return
-    }
-    val sizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
-    SegmentedGroup(
-        hidden.map { app ->
-            {
-                val icon by produceState<ImageBitmap?>(null, app.key) { value = repository.icon(app, sizePx) }
-                val unhide = stringResource(R.string.settings_unhide_app, app.label)
-                GroupTile(
-                    badge = { Box(Modifier.size(40.dp)) { icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } } },
-                    title = app.label,
-                    subtitle = app.packageName,
-                    trailing = {
-                        TextButton(onClick = { onUnhide(app.key) }, modifier = Modifier.semantics { contentDescription = unhide }) {
-                            Text(stringResource(R.string.settings_unhide))
-                        }
-                    },
-                )
-            }
-        },
-    )
-}
-
 private val PreviewHeight = 200.dp
 private const val PreviewRows = 3
 
@@ -684,6 +672,8 @@ private const val PreviewRows = 3
 @Composable
 private fun SwitchTile(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val cs = MaterialTheme.colorScheme
+    val accent = LocalAccent.current
+    val on = accent?.strong ?: cs.secondary
     GroupTile(
         badge = { ScallopBadge(icon) },
         title = title,
@@ -693,7 +683,7 @@ private fun SwitchTile(icon: ImageVector, title: String, subtitle: String, check
             Switch(
                 checked = checked,
                 onCheckedChange = null,
-                colors = SwitchDefaults.colors(checkedThumbColor = cs.onSecondary, checkedTrackColor = cs.secondary, checkedBorderColor = cs.secondary),
+                colors = SwitchDefaults.colors(checkedThumbColor = accent?.onStrong ?: cs.onSecondary, checkedTrackColor = on, checkedBorderColor = on),
             )
         },
     )
@@ -713,6 +703,8 @@ private fun SliderTile(
     onChange: (Int) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val accent = LocalAccent.current
+    val strong = accent?.strong ?: cs.secondary
     // Follows the finger; the stored value catches up when it lifts.
     var shown by remember(value) { mutableFloatStateOf(value.toFloat()) }
     val label = format?.let { stringResource(it, shown.roundToInt()) } ?: shown.roundToInt().toString()
@@ -727,7 +719,15 @@ private fun SliderTile(
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                 }
             }
-            Text(label, style = MaterialTheme.typography.titleMedium, color = cs.secondary)
+            // The value in a pill of the page's colour.
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = accent?.content ?: cs.onSecondaryContainer,
+                modifier = Modifier
+                    .background(accent?.container ?: cs.secondaryContainer, CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
         }
         Slider(
             value = shown,
@@ -738,15 +738,23 @@ private fun SliderTile(
             onValueChangeFinished = { if (shown.roundToInt() != value) onChange(shown.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = (range.last - range.first) / step - 1,
-            colors = SliderDefaults.colors(thumbColor = cs.secondary, activeTrackColor = cs.secondary),
+            colors = SliderDefaults.colors(
+                thumbColor = strong,
+                activeTrackColor = strong,
+                activeTickColor = accent?.onStrong ?: cs.onSecondary,
+                inactiveTrackColor = accent?.container ?: cs.secondaryContainer,
+                inactiveTickColor = accent?.content ?: cs.onSecondaryContainer,
+            ),
             modifier = Modifier.semantics { contentDescription = title },
         )
     }
 }
 
 @Composable
-internal fun ScallopBadge(icon: ImageVector, container: Color = ZenithColors.indicator, content: Color = ZenithColors.onIndicator) {
-    Box(Modifier.size(44.dp).background(container, ScallopShape), contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(20.dp))
+internal fun ScallopBadge(icon: ImageVector, container: Color? = null, content: Color? = null) {
+    // On a settings page, the page's colour.
+    val accent = LocalAccent.current
+    Box(Modifier.size(44.dp).background(container ?: accent?.container ?: ZenithColors.indicator, accent?.shape ?: ScallopShape), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, tint = content ?: accent?.content ?: ZenithColors.onIndicator, modifier = Modifier.size(20.dp))
     }
 }
