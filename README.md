@@ -15,8 +15,7 @@ Application ID `app.zenith.launcher`.
 - Search at the top of the drawer. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Tap to open, with Android's own open animation and the app's own splash screen.
-  Long-press for the app's menu, above the icon: its name and App info, the app's own shortcuts
-  (up to four; Android only gives them to the default home app), then Add to or Remove from Home,
+  Long-press for the app's menu, above the icon: its icon, name and App info, then Add to or Remove from Home,
   Add to or Remove from Dock, and Uninstall (Android asks to confirm; not shown for apps that came
   with the device). A locked layout hides the Home and Dock actions.
 - Back, home or pulling down from the top of the list closes the drawer.
