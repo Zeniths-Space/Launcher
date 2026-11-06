@@ -20,7 +20,8 @@ Application ID `app.zenith.launcher`.
   Home (measured from screen recordings): home fades first, then the drawer rises over the dimmed
   wallpaper, and on release it settles without bounce. Pull down from the top of the list to close
   it the same way.
-- Search at the top of the drawer. Matches the start of the name first, then the start of a word,
+- The drawer opens under an Apps title with search and settings buttons. Search swaps the title
+  for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then Rename, Add to or Remove from Home,

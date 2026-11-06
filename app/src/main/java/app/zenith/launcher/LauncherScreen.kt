@@ -83,6 +83,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -694,7 +697,8 @@ class DrawerMotion {
 }
 
 /**
- * All apps, alphabetical, with a search field, over the dimmed wallpaper. Typing filters; the
+ * All apps, alphabetical, under an Apps title with search and settings buttons, over the dimmed
+ * wallpaper. Search swaps the title for a search field; back or its close button swaps it back. Typing filters; the
  * keyboard's Enter opens the best match. Long-press an app for App info. Pulling down from the
  * top of the list moves the drawer with the finger, as does the swipe that opened it.
  */
@@ -723,6 +727,8 @@ private fun AppDrawer(
     modifier: Modifier,
 ) {
     var query by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
     val grid = rememberLazyGridState()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -762,18 +768,40 @@ private fun AppDrawer(
             .imePadding()
             .nestedScroll(pullToClose),
     ) {
-        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            SearchField(
-                query,
-                onQuery = { query = it },
-                onGo = { shown?.firstOrNull()?.let { open(it, null) } },
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = {
-                keyboard?.hide()
-                onOpenSettings()
-            }) {
-                Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
+        val closeSearch = {
+            // Else focus moves on to the first app, which then shows a highlight.
+            focusManager.clearFocus()
+            keyboard?.hide()
+            query = ""
+            searching = false
+        }
+        // Back closes the search before the drawer.
+        BackHandler(enabled = searching, onBack = closeSearch)
+        // One height either way, so the apps don't jump when the search opens.
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (searching) {
+                SearchField(
+                    query,
+                    onQuery = { query = it },
+                    onGo = { shown?.firstOrNull()?.let { open(it, null) } },
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = closeSearch) {
+                    Icon(Icons.Close, contentDescription = stringResource(R.string.drawer_search_close), tint = OnWallpaper)
+                }
+            } else {
+                Text(
+                    stringResource(R.string.drawer_title),
+                    style = MaterialTheme.typography.headlineMedium.copy(shadow = WallpaperShadow),
+                    color = OnWallpaper,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() },
+                )
+                IconButton(onClick = { searching = true }) {
+                    Icon(Icons.Search, contentDescription = stringResource(R.string.drawer_search), tint = OnWallpaper)
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
+                }
             }
         }
         if (onPick != null) {
@@ -829,6 +857,7 @@ private fun AppDrawer(
     LaunchedEffect(drawerOpen) {
         if (drawerOpen) return@LaunchedEffect
         query = ""
+        searching = false
         if (!keepPosition) grid.scrollToItem(0)
     }
 }
@@ -837,6 +866,9 @@ private fun AppDrawer(
 private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Unit, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val placeholder = stringResource(R.string.drawer_search)
+    // Opened by the search button, so it takes the keyboard at once.
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     BasicTextField(
         value = query,
         onValueChange = onQuery,
@@ -846,6 +878,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Un
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
         keyboardActions = KeyboardActions(onGo = { onGo() }),
         modifier = modifier
+            .focusRequester(focus)
             .fillMaxWidth()
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(26.dp))

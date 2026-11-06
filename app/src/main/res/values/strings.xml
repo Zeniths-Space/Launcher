@@ -1,7 +1,9 @@
 <resources>
     <string name="app_name">Zenith Launcher</string>
     <string name="home_swipe_hint">Swipe up for apps</string>
+    <string name="drawer_title">Apps</string>
     <string name="drawer_search">Search apps</string>
+    <string name="drawer_search_close">Close search</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
     <string name="menu_add_home">Add to Home</string>
