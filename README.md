@@ -17,13 +17,14 @@ Application ID `app.zenith.launcher`.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then Add to or Remove from Home,
   Add to or Remove from Dock, and Uninstall (Android asks to confirm; not shown for apps that came
-  with the device). A locked layout hides the Home and Dock actions.
+  with the device). A locked layout hides the Home and Dock actions. The menu grows out of the
+  app and shrinks back into it.
 - Back, home or pulling down from the top of the list closes the drawer.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
 - Home screen apps: pages of 1 to 20 columns and rows (4 by 5 to start), swiped sideways, with
   dots for the pages (a setting). Long-press an app in the drawer to add it to the home screen. Long-press a
-  home screen app for Remove and App info, or keep holding and drag it to any slot: the others
+  home screen app for the same menu as in the drawer (Remove from Home, Uninstall), or keep holding and drag it to any slot: the others
   make room as you go. Hold it at a side edge to go to the page there, or a new page past the
   last. A page stays until you remove it. Screen readers get Move left, Move right and Remove.
 - Long-press an empty spot on the home screen for a sheet from the bottom: Add app (the drawer
@@ -40,7 +41,7 @@ Application ID `app.zenith.launcher`.
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the
   grid smaller hides apps past it without forgetting them. It starts with your default Phone, Messages, Browser and Camera apps. Long-press an
-  app in the drawer to add or remove it; long-press a dock app for Remove and App info, or keep
+  app in the drawer to add or remove it; long-press a dock app for the same menu (Remove from Dock, Uninstall), or keep
   holding and drag it to any slot: the other apps make room as you go, and an empty slot just takes it.
   Changing the column count rewraps the slots in reading order. Screen readers get Move left and Move right.
 - Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
