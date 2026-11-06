@@ -2,6 +2,7 @@ package app.zenith.launcher
 
 import android.graphics.Rect
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.Image
@@ -660,7 +661,11 @@ fun HomeGrid(
         ) {
             if (pager.pageCount > 1) {
                 repeat(pager.pageCount) { p ->
-                    Box(Modifier.size(6.dp).background(Color.White.copy(alpha = if (p == pager.currentPage) 1f else 0.4f), CircleShape))
+                    // The page shown stretches into a pill.
+                    val current = p == pager.currentPage
+                    val width by animateDpAsState(if (current) 18.dp else 6.dp, Motion.bouncy(), label = "dot")
+                    val alpha by animateFloatAsState(if (current) 1f else 0.4f, Motion.effects(), label = "dot alpha")
+                    Box(Modifier.size(width, 6.dp).background(Color.White.copy(alpha = alpha), CircleShape))
                 }
             }
         }
