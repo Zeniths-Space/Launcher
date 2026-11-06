@@ -135,10 +135,10 @@ private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction
             Box(Modifier.size(HeaderIconSize)) {
                 icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(HeaderIconSize)) }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
             Text(
                 app.label,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 color = cs.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -172,17 +172,17 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
     ) {
         Box(
             Modifier
-                .size(48.dp)
+                .size(40.dp)
                 .background(if (action.danger) cs.errorContainer else ZenithColors.indicator, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             // The label below names it.
-            Icon(action.icon, contentDescription = null, tint = if (action.danger) cs.onErrorContainer else ZenithColors.onIndicator)
+            Icon(action.icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (action.danger) cs.onErrorContainer else ZenithColors.onIndicator)
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = cs.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,
@@ -192,4 +192,4 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
 }
 
 private val MenuWidth = 296.dp
-private val HeaderIconSize = 36.dp
+private val HeaderIconSize = 48.dp
