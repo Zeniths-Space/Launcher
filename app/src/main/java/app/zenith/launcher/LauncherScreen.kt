@@ -44,7 +44,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import kotlin.math.abs
 import androidx.compose.ui.layout.positionInParent
@@ -66,7 +65,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -938,32 +936,23 @@ private fun AppTile(
                 .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true }),
             iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
         )
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            // Locked: the layout can't change, so only App info.
-            if (canEdit) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (onHome) R.string.home_remove else R.string.home_add)) },
-                    onClick = {
-                        menu = false
-                        onHomeToggle()
-                    },
-                )
-            }
-            if (canEdit && (inDock || !dockFull)) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (inDock) R.string.dock_remove else R.string.dock_add)) },
-                    onClick = {
-                        menu = false
-                        onDockToggle()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.app_info)) },
-                onClick = {
-                    menu = false
-                    repository.openAppInfo(app)
+        if (menu) {
+            AppMenu(
+                app,
+                repository,
+                // Locked: the layout can't change, so no home or dock actions.
+                buildList {
+                    if (canEdit) {
+                        add(MenuAction(Icons.Home, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onHomeToggle))
+                    }
+                    if (canEdit && (inDock || !dockFull)) {
+                        add(MenuAction(Icons.Dock, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onDockToggle))
+                    }
+                    if (repository.canUninstall(app)) {
+                        add(MenuAction(Icons.Delete, stringResource(R.string.menu_uninstall)) { repository.uninstall(app) })
+                    }
                 },
+                onDismiss = { menu = false },
             )
         }
     }

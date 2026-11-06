@@ -4,6 +4,11 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="app_info">App info</string>
+    <string name="menu_add_home">Add to Home</string>
+    <string name="menu_remove_home">Remove from Home</string>
+    <string name="menu_add_dock">Add to Dock</string>
+    <string name="menu_remove_dock">Remove from Dock</string>
+    <string name="menu_uninstall">Uninstall</string>
     <string name="home_menu_widgets">Widgets</string>
     <string name="home_menu_title">Home screen</string>
     <string name="home_menu_add_app">Add app</string>
@@ -38,7 +43,6 @@
     <string name="settings_dock_row_gap">Row spacing</string>
     <string name="settings_value_dp">%1$d dp</string>
     <string name="settings_dock_hint">Long-press an app in the drawer to add it to the dock. Long-press a dock app and drag it to move it.</string>
-    <string name="home_add">Add to home screen</string>
     <string name="home_remove">Remove from home screen</string>
     <string name="settings_home_dots">Page indicator</string>
     <string name="settings_home_dots_sub">Dots showing which page you are on</string>
@@ -47,7 +51,6 @@
     <string name="settings_home_icon_size">Icon size</string>
     <string name="settings_home_labels">App names</string>
     <string name="settings_home_labels_sub">Names under home screen apps</string>
-    <string name="dock_add">Add to dock</string>
     <string name="dock_remove">Remove from dock</string>
     <string name="dock_move_left">Move left</string>
     <string name="dock_move_right">Move right</string>

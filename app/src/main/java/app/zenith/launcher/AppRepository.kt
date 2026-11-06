@@ -3,7 +3,10 @@ package app.zenith.launcher
 import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
+import android.content.pm.ShortcutInfo
+import android.net.Uri
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
@@ -36,6 +39,7 @@ import kotlinx.coroutines.withContext
  * Icons are drawn once per app and size, on demand, and kept in memory.
  */
 class AppRepository(context: Context) {
+    private val appContext = context.applicationContext
     private val pm = context.packageManager
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
@@ -90,10 +94,48 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val drawable = runCatching { pm.getUserBadgedIcon(info.getIcon(density).inSystemShape(), info.user) }.getOrNull()
             ?: return@withContext null
-        val bitmap = createBitmap(sizePx, sizePx)
-        drawable.setBounds(0, 0, sizePx, sizePx)
-        drawable.draw(Canvas(bitmap))
-        bitmap.asImageBitmap().also { synchronized(infos) { icons[cacheKey] = it } }
+        drawable.toImageBitmap(sizePx).also { synchronized(infos) { icons[cacheKey] = it } }
+    }
+
+    /**
+     * The app's own shortcuts (from its manifest, then the ones it adds while running), at most
+     * [MaxShortcuts]. Empty unless this is the default home app: Android only shows them to that app.
+     */
+    suspend fun shortcuts(app: AppEntry, sizePx: Int): List<AppShortcut> = withContext(Dispatchers.IO) {
+        val info = synchronized(infos) { infos[app.key] } ?: return@withContext emptyList()
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return@withContext emptyList()
+        val query = LauncherApps.ShortcutQuery()
+            .setPackage(app.packageName)
+            .setActivity(info.componentName)
+            .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC)
+        // A locked work profile, or the role lost meanwhile, throws: no shortcuts then.
+        runCatching { launcherApps.getShortcuts(query, info.user) }.getOrNull().orEmpty()
+            .filter { it.isEnabled }
+            .sortedWith(compareBy({ !it.isDeclaredInManifest }, { it.rank }))
+            .take(MaxShortcuts)
+            .map { shortcut ->
+                val icon = runCatching { launcherApps.getShortcutIconDrawable(shortcut, density) }.getOrNull()?.toImageBitmap(sizePx)
+                AppShortcut(shortcut, (shortcut.shortLabel ?: shortcut.longLabel ?: "").toString(), icon)
+            }
+    }
+
+    fun startShortcut(shortcut: AppShortcut, bounds: Rect?) {
+        runCatching { launcherApps.startShortcut(shortcut.info, bounds, null) }
+    }
+
+    /** Apps that came with the device can't be uninstalled, only disabled from App info. */
+    fun canUninstall(app: AppEntry): Boolean {
+        val info = synchronized(infos) { infos[app.key] } ?: return false
+        return info.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM == 0
+    }
+
+    /** Android's own uninstall prompt, in the app's profile; nothing is removed until the user confirms. */
+    fun uninstall(app: AppEntry) {
+        val info = synchronized(infos) { infos[app.key] } ?: return
+        val intent = Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.packageName, null))
+            .putExtra(Intent.EXTRA_USER, info.user)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { appContext.startActivity(intent) }
     }
 
     /** Starts [app] with the system's own animation; [bounds] tell the app where it was opened from. */
@@ -146,5 +188,18 @@ class AppRepository(context: Context) {
 private fun Drawable.inSystemShape(): Drawable =
     if (this is AdaptiveIconDrawable) this
     else AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
+
+private fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
+    val bitmap = createBitmap(sizePx, sizePx)
+    setBounds(0, 0, sizePx, sizePx)
+    draw(Canvas(bitmap))
+    return bitmap.asImageBitmap()
+}
+
+/** One of an app's shortcuts, with its name and icon ready to show. */
+class AppShortcut(val info: ShortcutInfo, val label: String, val icon: ImageBitmap?)
+
+/** As many as Android's own launcher shows. */
+private const val MaxShortcuts = 4
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
