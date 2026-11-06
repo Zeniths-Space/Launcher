@@ -13,25 +13,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -47,18 +47,16 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 
-/** One action in the bottom row of an app's menu; the menu closes before it runs. */
-internal class MenuAction(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+/** One action in an app's menu; the menu closes before it runs. [danger] marks one that removes something. */
+internal class MenuAction(val icon: ImageVector, val label: String, val danger: Boolean = false, val onClick: () -> Unit)
 
 /**
- * An app's long-press menu: its name and App info, the app's own shortcuts, then a row of
- * [actions]. It opens above the icon, or below when there's no room above.
+ * An app's long-press menu: its icon, name and App info, then a row of [actions].
+ * It opens above the app, or below when there's no room above.
  */
 @Composable
-internal fun AppMenu(app: AppEntry, repository: AppRepository, actions: List<MenuAction>, onDismiss: () -> Unit) {
+internal fun AppMenu(app: AppEntry, icon: ImageBitmap?, repository: AppRepository, actions: List<MenuAction>, onDismiss: () -> Unit) {
     val density = LocalDensity.current
-    val iconPx = with(density) { ShortcutIconSize.roundToPx() }
-    val shortcuts by produceState(emptyList<AppShortcut>(), app.key) { value = repository.shortcuts(app, iconPx) }
     val margin = with(density) { 8.dp.roundToPx() }
     val top = WindowInsets.statusBars.getTop(density) + margin
     val position = remember(margin, top) {
@@ -75,29 +73,29 @@ internal fun AppMenu(app: AppEntry, repository: AppRepository, actions: List<Men
     Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
         val shown = remember { MutableTransitionState(false) }.apply { targetState = true }
         AnimatedVisibility(shown, enter = fadeIn(Motion.effects(150)) + scaleIn(Motion.spatial(250), initialScale = 0.9f)) {
-            MenuCard(app, shortcuts, actions, onDismiss, onAppInfo = { repository.openAppInfo(app) }, onShortcut = { repository.startShortcut(it, null) })
+            MenuCard(app, icon, actions, onDismiss, onAppInfo = { repository.openAppInfo(app) })
         }
     }
 }
 
 @Composable
-private fun MenuCard(
-    app: AppEntry,
-    shortcuts: List<AppShortcut>,
-    actions: List<MenuAction>,
-    onDismiss: () -> Unit,
-    onAppInfo: () -> Unit,
-    onShortcut: (AppShortcut) -> Unit,
-) {
+private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
+    val shape = RoundedCornerShape(28.dp)
     Column(
         Modifier
+            // Room for the shadow, which the popup's window would otherwise cut off.
+            .padding(8.dp)
             .width(MenuWidth)
-            .clip(RoundedCornerShape(28.dp))
-            .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh),
+            .shadow(8.dp, shape)
+            .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh, shape),
     ) {
-        Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(36.dp)) {
+                icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(36.dp)) }
+            }
+            Spacer(Modifier.width(12.dp))
             Text(
                 app.label,
                 style = MaterialTheme.typography.titleMedium,
@@ -107,52 +105,50 @@ private fun MenuCard(
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = { run(onAppInfo) }) {
-                Icon(Icons.Info, contentDescription = stringResource(R.string.app_info), tint = cs.onSurfaceVariant)
+                Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.onSurfaceVariant)
             }
         }
-        shortcuts.forEach { shortcut ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { run { onShortcut(shortcut) } }
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(ShortcutIconSize)) {
-                    shortcut.icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
-                }
-                Spacer(Modifier.width(16.dp))
-                Text(shortcut.label, style = MaterialTheme.typography.bodyLarge, color = cs.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        Spacer(Modifier.height(if (shortcuts.isEmpty()) 4.dp else 8.dp))
         if (actions.isNotEmpty()) {
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(cs.onSurface.copy(alpha = 0.05f))
-                    .padding(8.dp),
+                Modifier.padding(start = 8.dp, end = 8.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                actions.forEach { action ->
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable(role = Role.Button) { run(action.onClick) }
-                            .padding(horizontal = 4.dp, vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        // The label below names it.
-                        Icon(action.icon, contentDescription = null, tint = cs.onSurface)
-                        Spacer(Modifier.height(6.dp))
-                        Text(action.label, style = MaterialTheme.typography.labelMedium, color = cs.onSurface, textAlign = TextAlign.Center, maxLines = 2)
-                    }
-                }
+                actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
             }
         }
     }
 }
 
-private val MenuWidth = 280.dp
-private val ShortcutIconSize = 32.dp
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: MenuAction, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .size(48.dp)
+                .background(if (action.danger) cs.errorContainer else ZenithColors.indicator, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            // The label below names it.
+            Icon(action.icon, contentDescription = null, tint = if (action.danger) cs.onErrorContainer else ZenithColors.onIndicator)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            action.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = cs.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private val MenuWidth = 296.dp

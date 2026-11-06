@@ -939,17 +939,18 @@ private fun AppTile(
         if (menu) {
             AppMenu(
                 app,
+                icon,
                 repository,
                 // Locked: the layout can't change, so no home or dock actions.
                 buildList {
                     if (canEdit) {
-                        add(MenuAction(Icons.Home, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onHomeToggle))
+                        add(MenuAction(if (onHome) Icons.RemoveHome else Icons.AddHome, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onClick = onHomeToggle))
                     }
                     if (canEdit && (inDock || !dockFull)) {
-                        add(MenuAction(Icons.Dock, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onDockToggle))
+                        add(MenuAction(Icons.DockBottom, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onClick = onDockToggle))
                     }
                     if (repository.canUninstall(app)) {
-                        add(MenuAction(Icons.Delete, stringResource(R.string.menu_uninstall)) { repository.uninstall(app) })
+                        add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
                     }
                 },
                 onDismiss = { menu = false },
