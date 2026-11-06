@@ -162,7 +162,7 @@ private fun Drawable.inSystemShape(): Drawable =
     if (this is AdaptiveIconDrawable) this
     else AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
 
-private fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
+internal fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
     val bitmap = createBitmap(sizePx, sizePx)
     setBounds(0, 0, sizePx, sizePx)
     draw(Canvas(bitmap))

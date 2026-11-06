@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -69,6 +71,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/** A widget being dragged: where it was, where the finger started, and where it is now. */
+private class WidgetDrag(val widget: HomeWidget, val start: Offset) {
+    var at by mutableStateOf(start)
+
+    /** The cells it would take if let go now. */
+    fun target(cellW: Float, cellH: Float, columns: Int, rows: Int): HomeWidget {
+        val d = at - start
+        return widget.copy(
+            col = (widget.col + d.x / cellW).roundToInt().coerceIn(0, columns - widget.w),
+            row = (widget.row + d.y / cellH).roundToInt().coerceIn(0, rows - widget.h),
+        )
+    }
+}
+
 /** An app being dragged on the home screen: where it came from, and the finger's place in the grid. */
 private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Offset) {
     var at by mutableStateOf(at)
@@ -85,8 +101,10 @@ private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Of
 @Composable
 fun HomeGrid(
     pages: List<List<String>>,
+    widgets: List<HomeWidget>,
     apps: Map<String, AppEntry>,
     repository: AppRepository,
+    widgetHost: WidgetHost,
     columns: Int,
     rows: Int,
     iconSize: Dp,
@@ -96,6 +114,9 @@ fun HomeGrid(
     page: Int,
     onPageChange: (Int) -> Unit,
     onPagesChange: (List<List<String>>) -> Unit,
+    onWidgetsChange: (List<HomeWidget>) -> Unit,
+    // A cell's size in pixels, which new widgets are sized by.
+    onCellSize: (Size) -> Unit,
     onLongPressEmpty: (Offset) -> Unit,
     onDoubleTap: (() -> Unit)?,
     modifier: Modifier = Modifier,
@@ -104,15 +125,23 @@ fun HomeGrid(
     // A change shows at once, not when the saved pages come back.
     var local by remember { mutableStateOf(pages) }
     LaunchedEffect(pages) { local = pages }
+    var localWidgets by remember { mutableStateOf(widgets) }
+    LaunchedEffect(widgets) { localWidgets = widgets }
     var drag by remember { mutableStateOf<HomeDrag?>(null) }
     var menuFor by remember { mutableStateOf<String?>(null) }
+    var widgetDrag by remember { mutableStateOf<WidgetDrag?>(null) }
+    var widgetMenuFor by remember { mutableStateOf<Int?>(null) }
+    // The widget showing its resize frame.
+    var resizing by remember { mutableStateOf<Int?>(null) }
+    // Where a dropped widget was let go, so it glides from there to its cells.
+    var widgetDropAt by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
     // Where a dropped app was let go, so it glides from there into its slot.
     var dropAt by remember { mutableStateOf<Pair<String, Offset>?>(null) }
     LaunchedEffect(dropAt) {
         delay(100)
         dropAt = null
     }
-    val pager = rememberPagerState { local.size.coerceAtLeast(1) + if (drag != null) 1 else 0 }
+    val pager = rememberPagerState { maxOf(local.size, (localWidgets.maxOfOrNull { it.page } ?: -1) + 1, 1) + if (drag != null) 1 else 0 }
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val slop = LocalViewConfiguration.current.touchSlop
@@ -130,6 +159,14 @@ fun HomeGrid(
         local = to
         change(to)
     }
+    val widgetsChange by rememberUpdatedState(onWidgetsChange)
+    val commitWidgets = { to: List<HomeWidget> ->
+        localWidgets = to
+        widgetsChange(to)
+    }
+    // App slots under widgets, which apps skip.
+    val blockedOf = { p: Int -> HomeWidgets.blocked(localWidgets, p, columns, rows) }
+    LaunchedEffect(pager.currentPage) { resizing = null }
 
     Column(modifier) {
         BoxWithConstraints(
@@ -145,6 +182,8 @@ fun HomeGrid(
             val cell = remember { FloatArray(2) }
             cell[0] = cellW
             cell[1] = cellH
+            val cellSize by rememberUpdatedState(onCellSize)
+            LaunchedEffect(cellW, cellH) { cellSize(Size(cellW, cellH)) }
             val labelPx = if (showLabels) with(density) { 26.dp.toPx() } else 0f
             // Icons shrink to fit small cells.
             val icon = minOf(iconSize, with(density) { (minOf(cellW * 0.8f, cellH - labelPx - 8.dp.toPx())).coerceAtLeast(16.dp.toPx()).toDp() })
@@ -153,13 +192,15 @@ fun HomeGrid(
             // The page shown, laid out as if the finger lifted now.
             val previewOf = { page: Int ->
                 val d = drag
-                val moved = d?.let { HomePages.move(local, it.fromPage, it.from, page, slotAt(it.at), capacity) }
+                val moved = d?.let { HomePages.move(local, it.fromPage, it.from, page, slotAt(it.at), capacity, blockedOf) }
                 HomePages.slots(moved?.getOrNull(page) ?: local.getOrNull(page), capacity)
             }
 
             Box(
                 Modifier
                     .fillMaxSize()
+                    // A tap anywhere but the frame's handles puts the resize frame away.
+                    .pointerInput(resizing != null) { if (resizing != null) detectTapGestures(onTap = { resizing = null }) }
                     .pointerInput(onDoubleTap != null) {
                         // Double tap only listened for when it does something; icon taps are taken first by the icons.
                         detectTapGestures(onDoubleTap = onDoubleTap?.let { { _: Offset -> it() } })
@@ -171,9 +212,17 @@ fun HomeGrid(
                             onDragStart = { at ->
                                 val page = pager.currentPage
                                 val slot = slotAt(at)
-                                val key = HomePages.slots(local.getOrNull(page), capacity).getOrNull(slot)?.takeIf { it in known }
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 travelled = Offset.Zero
+                                resizing = null
+                                val widget = localWidgets.firstOrNull { it.page == page && slot in it.slots(columns, rows) }
+                                if (widget != null) {
+                                    widgetMenuFor = widget.id
+                                    // Locked: the menu only, no drag.
+                                    if (!isLocked) widgetDrag = WidgetDrag(widget.fitted(columns, rows), at)
+                                    return@detectDragGesturesAfterLongPress
+                                }
+                                val key = HomePages.slots(local.getOrNull(page), capacity).getOrNull(slot)?.takeIf { it in known }
                                 if (key == null) {
                                     empty(at + (window[0]?.takeIf { it.isAttached }?.positionInWindow() ?: Offset.Zero))
                                 } else {
@@ -183,6 +232,13 @@ fun HomeGrid(
                                 }
                             },
                             onDrag = { change, amount ->
+                                widgetDrag?.let { w ->
+                                    change.consume()
+                                    travelled += amount
+                                    if (travelled.getDistance() > slop) widgetMenuFor = null
+                                    w.at += amount
+                                    return@detectDragGesturesAfterLongPress
+                                }
                                 val d = drag ?: return@detectDragGesturesAfterLongPress
                                 change.consume()
                                 travelled += amount
@@ -210,26 +266,85 @@ fun HomeGrid(
                             onDragEnd = {
                                 edgeJob?.cancel()
                                 edgeJob = null
+                                widgetDrag?.let { w ->
+                                    widgetDrag = null
+                                    widgetDropAt = w.widget.id to (Offset(w.widget.col * cell[0], w.widget.row * cell[1]) + w.at - w.start)
+                                    val to = w.target(cell[0], cell[1], columns, rows)
+                                    if (to != w.widget && HomeWidgets.fits(to, local, localWidgets, columns, rows)) {
+                                        commitWidgets(localWidgets.map { if (it.id == to.id) to else it })
+                                    }
+                                }
                                 drag?.let { d ->
                                     drag = null
                                     dropAt = d.key to d.at
                                     val page = pager.currentPage
-                                    val to = HomePages.move(local, d.fromPage, d.from, page, slotAt(d.at), capacity)
+                                    val to = HomePages.move(local, d.fromPage, d.from, page, slotAt(d.at), capacity, blockedOf)
                                     if (to != null && to != local) commit(to)
                                 }
                             },
                             onDragCancel = {
                                 edgeJob?.cancel()
                                 edgeJob = null
+                                widgetDrag = null
                                 drag?.let { dropAt = it.key to it.at }
                                 drag = null
                             },
                         )
                     },
             ) {
-                HorizontalPager(pager, userScrollEnabled = drag == null, modifier = Modifier.fillMaxSize()) { page ->
+                HorizontalPager(pager, userScrollEnabled = drag == null && widgetDrag == null && resizing == null, modifier = Modifier.fillMaxSize()) { page ->
                     val slots = if (drag != null && page == pager.currentPage) previewOf(page) else HomePages.slots(local.getOrNull(page), capacity)
                     Box(Modifier.fillMaxSize()) {
+                        // Where a dragged widget would land, when it can.
+                        widgetDrag?.takeIf { page == pager.currentPage }?.let { w ->
+                            val to = w.target(cellW, cellH, columns, rows)
+                            if (HomeWidgets.fits(to, local, localWidgets, columns, rows)) {
+                                Box(
+                                    Modifier
+                                        .offset { Offset(to.col * cellW, to.row * cellH).round() }
+                                        .size(with(density) { (to.w * cellW).toDp() }, with(density) { (to.h * cellH).toDp() })
+                                        .padding(4.dp)
+                                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+                                )
+                            }
+                        }
+                        localWidgets.filter { it.page == page }.forEach { stored ->
+                            val w = stored.fitted(columns, rows)
+                            key("widget", w.id) {
+                                val home = Offset(w.col * cellW, w.row * cellH)
+                                val position = remember { Animatable(home, Offset.VectorConverter) }
+                                LaunchedEffect(home, widgetDropAt) {
+                                    widgetDropAt?.takeIf { it.first == w.id }?.let { position.snapTo(it.second) }
+                                    position.animateTo(home)
+                                }
+                                val dragged = widgetDrag?.takeIf { it.widget.id == w.id }
+                                Box(
+                                    Modifier
+                                        .zIndex(if (dragged != null) 1f else 0f)
+                                        .offset { (dragged?.let { home + it.at - it.start } ?: position.value).round() }
+                                        .size(with(density) { (w.w * cellW).toDp() }, with(density) { (w.h * cellH).toDp() })
+                                        .graphicsLayer {
+                                            val scale = if (dragged != null) 1.04f else 1f
+                                            scaleX = scale
+                                            scaleY = scale
+                                        },
+                                ) {
+                                    HostedWidget(widgetHost, w.id, Modifier.fillMaxSize().padding(4.dp))
+                                    WidgetMenu(
+                                        expanded = widgetMenuFor == w.id,
+                                        id = w.id,
+                                        host = widgetHost,
+                                        locked = locked,
+                                        onResize = { resizing = w.id },
+                                        onRemove = {
+                                            commitWidgets(localWidgets.filter { it.id != w.id })
+                                            widgetHost.remove(w.id)
+                                        },
+                                        onDismiss = { widgetMenuFor = null },
+                                    )
+                                }
+                            }
+                        }
                         slots.take(capacity).forEachIndexed { i, k ->
                             val app = k?.let(apps::get) ?: return@forEachIndexed
                             if (app.key == drag?.key) return@forEachIndexed
@@ -249,13 +364,20 @@ fun HomeGrid(
                                     canMoveLeft = !locked && i > 0,
                                     canMoveRight = !locked && i < capacity - 1,
                                     canRemove = !locked,
-                                    onMove = { by -> HomePages.move(local, page, i, page, i + by, capacity)?.let(commit) },
+                                    onMove = { by -> HomePages.move(local, page, i, page, i + by, capacity, blockedOf)?.let(commit) },
                                     onRemove = { commit(HomePages.remove(local, app.key)) },
                                     modifier = Modifier
                                         .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
                                         .offset { (position.value - Offset(cellW / 2, cellH / 2)).round() },
                                 )
                             }
+                        }
+                    }
+                }
+                resizing?.let { id ->
+                    localWidgets.firstOrNull { it.id == id && it.page == pager.currentPage }?.fitted(columns, rows)?.let { w ->
+                        ResizeFrame(w, cellW, cellH, columns, rows, remember(w.id) { widgetHost.details(w.id) }) { to ->
+                            if (to != w && HomeWidgets.fits(to, local, localWidgets, columns, rows)) commitWidgets(localWidgets.map { if (it.id == to.id) to else it })
                         }
                     }
                 }

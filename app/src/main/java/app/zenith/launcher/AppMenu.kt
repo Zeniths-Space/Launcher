@@ -72,6 +72,17 @@ internal fun AppMenu(
     onDismiss: () -> Unit,
     icon: ImageBitmap? = null,
 ) {
+    val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
+    val header by produceState(icon, app.key) { if (value == null) value = repository.icon(app, headerPx) }
+    MenuPopup(expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, actions, onDismiss)
+}
+
+/**
+ * The popup behind [AppMenu], also used for widgets: [icon] and [title] with an info button
+ * ([onInfo]) on top, then a row of [actions].
+ */
+@Composable
+internal fun MenuPopup(expanded: Boolean, title: String, icon: ImageBitmap?, onInfo: () -> Unit, actions: List<MenuAction>, onDismiss: () -> Unit) {
     // Stays composed after closing until the closing animation ends.
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
@@ -79,8 +90,6 @@ internal fun AppMenu(
     val density = LocalDensity.current
     val margin = with(density) { 8.dp.roundToPx() }
     val top = WindowInsets.statusBars.getTop(density) + margin
-    val headerPx = with(density) { HeaderIconSize.roundToPx() }
-    val header by produceState(icon, app.key) { if (value == null) value = repository.icon(app, headerPx) }
     // Where the app is, as a point in the menu; set when the menu is placed, read when it's drawn.
     val origin = remember { floatArrayOf(0.5f, 1f) }
     val position = remember(margin, top) {
@@ -104,11 +113,11 @@ internal fun AppMenu(
     // Not focusable while closing, so the taps that follow reach the screen.
     Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = expanded)) {
         MenuCard(
-            app,
-            header,
+            title,
+            icon,
             actions,
             onDismiss,
-            onAppInfo = { repository.openAppInfo(app) },
+            onAppInfo = onInfo,
             modifier = Modifier.graphicsLayer {
                 alpha = shown.coerceIn(0f, 1f)
                 val scale = 0.8f + 0.2f * shown
@@ -121,7 +130,7 @@ internal fun AppMenu(
 }
 
 @Composable
-private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: () -> Unit, modifier: Modifier) {
+private fun MenuCard(title: String, icon: ImageBitmap?, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: () -> Unit, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
@@ -148,7 +157,7 @@ private fun MenuCard(app: AppEntry, icon: ImageBitmap?, actions: List<MenuAction
             }
             Spacer(Modifier.width(14.dp))
             Text(
-                app.label,
+                title,
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                 color = cs.onSurface,
                 maxLines = 1,

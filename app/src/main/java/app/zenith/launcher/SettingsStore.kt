@@ -14,9 +14,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-/** User settings. Defaults: clock, swipe hint and app names shown; pure black off; swipe down opens notifications. */
+/** User settings. Defaults: swipe hint and app names shown; pure black off; swipe down opens notifications. */
 data class LauncherSettings(
-    val showClock: Boolean = true,
     val showHint: Boolean = true,
     val showLabels: Boolean = true,
     /** Near-black drawer and settings in dark mode (AMOLED). */
@@ -38,6 +37,8 @@ data class LauncherSettings(
     val dockRowGap: Int = 20,
     /** Home screen pages, each app keys by slot in reading order, "" for an empty slot. */
     val home: List<List<String>> = emptyList(),
+    /** Widgets on the home screen pages. */
+    val widgets: List<HomeWidget> = emptyList(),
     val homeColumns: Int = 4,
     val homeRows: Int = 5,
     val homeIconSize: Int = 52,
@@ -70,7 +71,6 @@ class SettingsStore(context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { p ->
             LauncherSettings(
-                showClock = p[SHOW_CLOCK] ?: true,
                 showHint = p[SHOW_HINT] ?: true,
                 showLabels = p[SHOW_LABELS] ?: true,
                 pureBlack = p[PURE_BLACK] ?: false,
@@ -84,6 +84,7 @@ class SettingsStore(context: Context) {
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 dockRowGap = (p[DOCK_ROW_GAP] ?: 20).coerceIn(DockRowGapRange),
                 home = HomePages.parse(p[HOME]),
+                widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
@@ -98,7 +99,6 @@ class SettingsStore(context: Context) {
             )
         }
 
-    suspend fun setShowClock(on: Boolean) = set(SHOW_CLOCK, on)
     suspend fun setShowHint(on: Boolean) = set(SHOW_HINT, on)
     suspend fun setShowLabels(on: Boolean) = set(SHOW_LABELS, on)
     suspend fun setPureBlack(on: Boolean) = set(PURE_BLACK, on)
@@ -113,6 +113,7 @@ class SettingsStore(context: Context) {
     suspend fun setDockIconSize(dp: Int) = store.edit { it[DOCK_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setDockRowGap(dp: Int) = store.edit { it[DOCK_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
     suspend fun setHome(pages: List<List<String>>) = store.edit { it[HOME] = HomePages.format(pages) }
+    suspend fun setWidgets(widgets: List<HomeWidget>) = store.edit { it[HOME_WIDGETS] = HomeWidgets.format(widgets) }
     suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
     suspend fun setHomeRows(n: Int) = store.edit { it[HOME_ROWS] = n.coerceIn(DockGridRange) }
     suspend fun setHomeIconSize(dp: Int) = store.edit { it[HOME_ICON_SIZE] = dp.coerceIn(DockIconRange) }
@@ -137,7 +138,6 @@ class SettingsStore(context: Context) {
     }
 
     private companion object {
-        val SHOW_CLOCK = booleanPreferencesKey("show_clock")
         val SHOW_HINT = booleanPreferencesKey("show_hint")
         val SHOW_LABELS = booleanPreferencesKey("show_labels")
         val PURE_BLACK = booleanPreferencesKey("pure_black")
@@ -152,6 +152,7 @@ class SettingsStore(context: Context) {
         val DOCK_ICON_SIZE = intPreferencesKey("dock_icon_size")
         val DOCK_ROW_GAP = intPreferencesKey("dock_row_gap")
         val HOME = stringPreferencesKey("home")
+        val HOME_WIDGETS = stringPreferencesKey("home_widgets")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")

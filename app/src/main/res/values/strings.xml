@@ -9,6 +9,11 @@
     <string name="menu_add_dock">Add to Dock</string>
     <string name="menu_remove_dock">Remove from Dock</string>
     <string name="menu_uninstall">Uninstall</string>
+    <string name="widget_resize">Resize</string>
+    <string name="widgets_title">Widgets</string>
+    <string name="widgets_none">No app on this phone offers widgets</string>
+    <string name="widgets_size">%1$d × %2$d</string>
+    <string name="widget_remove">Remove</string>
     <string name="home_menu_widgets">Widgets</string>
     <string name="home_menu_title">Home screen</string>
     <string name="home_menu_add_app">Add app</string>
@@ -69,12 +74,10 @@
     <string name="gesture_notifications">Open notifications</string>
     <string name="gesture_quick_settings">Open quick settings</string>
     <string name="gesture_lock">Lock the screen</string>
-    <string name="settings_home_sub">Clock, swipe hint</string>
+    <string name="settings_home_sub">Swipe hint, grid, app names</string>
     <string name="settings_drawer_sub">Columns, icon size, spacing</string>
     <string name="settings_wallpaper">Wallpaper</string>
     <string name="settings_wallpaper_sub">Pick a photo, then crop and set it</string>
-    <string name="settings_clock">Clock</string>
-    <string name="settings_clock_sub">Time and date on the home screen</string>
     <string name="settings_hint">Swipe hint</string>
     <string name="settings_hint_sub">"“Swipe up for apps” at the bottom"</string>
     <string name="settings_section_drawer">App drawer</string>

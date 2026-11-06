@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** The home screen. One instance (singleTask); pressing home while it shows closes the drawer. */
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
     // Counts Home presses and leaving, which also close the home sheet.
     private var resets by mutableIntStateOf(0)
     private val drawer = DrawerMotion()
+    private val widgets = WidgetHost(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +36,8 @@ class MainActivity : ComponentActivity() {
         repository.onChanged = { reload() }
         repository.register()
         reload()
+        // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.
+        lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
             // The first time apps are known, fill the dock with the default Phone, Messages,
@@ -75,6 +79,8 @@ class MainActivity : ComponentActivity() {
                     onGesture = ::onGesture,
                     onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
                     onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
+                    widgetHost = widgets,
+                    onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
                 )
             }
         }
@@ -100,10 +106,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Widgets update only while the home screen is started.
+    override fun onStart() {
+        super.onStart()
+        widgets.startListening()
+    }
+
+    @Deprecated("Android delivers a widget's setup screen result only here.")
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!widgets.onConfigured(requestCode, resultCode)) super.onActivityResult(requestCode, resultCode, data)
+    }
+
     // Back from an app (or anywhere) to the home screen, like One UI: the drawer is already closed
     // when the home screen shows again, instead of animating shut over the app's closing animation.
     override fun onStop() {
         super.onStop()
+        widgets.stopListening()
         drawer.jump(0f)
         drawerOpen = false
         resets++

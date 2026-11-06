@@ -1,11 +1,7 @@
 package app.zenith.launcher
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.appwidget.AppWidgetProviderInfo
 import android.graphics.Rect
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
@@ -70,14 +66,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -91,6 +85,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -116,7 +111,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import java.util.Date
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -161,6 +155,8 @@ internal fun LauncherScreen(
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
+    widgetHost: WidgetHost,
+    onWidgetsChange: (List<HomeWidget>) -> Unit,
 ) {
     val apps by repository.apps.collectAsState()
     val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
@@ -169,6 +165,10 @@ internal fun LauncherScreen(
         if (apps == null) settings.home else settings.home.map { page -> page.map { if (it in appsByKey) it else "" } }
     }
     val homeKeys = remember(homePages) { homePages.flatten().filterTo(HashSet()) { it.isNotEmpty() } }
+    // App slots under widgets, which apps added from the drawer skip.
+    val blocked = { p: Int -> HomeWidgets.blocked(settings.widgets, p, settings.homeColumns, settings.homeRows) }
+    var cell by remember { mutableStateOf(Size.Zero) }
+    var pickingWidget by remember { mutableStateOf(false) }
     // Dock keys by slot ("" empty); an app that is gone leaves its slot empty. Kept as stored until apps load.
     val dockKeys = remember(apps, settings.dock) {
         apps?.let { list -> list.mapTo(HashSet()) { it.key }.let { known -> settings.dock.map { if (it in known) it else "" } } } ?: settings.dock
@@ -255,8 +255,11 @@ internal fun LauncherScreen(
             // The page shown goes, with its apps (they stay installed); there is always one page.
             onRemovePage = if (homePages.size > 1) ({
                 onHomeChange(homePages.filterIndexed { i, _ -> i != homePage })
+                settings.widgets.filter { it.page == homePage }.forEach { widgetHost.remove(it.id) }
+                onWidgetsChange(HomeWidgets.removePage(settings.widgets, homePage))
                 homePage = homePage.coerceAtMost(homePages.size - 2)
             }) else null,
+            onAddWidget = { pickingWidget = true },
             onDoubleTap = { onGesture(settings.doubleTap) },
             modifier = Modifier
                 .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
@@ -268,8 +271,10 @@ internal fun LauncherScreen(
             grid = { onLongPressEmpty, modifier ->
                 HomeGrid(
                     pages = homePages,
+                    widgets = settings.widgets,
                     apps = appsByKey,
                     repository = repository,
+                    widgetHost = widgetHost,
                     columns = settings.homeColumns,
                     rows = settings.homeRows,
                     iconSize = settings.homeIconSize.dp,
@@ -279,6 +284,8 @@ internal fun LauncherScreen(
                     page = homePage,
                     onPageChange = { homePage = it },
                     onPagesChange = onHomeChange,
+                    onWidgetsChange = onWidgetsChange,
+                    onCellSize = { cell = it },
                     onLongPressEmpty = onLongPressEmpty,
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,
                     modifier = modifier,
@@ -320,11 +327,11 @@ internal fun LauncherScreen(
                 homeKeys = homeKeys,
                 locked = settings.locked,
                 onPick = if (picking) ({ app ->
-                    if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage))
+                    if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage, blocked = blocked))
                     onDrawerOpenChange(false)
                 }) else null,
                 onHomeToggle = { app ->
-                    onHomeChange(if (app.key in homeKeys) HomePages.remove(homePages, app.key) else HomePages.add(homePages, app.key, settings.homeCapacity))
+                    onHomeChange(if (app.key in homeKeys) HomePages.remove(homePages, app.key) else HomePages.add(homePages, app.key, settings.homeCapacity, blocked = blocked))
                 },
                 drawerOpen = drawerOpen,
                 onPull = dragBy,
@@ -340,6 +347,27 @@ internal fun LauncherScreen(
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
+        // A new widget's spot, once Android has bound it and its setup screen (if any) is done:
+        // read then, after the picker has gone, so it must stay current.
+        val place by rememberUpdatedState { id: Int, info: AppWidgetProviderInfo ->
+            val (w, h) = widgetSpan(info, cell, settings.homeColumns, settings.homeRows)
+            val spot = HomeWidgets.place(id, w, h, homePages, settings.widgets, settings.homeColumns, settings.homeRows, first = homePage)
+            onWidgetsChange(settings.widgets + spot)
+            if (spot.page >= homePages.size) onHomeChange(homePages + List(spot.page + 1 - homePages.size) { emptyList() })
+            homePage = spot.page
+        }
+        if (pickingWidget) {
+            WidgetPicker(
+                host = widgetHost,
+                appLabel = { pkg -> apps?.firstOrNull { it.packageName == pkg }?.label },
+                span = { widgetSpan(it, cell, settings.homeColumns, settings.homeRows) },
+                onPick = { info ->
+                    pickingWidget = false
+                    widgetHost.add(info) { id -> place(id, info) }
+                },
+                onDismiss = { pickingWidget = false },
+            )
+        }
     }
 }
 
@@ -358,6 +386,7 @@ private fun HomeScreen(
     onAddApp: () -> Unit,
     onAddPage: () -> Unit,
     onRemovePage: (() -> Unit)?,
+    onAddWidget: () -> Unit,
     onDoubleTap: () -> Unit,
     modifier: Modifier,
     grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
@@ -377,8 +406,7 @@ private fun HomeScreen(
             },
     ) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-            if (settings.showClock) Clock(Modifier.padding(start = 28.dp, top = 48.dp, bottom = 16.dp))
-            grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp))
+            grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 16.dp))
             dock()
             if (settings.showHint) {
                 Text(
@@ -403,8 +431,7 @@ private fun HomeScreen(
                     MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
                     MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
                     MenuItem(Icons.Delete, stringResource(R.string.home_menu_remove_page), enabled = !settings.locked && onRemovePage != null) { onRemovePage?.invoke() },
-                    // shortcut: no widget hosting yet, so the tile is shown but off; wire it to AppWidgetHost with the widgets work.
-                    MenuItem(Icons.Widgets, stringResource(R.string.home_menu_widgets), enabled = false) {},
+                    MenuItem(Icons.Widgets, stringResource(R.string.home_menu_widgets), enabled = !settings.locked, onClick = onAddWidget),
                 ),
             )
         }
@@ -612,47 +639,6 @@ private const val FlingSpeedPx = 1500f
 /** White text with a soft shadow reads on any wallpaper. */
 internal val OnWallpaper = Color.White
 internal val WallpaperShadow = androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 8f)
-
-/**
- * Time and date. Updated by the system's minute tick (and time or zone changes), only while the
- * home screen is composed: no timer of its own.
- */
-@Composable
-private fun Clock(modifier: Modifier) {
-    val context = LocalContext.current
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, i: Intent) {
-                now = System.currentTimeMillis()
-            }
-        }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_TIME_TICK)
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-        }
-        // System broadcasts only; not exported to other apps.
-        androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
-        now = System.currentTimeMillis()
-        onDispose { context.unregisterReceiver(receiver) }
-    }
-    val date = Date(now)
-    // The configuration's locale, so a language change redraws the date.
-    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
-    Column(modifier) {
-        Text(
-            DateFormat.getTimeFormat(context).format(date),
-            style = MaterialTheme.typography.displayLarge.copy(shadow = WallpaperShadow),
-            color = OnWallpaper,
-        )
-        Text(
-            DateFormat.format(DateFormat.getBestDateTimePattern(locale, "EEEEMMMMd"), date).toString(),
-            style = MaterialTheme.typography.titleMedium.copy(shadow = WallpaperShadow),
-            color = OnWallpaper,
-        )
-    }
-}
 
 /**
  * Drawer position, 0 (home) to 1 (open). A drag moves it at once, so a release right after the

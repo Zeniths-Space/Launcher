@@ -246,11 +246,6 @@ internal fun SettingsScreen(
                     Page.Home -> SegmentedGroup(
                         listOf(
                             {
-                                SwitchTile(Icons.Clock, stringResource(R.string.settings_clock), stringResource(R.string.settings_clock_sub), settings.showClock) {
-                                    save { store.setShowClock(it) }
-                                }
-                            },
-                            {
                                 SwitchTile(Icons.SwipeUp, stringResource(R.string.settings_hint), stringResource(R.string.settings_hint_sub), settings.showHint) {
                                     save { store.setShowHint(it) }
                                 }
