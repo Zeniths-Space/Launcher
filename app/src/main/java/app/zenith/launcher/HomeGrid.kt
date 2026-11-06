@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -85,10 +86,20 @@ private class WidgetDrag(val widget: HomeWidget, val start: Offset) {
     }
 }
 
-/** An app being dragged on the home screen: where it came from, and the finger's place in the grid. */
+/**
+ * An app or folder being dragged on the home screen: where it came from, the finger's place in the
+ * grid, the slot the others make room around ([target], which follows the finger after a short
+ * rest), and the slot whose item it would drop into ([merge]), after a hover over that item.
+ */
 private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Offset) {
     var at by mutableStateOf(at)
+    var target by mutableIntStateOf(from)
+    var merge by mutableStateOf<Int?>(null)
 }
+
+// How long the finger rests before the others make room, and over an app before it'd make a folder.
+private const val ReflowDelay = 150L
+private const val MergeDelay = 350L
 
 /**
  * The home screen's apps: pages of [columns] by [rows] slots, swiped sideways, with dots when there
@@ -101,6 +112,7 @@ private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Of
 @Composable
 fun HomeGrid(
     pages: List<List<String>>,
+    folders: List<HomeFolder>,
     widgets: List<HomeWidget>,
     apps: Map<String, AppEntry>,
     repository: AppRepository,
@@ -114,7 +126,11 @@ fun HomeGrid(
     page: Int,
     onPageChange: (Int) -> Unit,
     onPagesChange: (List<List<String>>) -> Unit,
+    // Pages and folders together, for changes that touch both (a folder made, an app taken out).
+    onLayoutChange: (List<List<String>>, List<HomeFolder>) -> Unit,
     onWidgetsChange: (List<HomeWidget>) -> Unit,
+    // Counts Home presses and leaving, which close an open folder and the resize frame.
+    resets: Int,
     // A cell's size in pixels, which new widgets are sized by.
     onCellSize: (Size) -> Unit,
     onLongPressEmpty: (Offset) -> Unit,
@@ -125,6 +141,11 @@ fun HomeGrid(
     // A change shows at once, not when the saved pages come back.
     var local by remember { mutableStateOf(pages) }
     LaunchedEffect(pages) { local = pages }
+    var localFolders by remember { mutableStateOf(folders) }
+    LaunchedEffect(folders) { localFolders = folders }
+    var openFolder by remember { mutableStateOf<Int?>(null) }
+    // The folder last opened, kept while it animates shut.
+    var shownFolder by remember { mutableStateOf<Int?>(null) }
     var localWidgets by remember { mutableStateOf(widgets) }
     LaunchedEffect(widgets) { localWidgets = widgets }
     var drag by remember { mutableStateOf<HomeDrag?>(null) }
@@ -167,6 +188,16 @@ fun HomeGrid(
     // App slots under widgets, which apps skip.
     val blockedOf = { p: Int -> HomeWidgets.blocked(localWidgets, p, columns, rows) }
     LaunchedEffect(pager.currentPage) { resizing = null }
+    LaunchedEffect(resets) {
+        openFolder = null
+        resizing = null
+    }
+    val layoutChange by rememberUpdatedState(onLayoutChange)
+    val commitLayout = { p: List<List<String>>, f: List<HomeFolder> ->
+        local = p
+        localFolders = f
+        layoutChange(p, f)
+    }
 
     Column(modifier) {
         BoxWithConstraints(
@@ -192,7 +223,7 @@ fun HomeGrid(
             // The page shown, laid out as if the finger lifted now.
             val previewOf = { page: Int ->
                 val d = drag
-                val moved = d?.let { HomePages.move(local, it.fromPage, it.from, page, slotAt(it.at), capacity, blockedOf) }
+                val moved = d?.let { HomePages.move(local, it.fromPage, it.from, page, it.target, capacity, blockedOf) }
                 HomePages.slots(moved?.getOrNull(page) ?: local.getOrNull(page), capacity)
             }
 
@@ -208,6 +239,9 @@ fun HomeGrid(
                     .pointerInput(columns, rows) {
                         var travelled = Offset.Zero
                         var edgeJob: Job? = null
+                        // The slot under the finger and whether it's over an item's middle, and the wait on it.
+                        var hover: Pair<Int, Boolean>? = null
+                        var hoverJob: Job? = null
                         detectDragGesturesAfterLongPress(
                             onDragStart = { at ->
                                 val page = pager.currentPage
@@ -222,7 +256,7 @@ fun HomeGrid(
                                     if (!isLocked) widgetDrag = WidgetDrag(widget.fitted(columns, rows), at)
                                     return@detectDragGesturesAfterLongPress
                                 }
-                                val key = HomePages.slots(local.getOrNull(page), capacity).getOrNull(slot)?.takeIf { it in known }
+                                val key = HomePages.slots(local.getOrNull(page), capacity).getOrNull(slot)?.takeIf { it in known || HomeFolders.isFolder(it) }
                                 if (key == null) {
                                     empty(at + (window[0]?.takeIf { it.isAttached }?.positionInWindow() ?: Offset.Zero))
                                 } else {
@@ -245,6 +279,24 @@ fun HomeGrid(
                                 // Moving it means rearranging, not choosing from the menu.
                                 if (travelled.getDistance() > slop) menuFor = null
                                 d.at += amount
+                                // Over the middle of another app or a folder: wait, then drop into it. Elsewhere:
+                                // wait a moment less, then the others make room. Waiting first lets the finger
+                                // pass over slots on its way without everything shuffling.
+                                val slot = slotAt(d.at)
+                                val middle = center(slot)
+                                val shown = previewOf(pager.currentPage)
+                                val onto = !isLocked && !HomeFolders.isFolder(d.key) &&
+                                    kotlin.math.abs(d.at.x - middle.x) < cell[0] * 0.3f && kotlin.math.abs(d.at.y - middle.y) < cell[1] * 0.3f &&
+                                    shown.getOrNull(slot)?.let { it != d.key } == true
+                                if (hover != (slot to onto)) {
+                                    hover = slot to onto
+                                    hoverJob?.cancel()
+                                    d.merge = null
+                                    hoverJob = scope.launch {
+                                        delay(if (onto) MergeDelay else ReflowDelay)
+                                        if (onto) d.merge = slot else d.target = slot
+                                    }
+                                }
                                 val toward = when {
                                     d.at.x < edge -> -1
                                     d.at.x > size.width - edge -> 1
@@ -274,17 +326,29 @@ fun HomeGrid(
                                         commitWidgets(localWidgets.map { if (it.id == to.id) to else it })
                                     }
                                 }
+                                hoverJob?.cancel()
+                                hover = null
                                 drag?.let { d ->
                                     drag = null
                                     dropAt = d.key to d.at
                                     val page = pager.currentPage
-                                    val to = HomePages.move(local, d.fromPage, d.from, page, slotAt(d.at), capacity, blockedOf)
-                                    if (to != null && to != local) commit(to)
+                                    val into = d.merge
+                                    if (into != null) {
+                                        // Dropped into an app or folder, as the page shows it now.
+                                        val shown = HomePages.move(local, d.fromPage, d.from, page, d.target, capacity, blockedOf) ?: local
+                                        val at = shown.getOrNull(page)?.indexOf(d.key) ?: -1
+                                        HomeFolders.merge(shown, localFolders, page, at, page, into)?.let { (p, f) -> commitLayout(p, f) }
+                                    } else {
+                                        val to = HomePages.move(local, d.fromPage, d.from, page, slotAt(d.at), capacity, blockedOf)
+                                        if (to != null && to != local) commit(to)
+                                    }
                                 }
                             },
                             onDragCancel = {
                                 edgeJob?.cancel()
                                 edgeJob = null
+                                hoverJob?.cancel()
+                                hover = null
                                 widgetDrag = null
                                 drag?.let { dropAt = it.key to it.at }
                                 drag = null
@@ -345,15 +409,47 @@ fun HomeGrid(
                                 }
                             }
                         }
+                        // The app or folder a dragged app would drop into.
+                        drag?.merge?.takeIf { page == pager.currentPage }?.let { i ->
+                            val ring = icon * 1.35f
+                            Box(
+                                Modifier
+                                    .offset { (center(i) - Offset(ring.toPx() / 2, ring.toPx() / 2 + if (showLabels) 13.dp.toPx() else 0f)).round() }
+                                    .size(ring)
+                                    .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(ring * 0.3f)),
+                            )
+                        }
                         slots.take(capacity).forEachIndexed { i, k ->
-                            val app = k?.let(apps::get) ?: return@forEachIndexed
-                            if (app.key == drag?.key) return@forEachIndexed
-                            // Keyed by app, so its position follows it to a new slot.
-                            key(app.key) {
+                            if (k == null || k == drag?.key) return@forEachIndexed
+                            val folder = HomeFolders.idOf(k)?.let { id -> localFolders.firstOrNull { it.id == id } }
+                            val app = apps[k]
+                            if (folder == null && app == null) return@forEachIndexed
+                            // Keyed by app or folder, so its position follows it to a new slot.
+                            key(k) {
                                 val home = center(i)
-                                val position = remember { Animatable(dropAt?.takeIf { it.first == app.key }?.second ?: home, Offset.VectorConverter) }
+                                val position = remember { Animatable(dropAt?.takeIf { it.first == k }?.second ?: home, Offset.VectorConverter) }
                                 LaunchedEffect(home) { position.animateTo(home) }
-                                HomeIcon(
+                                if (folder != null) {
+                                    FolderIcon(
+                                        folder = folder,
+                                        apps = apps,
+                                        repository = repository,
+                                        icon = icon,
+                                        showLabels = showLabels,
+                                        menu = menuFor == k,
+                                        onMenuDismiss = { menuFor = null },
+                                        canTap = { drag == null && menuFor == null },
+                                        canRemove = !locked,
+                                        onOpen = {
+                                            openFolder = folder.id
+                                            shownFolder = folder.id
+                                        },
+                                        onRemove = { HomeFolders.removeFolder(local, localFolders, folder.id).let { (p, f) -> commitLayout(p, f) } },
+                                        modifier = Modifier
+                                            .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
+                                            .offset { (position.value - Offset(cellW / 2, cellH / 2)).round() },
+                                    )
+                                } else if (app != null) HomeIcon(
                                     app = app,
                                     repository = repository,
                                     icon = icon,
@@ -381,8 +477,25 @@ fun HomeGrid(
                         }
                     }
                 }
-                // The dragged app, over every page.
+                // The dragged app or folder, over every page.
                 drag?.let { d ->
+                    HomeFolders.idOf(d.key)?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
+                        FolderFace(
+                            folder,
+                            apps,
+                            repository,
+                            icon,
+                            showLabels,
+                            Modifier
+                                .zIndex(1f)
+                                .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
+                                .offset { (d.at - Offset(cellW / 2, cellH / 2)).round() }
+                                .graphicsLayer {
+                                    scaleX = 1.1f
+                                    scaleY = 1.1f
+                                },
+                        )
+                    }
                     apps[d.key]?.let { app ->
                         HomeIconFace(
                             app,
@@ -401,6 +514,24 @@ fun HomeGrid(
                     }
                 }
             }
+        }
+        shownFolder?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
+            FolderPopup(
+                expanded = openFolder == folder.id,
+                folder = folder,
+                apps = apps,
+                repository = repository,
+                locked = locked,
+                onClose = { name ->
+                    openFolder = null
+                    val clean = HomeFolders.clean(name)
+                    if (clean != folder.name) commitLayout(local, localFolders.map { if (it.id == folder.id) it.copy(name = clean) else it })
+                },
+                onTakeOut = { key ->
+                    val (p, f) = HomeFolders.removeApp(local, localFolders, key)
+                    commitLayout(HomePages.add(p, key, capacity, first = pager.currentPage, blocked = blockedOf), f)
+                },
+            )
         }
         // When shown, always takes its space, so the grid keeps its size when a drag adds a page.
         if (showDots) Row(

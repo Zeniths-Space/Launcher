@@ -155,6 +155,7 @@ internal fun LauncherScreen(
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
+    onLayoutChange: (List<List<String>>, List<HomeFolder>) -> Unit,
     widgetHost: WidgetHost,
     onWidgetsChange: (List<HomeWidget>) -> Unit,
 ) {
@@ -162,9 +163,12 @@ internal fun LauncherScreen(
     val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
     // Home pages by key; an app that is gone leaves its slot empty. Kept as stored until apps load.
     val homePages = remember(apps, settings.home) {
-        if (apps == null) settings.home else settings.home.map { page -> page.map { if (it in appsByKey) it else "" } }
+        if (apps == null) settings.home else settings.home.map { page -> page.map { if (it in appsByKey || HomeFolders.isFolder(it)) it else "" } }
     }
-    val homeKeys = remember(homePages) { homePages.flatten().filterTo(HashSet()) { it.isNotEmpty() } }
+    // Apps on the home screen, in slots or in folders.
+    val homeKeys = remember(homePages, settings.folders) {
+        homePages.flatten().filterTo(HashSet()) { it.isNotEmpty() && !HomeFolders.isFolder(it) } + HomeFolders.apps(settings.folders)
+    }
     // App slots under widgets, which apps added from the drawer skip.
     val blocked = { p: Int -> HomeWidgets.blocked(settings.widgets, p, settings.homeColumns, settings.homeRows) }
     var cell by remember { mutableStateOf(Size.Zero) }
@@ -254,7 +258,10 @@ internal fun LauncherScreen(
             },
             // The page shown goes, with its apps (they stay installed); there is always one page.
             onRemovePage = if (homePages.size > 1) ({
-                onHomeChange(homePages.filterIndexed { i, _ -> i != homePage })
+                // Its folders go with it.
+                val kept = homePages.filterIndexed { i, _ -> i != homePage }
+                val inSlots = kept.flatten().mapNotNullTo(HashSet(), HomeFolders::idOf)
+                onLayoutChange(kept, settings.folders.filter { it.id in inSlots })
                 settings.widgets.filter { it.page == homePage }.forEach { widgetHost.remove(it.id) }
                 onWidgetsChange(HomeWidgets.removePage(settings.widgets, homePage))
                 homePage = homePage.coerceAtMost(homePages.size - 2)
@@ -271,6 +278,7 @@ internal fun LauncherScreen(
             grid = { onLongPressEmpty, modifier ->
                 HomeGrid(
                     pages = homePages,
+                    folders = settings.folders,
                     widgets = settings.widgets,
                     apps = appsByKey,
                     repository = repository,
@@ -284,7 +292,9 @@ internal fun LauncherScreen(
                     page = homePage,
                     onPageChange = { homePage = it },
                     onPagesChange = onHomeChange,
+                    onLayoutChange = onLayoutChange,
                     onWidgetsChange = onWidgetsChange,
+                    resets = resets,
                     onCellSize = { cell = it },
                     onLongPressEmpty = onLongPressEmpty,
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,
@@ -331,7 +341,11 @@ internal fun LauncherScreen(
                     onDrawerOpenChange(false)
                 }) else null,
                 onHomeToggle = { app ->
-                    onHomeChange(if (app.key in homeKeys) HomePages.remove(homePages, app.key) else HomePages.add(homePages, app.key, settings.homeCapacity, blocked = blocked))
+                    if (app.key in homeKeys) {
+                        HomeFolders.removeApp(homePages, settings.folders, app.key).let { (p, f) -> onLayoutChange(p, f) }
+                    } else {
+                        onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, blocked = blocked))
+                    }
                 },
                 drawerOpen = drawerOpen,
                 onPull = dragBy,

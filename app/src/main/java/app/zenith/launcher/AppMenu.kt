@@ -82,7 +82,15 @@ internal fun AppMenu(
  * ([onInfo]) on top, then a row of [actions].
  */
 @Composable
-internal fun MenuPopup(expanded: Boolean, title: String, icon: ImageBitmap?, onInfo: () -> Unit, actions: List<MenuAction>, onDismiss: () -> Unit) {
+internal fun MenuPopup(
+    expanded: Boolean,
+    title: String,
+    icon: ImageBitmap?,
+    onInfo: (() -> Unit)?,
+    actions: List<MenuAction>,
+    onDismiss: () -> Unit,
+    hasIcon: Boolean = true,
+) {
     // Stays composed after closing until the closing animation ends.
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
@@ -115,6 +123,7 @@ internal fun MenuPopup(expanded: Boolean, title: String, icon: ImageBitmap?, onI
         MenuCard(
             title,
             icon,
+            hasIcon,
             actions,
             onDismiss,
             onAppInfo = onInfo,
@@ -130,7 +139,7 @@ internal fun MenuPopup(expanded: Boolean, title: String, icon: ImageBitmap?, onI
 }
 
 @Composable
-private fun MenuCard(title: String, icon: ImageBitmap?, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: () -> Unit, modifier: Modifier) {
+private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
@@ -152,10 +161,13 @@ private fun MenuCard(title: String, icon: ImageBitmap?, actions: List<MenuAction
                 .padding(start = 16.dp, end = 4.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(HeaderIconSize)) {
-                icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(HeaderIconSize)) }
+            // Room kept while the icon loads, so the header doesn't jump; none for a menu without one.
+            if (hasIcon) {
+                Box(Modifier.size(HeaderIconSize)) {
+                    icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(HeaderIconSize)) }
+                }
+                Spacer(Modifier.width(14.dp))
             }
-            Spacer(Modifier.width(14.dp))
             Text(
                 title,
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
@@ -164,8 +176,12 @@ private fun MenuCard(title: String, icon: ImageBitmap?, actions: List<MenuAction
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = { run(onAppInfo) }) {
-                Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.onSurfaceVariant)
+            if (onAppInfo != null) {
+                IconButton(onClick = { run(onAppInfo) }) {
+                    Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.onSurfaceVariant)
+                }
+            } else {
+                Spacer(Modifier.height(48.dp))
             }
         }
         if (actions.isNotEmpty()) {

@@ -37,6 +37,8 @@ data class LauncherSettings(
     val dockRowGap: Int = 20,
     /** Home screen pages, each app keys by slot in reading order, "" for an empty slot. */
     val home: List<List<String>> = emptyList(),
+    /** Folders on the home screen, each in a slot of [home] by [HomeFolders.key]. */
+    val folders: List<HomeFolder> = emptyList(),
     /** Widgets on the home screen pages. */
     val widgets: List<HomeWidget> = emptyList(),
     val homeColumns: Int = 4,
@@ -84,6 +86,7 @@ class SettingsStore(context: Context) {
                 dockIconSize = (p[DOCK_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 dockRowGap = (p[DOCK_ROW_GAP] ?: 20).coerceIn(DockRowGapRange),
                 home = HomePages.parse(p[HOME]),
+                folders = HomeFolders.parse(p[HOME_FOLDERS]),
                 widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
@@ -113,6 +116,12 @@ class SettingsStore(context: Context) {
     suspend fun setDockIconSize(dp: Int) = store.edit { it[DOCK_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setDockRowGap(dp: Int) = store.edit { it[DOCK_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
     suspend fun setHome(pages: List<List<String>>) = store.edit { it[HOME] = HomePages.format(pages) }
+    /** Pages and folders together, so a folder and its slot never disagree. */
+    suspend fun setHomeLayout(pages: List<List<String>>, folders: List<HomeFolder>) = store.edit {
+        it[HOME] = HomePages.format(pages)
+        it[HOME_FOLDERS] = HomeFolders.format(folders)
+    }
+    suspend fun setFolders(folders: List<HomeFolder>) = store.edit { it[HOME_FOLDERS] = HomeFolders.format(folders) }
     suspend fun setWidgets(widgets: List<HomeWidget>) = store.edit { it[HOME_WIDGETS] = HomeWidgets.format(widgets) }
     suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
     suspend fun setHomeRows(n: Int) = store.edit { it[HOME_ROWS] = n.coerceIn(DockGridRange) }
@@ -153,6 +162,7 @@ class SettingsStore(context: Context) {
         val DOCK_ROW_GAP = intPreferencesKey("dock_row_gap")
         val HOME = stringPreferencesKey("home")
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
+        val HOME_FOLDERS = stringPreferencesKey("home_folders")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")

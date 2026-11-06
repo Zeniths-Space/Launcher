@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
                     onGesture = ::onGesture,
                     onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
                     onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
+                    onLayoutChange = { pages, folders -> lifecycleScope.launch { store.setHomeLayout(pages, folders) } },
                     widgetHost = widgets,
                     onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
                 )
