@@ -2,6 +2,7 @@ package app.zenith.launcher
 
 import android.graphics.Rect
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -100,6 +101,9 @@ private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Of
 // How long the finger rests before the others make room, and over an app before it'd make a folder.
 private const val ReflowDelay = 150L
 private const val MergeDelay = 350L
+
+// How much bigger a held app or folder is drawn.
+private const val DragLift = 1.1f
 
 /**
  * The home screen's apps: pages of [columns] by [rows] slots, swiped sideways, with dots when there
@@ -233,6 +237,8 @@ fun HomeGrid(
             // From a large folder's top-left cell's middle to its own middle.
             val toMiddle = Offset(cellW, cellH) * ((largeSpan - 1) / 2f)
             fun center(slot: Int) = Offset((slot % columns + 0.5f) * cell[0], (slot / columns + 0.5f) * cell[1])
+            // Where a let-go item is, measured as its slot's position is: a large folder's middle, not its top-left cell's.
+            fun dropPoint(d: HomeDrag) = if (d.large) d.at + Offset(cell[0], cell[1]) * ((HomeFolders.LargeSpan - 1) / 2f) else d.at
             fun slotAt(at: Offset) = (at.y / cell[1]).toInt().coerceIn(0, rows - 1) * columns + (at.x / cell[0]).toInt().coerceIn(0, columns - 1)
             // The page shown, laid out as if the finger lifted now.
             val previewOf = { page: Int ->
@@ -352,7 +358,7 @@ fun HomeGrid(
                                 hover = null
                                 drag?.let { d ->
                                     drag = null
-                                    dropAt = d.key to d.at
+                                    dropAt = d.key to dropPoint(d)
                                     val page = pager.currentPage
                                     val into = d.merge
                                     if (d.large) {
@@ -379,7 +385,7 @@ fun HomeGrid(
                                 hoverJob?.cancel()
                                 hover = null
                                 widgetDrag = null
-                                drag?.let { dropAt = it.key to it.at }
+                                drag?.let { dropAt = it.key to dropPoint(it) }
                                 drag = null
                             },
                         )
@@ -470,11 +476,17 @@ fun HomeGrid(
                             key(k) {
                                 // A large folder's middle is where its four cells meet.
                                 val home = if (large) center(i) + toMiddle else center(i)
-                                val position = remember { Animatable(home, Offset.VectorConverter) }
-                                // Glides from where it was let go, or to its new slot when the others make room.
-                                LaunchedEffect(home, dropAt) {
-                                    dropAt?.takeIf { it.first == k }?.let { position.snapTo(it.second) }
-                                    position.animateTo(home)
+                                // New here (dropped from another page): starts where it was let go.
+                                val position = remember { Animatable(dropAt?.takeIf { it.first == k }?.second ?: home, Offset.VectorConverter) }
+                                // While held it follows the finger, unseen and lifted like the dragged copy, so
+                                // letting go only has to ease it into its slot and back to size.
+                                val lift by animateFloatAsState(if (hidden) DragLift else 1f, label = "lift")
+                                LaunchedEffect(home, hidden) {
+                                    if (hidden) {
+                                        snapshotFlow { drag?.let(::dropPoint) }.collect { at -> at?.let { position.snapTo(it) } }
+                                    } else {
+                                        position.animateTo(home)
+                                    }
                                 }
                                 if (folder != null) {
                                     val span = if (large) largeSpan else 1
@@ -501,7 +513,11 @@ fun HomeGrid(
                                         modifier = Modifier
                                             .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
                                             .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
-                                            .graphicsLayer { alpha = if (hidden) 0f else 1f },
+                                            .graphicsLayer {
+                                                alpha = if (hidden) 0f else 1f
+                                                scaleX = lift
+                                                scaleY = lift
+                                            },
                                     )
                                 } else if (app != null) HomeIcon(
                                     app = app,
@@ -519,7 +535,11 @@ fun HomeGrid(
                                     modifier = Modifier
                                         .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
                                         .offset { (position.value - Offset(cellW / 2, cellH / 2)).round() }
-                                        .graphicsLayer { alpha = if (hidden) 0f else 1f },
+                                        .graphicsLayer {
+                                            alpha = if (hidden) 0f else 1f
+                                            scaleX = lift
+                                            scaleY = lift
+                                        },
                                 )
                             }
                         }
@@ -549,8 +569,8 @@ fun HomeGrid(
                                 // A large one is held by its top-left cell.
                                 .offset { (d.at - Offset(cellW / 2, cellH / 2)).round() }
                                 .graphicsLayer {
-                                    scaleX = 1.1f
-                                    scaleY = 1.1f
+                                    scaleX = DragLift
+                                    scaleY = DragLift
                                 },
                         )
                     }
@@ -565,8 +585,8 @@ fun HomeGrid(
                                 .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
                                 .offset { (d.at - Offset(cellW / 2, cellH / 2)).round() }
                                 .graphicsLayer {
-                                    scaleX = 1.1f
-                                    scaleY = 1.1f
+                                    scaleX = DragLift
+                                    scaleY = DragLift
                                 },
                         )
                     }
@@ -690,7 +710,7 @@ private fun HomeIcon(
 @Composable
 private fun HomeIconFace(app: AppEntry, repository: AppRepository, icon: Dp, showLabels: Boolean, modifier: Modifier) {
     val sizePx = with(LocalDensity.current) { icon.roundToPx() }
-    val bitmap by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
+    val bitmap by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx) { value = repository.icon(app, sizePx) }
     Column(modifier, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(icon)) { bitmap?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
         if (showLabels) {

@@ -86,6 +86,9 @@ class AppRepository(context: Context) {
         _apps.value = sortApps(entries)
     }
 
+    /** The app's icon at [sizePx] if already drawn, so a new view can show it from its first frame. */
+    fun cachedIcon(app: AppEntry, sizePx: Int): ImageBitmap? = synchronized(infos) { icons["${app.key}@$sizePx"] }
+
     /** The app's icon at [sizePx], badged for work-profile apps. Drawn off the main thread. */
     suspend fun icon(app: AppEntry, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
         val cacheKey = "${app.key}@$sizePx"

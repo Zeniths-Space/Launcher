@@ -381,7 +381,7 @@ private fun Choice(title: String, options: List<String>, selected: Int, onSelect
 @Composable
 private fun AppIcon(app: AppEntry, repository: AppRepository, size: Dp) {
     val px = with(LocalDensity.current) { size.roundToPx() }
-    val bitmap by produceState<ImageBitmap?>(null, app.key, px) { value = repository.icon(app, px) }
+    val bitmap by produceState(repository.cachedIcon(app, px), app.key, px) { value = repository.icon(app, px) }
     Box(Modifier.size(size)) { bitmap?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
 }
 
@@ -487,7 +487,7 @@ internal fun FolderPopup(
 private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, onOpen: () -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
     var menu by remember { mutableStateOf(false) }
     val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
-    val icon by produceState<ImageBitmap?>(null, app.key, px) { value = repository.icon(app, px) }
+    val icon by produceState(repository.cachedIcon(app, px), app.key, px) { value = repository.icon(app, px) }
     Box(modifier) {
         Column(
             Modifier
