@@ -282,12 +282,12 @@ internal fun SettingsScreen(
                                 }
                             },
                             {
-                                SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DockRowGapRange, step = 2, format = R.string.settings_value_dp) {
+                                SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
                                     save { store.setDrawerRowGap(it) }
                                 }
                             },
                             {
-                                SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerPaddingRange, step = 4, format = R.string.settings_value_dp) {
+                                SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
                                     save { store.setDrawerPadding(it) }
                                 }
                             },

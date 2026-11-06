@@ -89,8 +89,8 @@ class SettingsStore(context: Context) {
                 homeDots = p[HOME_DOTS] ?: true,
                 drawerColumns = (p[DRAWER_COLUMNS] ?: 4).coerceIn(DrawerColumnRange),
                 drawerIconSize = (p[DRAWER_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
-                drawerRowGap = (p[DRAWER_ROW_GAP] ?: 12).coerceIn(DockRowGapRange),
-                drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerPaddingRange),
+                drawerRowGap = (p[DRAWER_ROW_GAP] ?: 12).coerceIn(DrawerSpacingRange),
+                drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerSpacingRange),
                 locked = p[LOCKED] ?: false,
             )
         }
@@ -117,8 +117,8 @@ class SettingsStore(context: Context) {
     suspend fun setHomeDots(on: Boolean) = set(HOME_DOTS, on)
     suspend fun setDrawerColumns(n: Int) = store.edit { it[DRAWER_COLUMNS] = n.coerceIn(DrawerColumnRange) }
     suspend fun setDrawerIconSize(dp: Int) = store.edit { it[DRAWER_ICON_SIZE] = dp.coerceIn(DockIconRange) }
-    suspend fun setDrawerRowGap(dp: Int) = store.edit { it[DRAWER_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
-    suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerPaddingRange) }
+    suspend fun setDrawerRowGap(dp: Int) = store.edit { it[DRAWER_ROW_GAP] = dp.coerceIn(DrawerSpacingRange) }
+    suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
@@ -170,8 +170,8 @@ val DockIconRange = 32..96
 /** App drawer columns. */
 val DrawerColumnRange = 1..10
 
-/** Space at the app drawer's left and right edges, in dp. */
-val DrawerPaddingRange = 0..48
+/** App drawer row spacing and side padding, in dp. */
+val DrawerSpacingRange = 0..96
 
 /** Space between dock rows, in dp. */
 val DockRowGapRange = 0..40
