@@ -14,7 +14,7 @@
   LauncherApps API, to show and start them. It does not read app data, notifications or usage.
 - **What it stores:** on/off settings (swipe hint, app names in the drawer and on the
   home screen, page indicator, pure black, layout lock, remember drawer scroll position), the two gesture choices, which apps are on the home screen pages and
-  in the dock, each widget's place and size on the home screen, the grid sizes of both, the app drawer layout, in the app's private storage. Search text is kept only while the drawer is open.
+  in the dock, folders and their names, each widget's place and size on the home screen, the grid sizes of both, the app drawer layout, in the app's private storage. Search text is kept only while the drawer is open.
 - **Widgets:** a widget shows content from its own app. Android asks before Zenith may host
   widgets; once allowed, Zenith draws what widgets send, like any home app, and keeps none of it.
 - **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's

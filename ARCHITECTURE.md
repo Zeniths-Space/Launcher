@@ -9,6 +9,8 @@ No other ecosystem app is needed.
 | `LauncherScreen.kt` | Compose UI: home screen, the app drawer with search, app tiles, the home sheet. |
 | `Widgets.kt` | `WidgetHost` (Android's `AppWidgetHost`, binding, setup screens), widget views and their touch hand-off, widget menu and resize frame. |
 | `WidgetPicker.kt` | The widget picker and how many cells a new widget takes. |
+| `HomeFolders.kt` | Folders: stored form, making one by dropping an app on another, taking apps out, dissolving (unit tested). |
+| `Folders.kt` | Folder tile, folder menu and the open folder card. |
 | `HomeWidgets.kt` | Widgets as cell rectangles per page: stored form, fitting, placing, page removal (unit tested). |
 | `AppMenu.kt` | The long-press menu popup shared by drawer, home, dock apps and widgets. |
 | `AppRepository.kt` | Apps from `LauncherApps` for every profile, package-change callbacks, icons, launching. |
@@ -108,3 +110,8 @@ No other ecosystem app is needed.
   free cells. Compose sees every touch on a widget first and hands it to the widget's view without
   consuming it: taps reach the widget, a hold becomes the home screen's menu or drag, and swipes
   stay the home screen's unless the widget has a list and the swipe is vertical.
+- **Folders as slot keys.** A folder takes one home slot as `folder:<id>`, so moving and making
+  room treat it like an app; its apps live in a separate list saved in the same DataStore edit as
+  the pages, so a folder and its slot can't disagree. A drag waits for the finger to rest before
+  the others make room, and a longer rest over an item's middle drops into it, so both can share
+  one gesture.

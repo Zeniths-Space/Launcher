@@ -35,6 +35,13 @@ Application ID `app.zenith.launcher`.
   home screen app for the same menu as in the drawer (Remove from Home, Uninstall), or keep holding and drag it to any slot: the others
   make room as you go. Hold it at a side edge to go to the page there, or a new page past the
   last. A page stays until you remove it. Screen readers get Move left, Move right and Remove.
+- Folders on the home screen: drag an app onto another and hold it over the middle for a moment
+  (it lights up), then let go; drop more apps onto the folder the same way. The others only make
+  room once the finger rests, so passing over an app on the way doesn't make a folder. Tap a
+  folder to open it: tap its name to rename it, tap an app to open it, long-press an app for
+  Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
+  into that app. Long-press a folder to drag it, or for Remove (it and its apps leave the home
+  screen; they stay installed). Remove from Home in the drawer also takes an app out of its folder.
 - Long-press an empty spot on the home screen for a sheet from the bottom: Add app (the drawer
   opens; tap an app to put it on the page you were on), Add page, Remove page (the page shown,
   with its apps; they stay installed) and Widgets, a lock that keeps home
@@ -91,6 +98,8 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   live preview layouts aren't drawn yet. A widget can't be dragged to another page, only within
   its own. Making the home grid smaller can leave a widget over apps until one is moved. A widget
   whose app is removed shows Android's "problem loading widget" box until you remove it.
+- **Folders, first version.** Home screen only, not the dock. Apps can't be dragged out of an open
+  folder or reordered in it; use Remove from folder. A folder can't be dropped into another.
 
 ## Build
 

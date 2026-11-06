@@ -10,7 +10,7 @@
 ## Next
 - [ ] Favourites dock on the home screen
 - [ ] Home screen pages with app icons, drag to arrange
-- [ ] Folders
+- [x] Folders (home screen; dock later)
 - [ ] App shortcuts (long-press menu)
 - [ ] Hidden apps
 - [x] Settings screen: home app status, wallpaper, swipe hint, app names, pure black
