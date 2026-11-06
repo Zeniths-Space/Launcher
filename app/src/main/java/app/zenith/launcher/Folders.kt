@@ -261,7 +261,7 @@ internal val FolderColors = listOf(
 internal fun folderColor(index: Int) = FolderColors.getOrElse(index) { FolderColors[0] }
 
 /**
- * A folder's Customize card: Small or Large (3 by 3 cells), Apps or Folder style, and a colour. Each
+ * A folder's Customize card: Small, 2 by 2 or 3 by 3 cells, Apps or Folder style, and a colour. Each
  * choice applies at once through [onChange], which says whether it could (a large folder needs
  * free cells).
  */
@@ -307,9 +307,9 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
                 Spacer(Modifier.height(20.dp))
                 Choice(
                     stringResource(R.string.folder_size),
-                    listOf(stringResource(R.string.folder_size_small), stringResource(R.string.folder_size_large)),
-                    selected = if (folder.large) 1 else 0,
-                ) { i -> if (!onChange(folder.copy(large = i == 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() }
+                    listOf(stringResource(R.string.folder_size_small), stringResource(R.string.folder_size_2), stringResource(R.string.folder_size_3)),
+                    selected = folder.span - 1,
+                ) { i -> if (!onChange(folder.copy(span = i + 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() }
                 Spacer(Modifier.height(16.dp))
                 Choice(
                     stringResource(R.string.folder_style),

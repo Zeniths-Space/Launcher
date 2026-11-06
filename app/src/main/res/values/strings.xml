@@ -20,7 +20,8 @@
     <string name="folder_customize">Customize</string>
     <string name="folder_size">Size</string>
     <string name="folder_size_small">Small</string>
-    <string name="folder_size_large">Large (3 × 3)</string>
+    <string name="folder_size_2">2 × 2</string>
+    <string name="folder_size_3">3 × 3</string>
     <string name="folder_style">Icon</string>
     <string name="folder_style_apps">Apps</string>
     <string name="folder_style_symbol">Folder</string>
@@ -31,7 +32,7 @@
     <string name="folder_layout_circle">Circle</string>
     <string name="folder_transparent">Transparent background</string>
     <string name="folder_color_n">Colour %1$d</string>
-    <string name="folder_no_room">No room for a large folder here: it needs the cells to its right and below free</string>
+    <string name="folder_no_room">No room for a large folder here: it needs the cells to its right and below it free</string>
     <string name="widgets_title">Widgets</string>
     <string name="widgets_none">No app on this phone offers widgets</string>
     <string name="widgets_size">%1$d × %2$d</string>

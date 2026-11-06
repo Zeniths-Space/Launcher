@@ -8,24 +8,26 @@ enum class FolderLayout { Grid, Hexagon, Circle }
 
 /**
  * A home screen folder: its [apps] by key, in order, under [name] ("" for the default name).
- * [large] takes [HomeFolders.LargeSpan] by [HomeFolders.LargeSpan] cells, its slot being the top-left one; [color] picks the tile colour
+ * [span] is how many cells it takes each way (1, 2 or 3), its slot being the top-left one; [color] picks the tile colour
  * (0 the default tint).
  */
 data class HomeFolder(
     val id: Int,
     val name: String,
     val apps: List<String>,
-    val large: Boolean = false,
+    val span: Int = 1,
     val style: FolderStyle = FolderStyle.Apps,
     val color: Int = 0,
     val layout: FolderLayout = FolderLayout.Grid,
     /** No tile behind the apps or symbol. */
     val transparent: Boolean = false,
-)
+) {
+    val large: Boolean get() = span > 1
+}
 
 /**
  * Home screen folders. A folder sits in a home slot as [key] ("folder:<id>"); its apps are listed
- * here, not in the slots. Stored one per line as id, apps, looks ("large,style,color,layout,transparent") and name,
+ * here, not in the slots. Stored one per line as id, apps, looks ("span,style,color,layout,transparent") and name,
  * split by tabs (apps by [AppSeparator]); names lose tabs and line breaks. Lines from before looks
  * existed have no looks field.
  */
@@ -49,7 +51,8 @@ object HomeFolders {
             id,
             parts[3],
             apps,
-            large = looks.getOrNull(0) == "1",
+            // "0" was small and "1" large back when large meant 3 by 3; 2 and 3 are spans.
+            span = when (val v = looks.getOrNull(0)) { "1" -> 3; else -> v?.toIntOrNull()?.coerceIn(1, 3) ?: 1 },
             style = FolderStyle.entries.firstOrNull { it.name == looks.getOrNull(1) } ?: FolderStyle.Apps,
             color = looks.getOrNull(2)?.toIntOrNull() ?: 0,
             layout = FolderLayout.entries.firstOrNull { it.name == looks.getOrNull(3) } ?: FolderLayout.Grid,
@@ -58,42 +61,40 @@ object HomeFolders {
     }
 
     fun format(folders: List<HomeFolder>): String = folders.joinToString("\n") { f ->
-        "${f.id}\t${f.apps.joinToString(AppSeparator)}\t${if (f.large) 1 else 0},${f.style.name},${f.color},${f.layout.name},${if (f.transparent) 1 else 0}\t${clean(f.name)}"
+        "${f.id}\t${f.apps.joinToString(AppSeparator)}\t${if (f.span == 1) 0 else f.span},${f.style.name},${f.color},${f.layout.name},${if (f.transparent) 1 else 0}\t${clean(f.name)}"
     }
 
     /** The slots of a large folder whose top-left slot is [slot]. */
-    /** How many cells a large folder takes each way. */
-    const val LargeSpan = 3
-
-    fun cells(slot: Int, columns: Int): Set<Int> = (0 until LargeSpan).flatMap { r -> (0 until LargeSpan).map { c -> slot + r * columns + c } }.toSet()
+    fun cells(slot: Int, columns: Int, span: Int): Set<Int> = (0 until span).flatMap { r -> (0 until span).map { c -> slot + r * columns + c } }.toSet()
 
     /** Whether the folder in [slot] shows large: asked to, and not in the last column or row. */
-    fun showsLarge(folder: HomeFolder, slot: Int, columns: Int, rows: Int) = folder.large && slot % columns <= columns - LargeSpan && slot / columns <= rows - LargeSpan
+    fun showsLarge(folder: HomeFolder, slot: Int, columns: Int, rows: Int) =
+        folder.large && slot % columns <= columns - folder.span && slot / columns <= rows - folder.span
 
     /** Slots taken by large folders on [page] (all of each), but for folder key [except]. */
     fun largeCells(pages: List<List<String>>, folders: List<HomeFolder>, page: Int, columns: Int, rows: Int, except: String? = null): Set<Int> {
         val byId = folders.associateBy { it.id }
         return pages.getOrNull(page).orEmpty().withIndex().filter { (slot, k) ->
             k != except && idOf(k)?.let(byId::get)?.let { showsLarge(it, slot, columns, rows) } == true
-        }.flatMap { cells(it.index, columns) }.toSet()
+        }.flatMap { cells(it.index, columns, byId.getValue(idOf(it.value)!!).span) }.toSet()
     }
 
     /** The slot of the large folder on [page] covering [slot], or [slot] itself. */
     fun anchorAt(pages: List<List<String>>, folders: List<HomeFolder>, page: Int, slot: Int, columns: Int, rows: Int): Int {
         val byId = folders.associateBy { it.id }
         return pages.getOrNull(page).orEmpty().withIndex().firstOrNull { (at, k) ->
-            idOf(k)?.let(byId::get)?.let { showsLarge(it, at, columns, rows) && slot in cells(at, columns) } == true
+            idOf(k)?.let(byId::get)?.let { showsLarge(it, at, columns, rows) && slot in cells(at, columns, it.span) } == true
         }?.index ?: slot
     }
 
     /**
-     * Whether folder [self] fits large with its top-left at [page]/[slot]: inside the grid, on
+     * Whether folder [self] fits [span] by [span] cells with its top-left at [page]/[slot]: inside the grid, on
      * slots empty (or its own) and not in [blocked] (widgets, other large folders).
      */
-    fun fitsLarge(pages: List<List<String>>, page: Int, slot: Int, columns: Int, rows: Int, blocked: Set<Int>, self: String): Boolean {
-        if (slot < 0 || slot % columns > columns - LargeSpan || slot / columns > rows - LargeSpan) return false
+    fun fitsLarge(pages: List<List<String>>, page: Int, slot: Int, columns: Int, rows: Int, blocked: Set<Int>, self: String, span: Int): Boolean {
+        if (slot < 0 || slot % columns > columns - span || slot / columns > rows - span) return false
         val slots = pages.getOrNull(page).orEmpty()
-        return cells(slot, columns).all { it !in blocked && slots.getOrNull(it).let { k -> k.isNullOrEmpty() || k == self } }
+        return cells(slot, columns, span).all { it !in blocked && slots.getOrNull(it).let { k -> k.isNullOrEmpty() || k == self } }
     }
 
     /** A name as it can be stored: one line, no tabs, trimmed. */

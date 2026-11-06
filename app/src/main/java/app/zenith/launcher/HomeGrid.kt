@@ -92,8 +92,11 @@ private class WidgetDrag(val widget: HomeWidget, val start: Offset) {
  * grid, the slot the others make room around ([target], which follows the finger after a short
  * rest), and the slot whose item it would drop into ([merge]), after a hover over that item.
  */
-private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Offset, val large: Boolean = false) {
+private class HomeDrag(val key: String, val fromPage: Int, val from: Int, at: Offset, val span: Int = 1) {
+    val large get() = span > 1
     var at by mutableStateOf(at)
+    // Moved past the touch slop: a drag, not just a press for the menu.
+    var moved by mutableStateOf(false)
     var target by mutableIntStateOf(from)
     var merge by mutableStateOf<Int?>(null)
 }
@@ -193,10 +196,14 @@ fun HomeGrid(
     // Slots of large folders on a page, which apps and widgets keep out of.
     val largeOf = { p: Int -> HomeFolders.largeCells(local, localFolders, p, columns, rows) }
     val blockedOf = { p: Int -> HomeWidgets.blocked(localWidgets, p, columns, rows) + largeOf(p) }
-    val largeAt = { p: Int, slot: Int ->
+    // How many cells each way the item in a slot takes: a large folder's span, else 1.
+    val spanAt = { p: Int, slot: Int ->
         HomeFolders.idOf(local.getOrNull(p)?.getOrNull(slot))?.let { id -> localFolders.firstOrNull { it.id == id } }
-            ?.let { HomeFolders.showsLarge(it, slot, columns, rows) } == true
+            ?.takeIf { HomeFolders.showsLarge(it, slot, columns, rows) }?.span ?: 1
     }
+    val largeAt = { p: Int, slot: Int -> spanAt(p, slot) > 1 }
+    // The dragged copy grows once it's moved, not on the press that opens the menu.
+    val dragLift by animateFloatAsState(if (drag?.moved == true) DragLift else 1f, label = "drag lift")
     var customizing by remember { mutableStateOf<Int?>(null) }
     var shownCustomize by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(pager.currentPage) { resizing = null }
@@ -232,13 +239,12 @@ fun HomeGrid(
             // Icons shrink to fit small cells.
             val icon = minOf(iconSize, with(density) { (minOf(cellW * 0.8f, cellH - labelPx - 8.dp.toPx())).coerceAtLeast(16.dp.toPx()).toDp() })
             // A large folder's tile fills most of its cells.
-            val largeSpan = HomeFolders.LargeSpan
-            val largeTile = with(density) { (minOf(largeSpan * cellW, largeSpan * cellH - labelPx) * 0.9f).coerceAtLeast(32.dp.toPx()).toDp() }
+            fun tileFor(span: Int) = if (span == 1) icon else with(density) { (minOf(span * cellW, span * cellH - labelPx) * 0.9f).coerceAtLeast(32.dp.toPx()).toDp() }
             // From a large folder's top-left cell's middle to its own middle.
-            val toMiddle = Offset(cellW, cellH) * ((largeSpan - 1) / 2f)
+            fun toMiddle(span: Int) = Offset(cell[0], cell[1]) * ((span - 1) / 2f)
             fun center(slot: Int) = Offset((slot % columns + 0.5f) * cell[0], (slot / columns + 0.5f) * cell[1])
             // Where a let-go item is, measured as its slot's position is: a large folder's middle, not its top-left cell's.
-            fun dropPoint(d: HomeDrag) = if (d.large) d.at + Offset(cell[0], cell[1]) * ((HomeFolders.LargeSpan - 1) / 2f) else d.at
+            fun dropPoint(d: HomeDrag) = d.at + toMiddle(d.span)
             fun slotAt(at: Offset) = (at.y / cell[1]).toInt().coerceIn(0, rows - 1) * columns + (at.x / cell[0]).toInt().coerceIn(0, columns - 1)
             // The page shown, laid out as if the finger lifted now.
             val previewOf = { page: Int ->
@@ -282,7 +288,7 @@ fun HomeGrid(
                                 } else {
                                     menuFor = key
                                     // Locked: the menu only, no drag.
-                                    if (!isLocked) drag = HomeDrag(key, page, slot, center(slot), large = largeAt(page, slot))
+                                    if (!isLocked) drag = HomeDrag(key, page, slot, center(slot), span = spanAt(page, slot))
                                 }
                             },
                             onDrag = { change, amount ->
@@ -297,7 +303,10 @@ fun HomeGrid(
                                 change.consume()
                                 travelled += amount
                                 // Moving it means rearranging, not choosing from the menu.
-                                if (travelled.getDistance() > slop) menuFor = null
+                                if (travelled.getDistance() > slop) {
+                                    menuFor = null
+                                    d.moved = true
+                                }
                                 d.at += amount
                                 // Over the middle of another app or a folder: wait, then drop into it. Elsewhere:
                                 // wait a moment less, then the others make room. Waiting first lets the finger
@@ -307,9 +316,10 @@ fun HomeGrid(
                                     val slot = slotAt(d.at)
                                     // A large folder takes drops anywhere over its middle.
                                     val anchor = HomeFolders.anchorAt(local, localFolders, pager.currentPage, slot, columns, rows)
-                                    val big = largeAt(pager.currentPage, anchor)
-                                    val middle = if (big) center(anchor) + Offset(cell[0], cell[1]) * ((HomeFolders.LargeSpan - 1) / 2f) else center(slot)
-                                    val reach = if (big) HomeFolders.LargeSpan * 0.35f else 0.3f
+                                    val span = spanAt(pager.currentPage, anchor)
+                                    val big = span > 1
+                                    val middle = if (big) center(anchor) + toMiddle(span) else center(slot)
+                                    val reach = if (big) span * 0.35f else 0.3f
                                     val shown = previewOf(pager.currentPage)
                                     val onto = !isLocked && !HomeFolders.isFolder(d.key) &&
                                         kotlin.math.abs(d.at.x - middle.x) < cell[0] * reach && kotlin.math.abs(d.at.y - middle.y) < cell[1] * reach &&
@@ -365,7 +375,7 @@ fun HomeGrid(
                                         // Only onto free cells, the others staying put.
                                         val to = slotAt(d.at)
                                         val taken = HomeWidgets.blocked(localWidgets, page, columns, rows) + HomeFolders.largeCells(local, localFolders, page, columns, rows, except = d.key)
-                                        if ((page != d.fromPage || to != d.from) && HomeFolders.fitsLarge(local, page, to, columns, rows, taken, d.key)) {
+                                        if ((page != d.fromPage || to != d.from) && HomeFolders.fitsLarge(local, page, to, columns, rows, taken, d.key, d.span)) {
                                             commit(HomeFolders.place(local, d.fromPage, d.from, page, to))
                                         }
                                     } else if (into != null) {
@@ -446,11 +456,12 @@ fun HomeGrid(
                         }
                         // The app or folder a dragged app would drop into.
                         drag?.merge?.takeIf { page == pager.currentPage }?.let { i ->
-                            if (largeAt(page, i)) {
+                            val span = spanAt(page, i)
+                            if (span > 1) {
                                 Box(
                                     Modifier
                                         .offset { (center(i) - Offset(cellW / 2, cellH / 2)).round() }
-                                        .size(with(density) { (largeSpan * cellW).toDp() }, with(density) { (largeSpan * cellH).toDp() })
+                                        .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
                                         .padding(4.dp)
                                         .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
                                 )
@@ -472,15 +483,16 @@ fun HomeGrid(
                             val app = apps[k]
                             if (folder == null && app == null) return@forEachIndexed
                             // Keyed by app or folder, so its position follows it to a new slot.
-                            val large = folder != null && HomeFolders.showsLarge(folder, i, columns, rows)
+                            val span = folder?.takeIf { HomeFolders.showsLarge(it, i, columns, rows) }?.span ?: 1
+                            val large = span > 1
                             key(k) {
-                                // A large folder's middle is where its four cells meet.
-                                val home = if (large) center(i) + toMiddle else center(i)
+                                // A large folder's middle is the middle of its cells.
+                                val home = center(i) + toMiddle(span)
                                 // New here (dropped from another page): starts where it was let go.
                                 val position = remember { Animatable(dropAt?.takeIf { it.first == k }?.second ?: home, Offset.VectorConverter) }
                                 // While held it follows the finger, unseen and lifted like the dragged copy, so
                                 // letting go only has to ease it into its slot and back to size.
-                                val lift by animateFloatAsState(if (hidden) DragLift else 1f, label = "lift")
+                                val lift by animateFloatAsState(if (hidden && drag?.moved == true) DragLift else 1f, label = "lift")
                                 LaunchedEffect(home, hidden) {
                                     if (hidden) {
                                         snapshotFlow { drag?.let(::dropPoint) }.collect { at -> at?.let { position.snapTo(it) } }
@@ -489,12 +501,11 @@ fun HomeGrid(
                                     }
                                 }
                                 if (folder != null) {
-                                    val span = if (large) largeSpan else 1
                                     FolderIcon(
                                         folder = folder,
                                         apps = apps,
                                         repository = repository,
-                                        tile = if (large) largeTile else icon,
+                                        tile = tileFor(span),
                                         large = large,
                                         showLabels = showLabels,
                                         menu = menuFor == k,
@@ -555,12 +566,12 @@ fun HomeGrid(
                 // The dragged app or folder, over every page.
                 drag?.let { d ->
                     HomeFolders.idOf(d.key)?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
-                        val span = if (d.large) largeSpan else 1
+                        val span = d.span
                         FolderFace(
                             folder,
                             apps,
                             repository,
-                            if (d.large) largeTile else icon,
+                            tileFor(d.span),
                             d.large,
                             showLabels,
                             Modifier
@@ -569,8 +580,8 @@ fun HomeGrid(
                                 // A large one is held by its top-left cell.
                                 .offset { (d.at - Offset(cellW / 2, cellH / 2)).round() }
                                 .graphicsLayer {
-                                    scaleX = DragLift
-                                    scaleY = DragLift
+                                    scaleX = dragLift
+                                    scaleY = dragLift
                                 },
                         )
                     }
@@ -585,8 +596,8 @@ fun HomeGrid(
                                 .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
                                 .offset { (d.at - Offset(cellW / 2, cellH / 2)).round() }
                                 .graphicsLayer {
-                                    scaleX = DragLift
-                                    scaleY = DragLift
+                                    scaleX = dragLift
+                                    scaleY = dragLift
                                 },
                         )
                     }
@@ -620,7 +631,8 @@ fun HomeGrid(
                     val page = local.indexOfFirst { key in it }
                     val slot = local.getOrNull(page)?.indexOf(key) ?: -1
                     val taken = HomeWidgets.blocked(localWidgets, page, columns, rows) + HomeFolders.largeCells(local, localFolders, page, columns, rows, except = key)
-                    val fits = !changed.large || folder.large || (page >= 0 && HomeFolders.fitsLarge(local, page, slot, columns, rows, taken, key))
+                    // Smaller always fits; bigger needs the cells free.
+                    val fits = changed.span <= folder.span || (page >= 0 && HomeFolders.fitsLarge(local, page, slot, columns, rows, taken, key, changed.span))
                     if (fits) commitLayout(local, localFolders.map { if (it.id == changed.id) changed else it })
                     fits
                 },
