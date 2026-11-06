@@ -41,13 +41,14 @@ Application ID `app.zenith.launcher`.
   folder to open it: tap its name to rename it, tap an app to open it, long-press an app for
   Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
   into that app. Long-press a folder to drag it, or for Customize and Remove (it and its apps
-  leave the home screen; they stay installed). Customize sets, per folder: Small or Large (3 × 3
-  cells, needing the two cells to its right and the two rows below free; its apps show three by three from the
+  leave the home screen; they stay installed). Customize sets, per folder: Small, 2 × 2 or 3 × 3
+  cells (a larger one needs the cells to its right and below it free; its apps show three by three from the
   top-left and open with a tap, and with more than nine the last place shows the rest), Apps or Folder icon (small
   app icons, or a folder symbol), the tile colour (the default tint or one of nine colours) and a
   transparent background. A large folder of app icons also has a layout: Grid (rows of three,
   the default), Hexagon (one app in the middle, six round it) or Circle (up to eight evenly round
-  a ring). Long-press shows the menu while the finger is still down, for apps and folders alike.
+  a ring). Long-press shows the menu while the finger is still down, for apps and folders alike; the item
+  only lifts (grows a little) once you start dragging it.
   A large folder drags on its own to free cells; drop an app anywhere over its middle to add it. Remove from Home in the drawer also takes an app out of its folder.
 - Long-press an empty spot on the home screen for a sheet from the bottom: Add app (the drawer
   opens; tap an app to put it on the page you were on), Add page, Remove page (the page shown,
@@ -108,7 +109,7 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
 - **Folders, first version.** Home screen only; the dock has none by design. Hexagon shows seven
   apps and Circle eight; open the folder for the rest. Apps can't be dragged out of an open
   folder or reordered in it; use Remove from folder. A folder can't be dropped into another. Tiles
-  are rounded squares only. A large folder in the last two columns or rows shows small.
+  are rounded squares only. A large folder too close to the grid's right or bottom edge to fit shows small.
 
 ## Build
 
