@@ -714,7 +714,8 @@ private fun HomeIcon(
                         if (canMoveRight) add(CustomAccessibilityAction(moveRight) { onMove(1); true })
                         if (canRemove) add(CustomAccessibilityAction(remove) { onRemove(); true })
                     }
-                },
+                }
+                .pressScale(),
         )
         AppMenu(
             menu,

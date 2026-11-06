@@ -1112,7 +1112,8 @@ private fun AppTile(
                         onDragEnd = { dragged?.let { end(it, true) } },
                         onDragCancel = { dragged?.let { end(it, false) } },
                     )
-                },
+                }
+                .pressScale(),
             iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
         )
         AppMenu(

@@ -3,6 +3,17 @@ package app.zenith.launcher
 import android.content.Context
 import android.os.Build
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Spring
@@ -149,6 +160,30 @@ object Motion {
     /** Gently springy, for small transforms such as a pressed button. */
     fun <T> bouncy(): FiniteAnimationSpec<T> = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
 }
+
+/**
+ * Shrinks while a finger is down and springs back on release, so a tap is felt before the app opens.
+ * Only watches touches: put it last in the chain, inside any gesture handlers, which still get them.
+ * A drag or long-press drag that takes the touch lets it go.
+ */
+fun Modifier.pressScale(): Modifier = composed {
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (pressed) PressedScale else 1f, Motion.bouncy(), label = "press")
+    pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            pressed = true
+            waitForUpOrCancellation()
+            pressed = false
+        }
+    }.graphicsLayer {
+        // Read here, per frame, so the press animates without recomposing.
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+private const val PressedScale = 0.88f
 
 @Composable
 fun ZenithTheme(

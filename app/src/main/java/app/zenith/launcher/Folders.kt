@@ -136,7 +136,8 @@ internal fun FolderIcon(
                     contentDescription = description
                     role = Role.Button
                     onClick { onOpen(); true }
-                },
+                }
+                .pressScale(),
         )
         MenuPopup(
             menu,

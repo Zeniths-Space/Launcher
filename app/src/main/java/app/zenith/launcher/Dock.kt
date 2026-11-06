@@ -296,7 +296,8 @@ private fun DockIcon(
                     }
                     scaleX = scale
                     scaleY = scale
-                },
+                }
+                .pressScale(),
         ) {
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(size)) }
         }
