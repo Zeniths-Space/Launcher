@@ -83,6 +83,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
+import android.graphics.Rect
+import androidx.compose.ui.graphics.toAndroidRect
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -573,8 +578,8 @@ internal fun FolderPopup(
                                 app,
                                 repository,
                                 locked,
-                                onOpen = {
-                                    repository.launch(app, null)
+                                onOpen = { bounds ->
+                                    repository.launch(app, bounds)
                                     close()
                                 },
                                 onTakeOut = { onTakeOut(app.key) },
@@ -591,8 +596,10 @@ internal fun FolderPopup(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, onOpen: () -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
+private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, onOpen: (Rect?) -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
     var menu by remember { mutableStateOf(false) }
+    // Read at tap time only, for the app to open out of its icon.
+    val iconCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
     val icon by produceState(repository.cachedIcon(app, px), app.key, px) { value = repository.icon(app, px) }
     Box(modifier) {
@@ -600,11 +607,12 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .combinedClickable(onClick = onOpen, onLongClick = { menu = true })
+                .combinedClickable(onClick = { onOpen(iconCoords[0]?.takeIf { it.isAttached }?.boundsInWindow()?.toAndroidRect()) }, onLongClick = { menu = true })
+                .pressScale()
                 .padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(Modifier.size(FolderIconSize)) { icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
+            Box(Modifier.size(FolderIconSize).onGloballyPositioned { iconCoords[0] = it }) { icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
             Spacer(Modifier.height(6.dp))
             Text(
                 app.label,

@@ -1,5 +1,6 @@
 package app.zenith.launcher
 
+import android.app.Activity
 import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
@@ -39,6 +40,8 @@ import kotlinx.coroutines.withContext
  */
 class AppRepository(context: Context) {
     private val appContext = context.applicationContext
+    // The window apps are launched from; the repository lives no longer than its activity.
+    private val activity = context as? Activity
     private val pm = context.packageManager
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
@@ -120,17 +123,25 @@ class AppRepository(context: Context) {
         runCatching { appContext.startActivity(intent) }
     }
 
-    /** Starts [app] with the system's own animation; [bounds] tell the app where it was opened from. */
+    /**
+     * Starts [app] growing out of its icon at [bounds] (window coordinates); without bounds, with the
+     * system's plain open animation.
+     */
     fun launch(app: AppEntry, bounds: Rect?) {
         val info = synchronized(infos) { infos[app.key] } ?: return
+        val source = activity?.window?.decorView
+        val options = if (source != null && bounds != null && !bounds.isEmpty) {
+            // The decor view fills the window, so window coordinates are its own.
+            // shortcut: One UI (SM-S928B, 2026-11-06) ignores this and crossfades; a true icon-to-app
+            // animation there needs a system-only remote transition. Recheck on AOSP-based devices.
+            ActivityOptions.makeScaleUpAnimation(source, bounds.left, bounds.top, bounds.width(), bounds.height())
+        } else {
+            ActivityOptions.makeBasic()
+        }
         // The app's own splash screen with its icon, as for a launch from the home app; a launch
         // Android does not count as one gets a plain colour splash, a blank screen.
-        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityOptions.makeBasic().setSplashScreenStyle(SplashScreen.SPLASH_SCREEN_STYLE_ICON).toBundle()
-        } else {
-            null
-        }
-        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, options) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) options.setSplashScreenStyle(SplashScreen.SPLASH_SCREEN_STYLE_ICON)
+        runCatching { launcherApps.startMainActivity(ComponentName(app.packageName, app.className), info.user, bounds, options.toBundle()) }
     }
 
     /**
