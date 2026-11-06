@@ -226,7 +226,7 @@ internal val FolderColors = listOf(
 internal fun folderColor(index: Int) = FolderColors.getOrElse(index) { FolderColors[0] }
 
 /**
- * A folder's Customize card: Small or Large (2 by 2), Apps or Folder style, and a colour. Each
+ * A folder's Customize card: Small or Large (3 by 3 cells), Apps or Folder style, and a colour. Each
  * choice applies at once through [onChange], which says whether it could (a large folder needs
  * free cells).
  */

@@ -227,8 +227,11 @@ fun HomeGrid(
             val labelPx = if (showLabels) with(density) { 26.dp.toPx() } else 0f
             // Icons shrink to fit small cells.
             val icon = minOf(iconSize, with(density) { (minOf(cellW * 0.8f, cellH - labelPx - 8.dp.toPx())).coerceAtLeast(16.dp.toPx()).toDp() })
-            // A large folder's tile fills most of its 2 by 2 cells.
-            val largeTile = with(density) { (minOf(2 * cellW, 2 * cellH - labelPx) * 0.86f).coerceAtLeast(32.dp.toPx()).toDp() }
+            // A large folder's tile fills most of its cells.
+            val largeSpan = HomeFolders.LargeSpan
+            val largeTile = with(density) { (minOf(largeSpan * cellW, largeSpan * cellH - labelPx) * 0.9f).coerceAtLeast(32.dp.toPx()).toDp() }
+            // From a large folder's top-left cell's middle to its own middle.
+            val toMiddle = Offset(cellW, cellH) * ((largeSpan - 1) / 2f)
             fun center(slot: Int) = Offset((slot % columns + 0.5f) * cell[0], (slot / columns + 0.5f) * cell[1])
             fun slotAt(at: Offset) = (at.y / cell[1]).toInt().coerceIn(0, rows - 1) * columns + (at.x / cell[0]).toInt().coerceIn(0, columns - 1)
             // The page shown, laid out as if the finger lifted now.
@@ -299,8 +302,8 @@ fun HomeGrid(
                                     // A large folder takes drops anywhere over its middle.
                                     val anchor = HomeFolders.anchorAt(local, localFolders, pager.currentPage, slot, columns, rows)
                                     val big = largeAt(pager.currentPage, anchor)
-                                    val middle = if (big) center(anchor) + Offset(cell[0] / 2, cell[1] / 2) else center(slot)
-                                    val reach = if (big) 0.7f else 0.3f
+                                    val middle = if (big) center(anchor) + Offset(cell[0], cell[1]) * ((HomeFolders.LargeSpan - 1) / 2f) else center(slot)
+                                    val reach = if (big) HomeFolders.LargeSpan * 0.35f else 0.3f
                                     val shown = previewOf(pager.currentPage)
                                     val onto = !isLocked && !HomeFolders.isFolder(d.key) &&
                                         kotlin.math.abs(d.at.x - middle.x) < cell[0] * reach && kotlin.math.abs(d.at.y - middle.y) < cell[1] * reach &&
@@ -441,7 +444,7 @@ fun HomeGrid(
                                 Box(
                                     Modifier
                                         .offset { (center(i) - Offset(cellW / 2, cellH / 2)).round() }
-                                        .size(with(density) { (2 * cellW).toDp() }, with(density) { (2 * cellH).toDp() })
+                                        .size(with(density) { (largeSpan * cellW).toDp() }, with(density) { (largeSpan * cellH).toDp() })
                                         .padding(4.dp)
                                         .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
                                 )
@@ -464,11 +467,11 @@ fun HomeGrid(
                             val large = folder != null && HomeFolders.showsLarge(folder, i, columns, rows)
                             key(k) {
                                 // A large folder's middle is where its four cells meet.
-                                val home = if (large) center(i) + Offset(cellW / 2, cellH / 2) else center(i)
+                                val home = if (large) center(i) + toMiddle else center(i)
                                 val position = remember { Animatable(dropAt?.takeIf { it.first == k }?.second ?: home, Offset.VectorConverter) }
                                 LaunchedEffect(home) { position.animateTo(home) }
                                 if (folder != null) {
-                                    val span = if (large) 2 else 1
+                                    val span = if (large) largeSpan else 1
                                     FolderIcon(
                                         folder = folder,
                                         apps = apps,
@@ -524,7 +527,7 @@ fun HomeGrid(
                 // The dragged app or folder, over every page.
                 drag?.let { d ->
                     HomeFolders.idOf(d.key)?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
-                        val span = if (d.large) 2 else 1
+                        val span = if (d.large) largeSpan else 1
                         FolderFace(
                             folder,
                             apps,
