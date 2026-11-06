@@ -32,4 +32,14 @@ class HomePagesTest {
     @Test fun addPrefersGivenPage() = assertEquals(listOf(listOf("a"), listOf("b", "c")), HomePages.add(listOf(listOf("a"), listOf("b")), "c", 2, first = 1))
 
     @Test fun removeLeavesGap() = assertEquals(listOf(listOf("", "b")), HomePages.remove(listOf(listOf("a", "b")), "a"))
+
+    @Test fun insertTakesEmptySlot() = assertEquals(listOf(listOf("a", "", "k")), HomePages.insert(listOf(listOf("a")), "k", 0, 2, 4))
+
+    @Test fun insertOntoAppMakesRoom() = assertEquals(listOf(listOf("k", "a", "b")), HomePages.insert(listOf(listOf("a", "b")), "k", 0, 0, 3))
+
+    @Test fun insertOnNewPage() = assertEquals(listOf(listOf("a"), listOf("", "k")), HomePages.insert(listOf(listOf("a")), "k", 1, 1, 4))
+
+    @Test fun insertOnFullPageFails() = assertNull(HomePages.insert(listOf(listOf("a", "b")), "k", 0, 0, 2))
+
+    @Test fun insertOnBlockedSlotFails() = assertNull(HomePages.insert(listOf(listOf("a")), "k", 0, 1, 4, blocked = { setOf(1) }))
 }

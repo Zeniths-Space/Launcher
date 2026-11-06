@@ -26,4 +26,12 @@ class DockSlotsTest {
         assertEquals(true, DockSlots.hasRoom(listOf("a"), 2))
         assertEquals(false, DockSlots.hasRoom(listOf("a", "b", ""), 2))
     }
+
+    @Test fun insertTakesEmptySlot() = assertEquals(listOf("a", "", "k"), DockSlots.insert(listOf("a"), "k", 2, 4))
+
+    @Test fun insertOntoAppMakesRoom() = assertEquals(listOf("k", "a", "b"), DockSlots.insert(listOf("a", "b"), "k", 0, 3))
+
+    @Test fun insertMovesAppAlreadyThere() = assertEquals(listOf("b", "a"), DockSlots.insert(listOf("a", "b"), "a", 1, 2))
+
+    @Test fun insertWhenFullIsUnchanged() = assertEquals(listOf("a", "b"), DockSlots.insert(listOf("a", "b"), "k", 0, 2))
 }

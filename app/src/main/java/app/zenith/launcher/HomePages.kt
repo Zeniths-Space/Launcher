@@ -48,6 +48,17 @@ object HomePages {
         return all.map { page -> page.map { it.orEmpty() }.dropLastWhile(String::isEmpty) }
     }
 
+    /**
+     * Puts [key], not yet on any page, in [toPage]/[to] as if moved in from another page: by the
+     * empty slot nearest [to], the others making room. Null if that page has no room or [to] is blocked.
+     */
+    fun insert(pages: List<List<String>>, key: String, toPage: Int, to: Int, capacity: Int, blocked: (page: Int) -> Set<Int> = { emptySet() }): List<List<String>>? {
+        val n = maxOf(pages.size, toPage + 1)
+        val padded = List(n) { pages.getOrElse(it) { emptyList() } }
+        // The key waits on a page past the end, which the move leaves empty.
+        return move(padded + listOf(listOf(key)), n, 0, toPage, to, capacity, blocked)?.take(n)
+    }
+
     // [DockSlots.place] over the slots that aren't blocked, as if the blocked ones weren't there.
     private fun placeAround(slots: List<String?>, from: Int, to: Int, blocked: Set<Int>): List<String?> {
         if (blocked.isEmpty()) return DockSlots.place(slots, from, to)

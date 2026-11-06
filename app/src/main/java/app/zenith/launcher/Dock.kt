@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -74,6 +75,8 @@ fun Dock(
     locked: Boolean,
     onArrange: (List<AppEntry?>) -> Unit,
     onRemove: (AppEntry) -> Unit,
+    // Given a way to find the slot nearest a window position, for apps dropped from the drawer.
+    onDropTarget: ((window: Offset) -> Int?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // A change shows at once, not when the saved dock comes back; a new saved dock replaces it.
@@ -111,8 +114,12 @@ fun Dock(
             }
         }
         val preview = previewOf()
+        val coords = remember { arrayOfNulls<LayoutCoordinates>(1) }
+        SideEffect {
+            onDropTarget { at -> coords[0]?.takeIf { it.isAttached }?.windowToLocal(at)?.let { p -> slots.indices.minBy { (center(it) - p).getDistanceSquared() } } }
+        }
 
-        Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() })) {
+        Box(Modifier.fillMaxWidth().height(with(density) { (rows * rowHeight).toDp() }).onGloballyPositioned { coords[0] = it }) {
             slots.forEachIndexed { i, app ->
                 if (app == null) return@forEachIndexed
                 // Keyed by app, so its gesture and position follow it to a new slot.
@@ -190,6 +197,18 @@ object DockSlots {
     fun add(slots: List<String>, key: String, capacity: Int): List<String> {
         val at = (0 until capacity).firstOrNull { slots.getOrNull(it).isNullOrEmpty() } ?: return slots
         return List(maxOf(slots.size, at + 1)) { if (it == at) key else slots.getOrElse(it) { "" } }
+    }
+
+    /**
+     * Puts [key] in slot [to] of the first [capacity], the others making room as in [place]: from its
+     * own slot if already there, else by the empty slot nearest [to]; unchanged if there is none.
+     */
+    fun insert(slots: List<String>, key: String, to: Int, capacity: Int): List<String> {
+        val s = MutableList(capacity) { slots.getOrNull(it)?.ifEmpty { null } }
+        val from = s.indexOf(key).takeIf { it >= 0 }
+            ?: s.indices.filter { s[it] == null }.minByOrNull { kotlin.math.abs(it - to) } ?: return slots
+        s[from] = key
+        return (place(s, from, to.coerceIn(0, capacity - 1)).map { it.orEmpty() } + slots.drop(capacity).map { if (it == key) "" else it }).trimmed()
     }
 
     fun hasRoom(slots: List<String>, capacity: Int) = (0 until capacity).any { slots.getOrNull(it).isNullOrEmpty() }

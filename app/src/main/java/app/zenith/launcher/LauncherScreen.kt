@@ -5,11 +5,16 @@ import android.graphics.Rect
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -142,6 +147,11 @@ private class HomePull {
     var startedClosed = false
 }
 private val HomeLift = 16.dp
+
+/** An app dragged out of the drawer onto the home screen or dock, and where the finger is, in the window. */
+private class DrawerDrag(val app: AppEntry, val icon: ImageBitmap?, at: Offset) {
+    var at by mutableStateOf(at)
+}
 private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
 
 @Composable
@@ -198,6 +208,29 @@ internal fun LauncherScreen(
     val range = height * DragFraction
     val drawerShown by remember { derivedStateOf { motion.progress > 0f } }
     val dim = if (settings.pureBlack && isSystemInDarkTheme()) 1f else WallpaperDim
+    var drawerDrag by remember { mutableStateOf<DrawerDrag?>(null) }
+    // Read when an app from the drawer is let go: the screen, the home grid and the dock's slot finder.
+    val rootAt = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val gridAt = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val dockSlotAt = remember { arrayOfNulls<(Offset) -> Int?>(1) }
+    // Below the home grid is the dock; anywhere above it, the slot under the finger on the page shown.
+    val dropApp = { app: AppEntry, at: Offset ->
+        val grid = gridAt[0]?.takeIf { it.isAttached }
+        if (grid != null && cell != Size.Zero) {
+            if (settings.showDock && at.y > grid.boundsInWindow().bottom) {
+                onDockChange(DockSlots.insert(dockKeys, app.key, dockSlotAt[0]?.invoke(at) ?: 0, settings.dockCapacity))
+            } else {
+                val p = grid.windowToLocal(at)
+                val slot = (p.y / cell.height).toInt().coerceIn(0, settings.homeRows - 1) * settings.homeColumns +
+                    (p.x / cell.width).toInt().coerceIn(0, settings.homeColumns - 1)
+                // Already on the home screen: it moves here.
+                val (pages, folders) = HomeFolders.removeApp(homePages, settings.folders, app.key)
+                val placed = HomePages.insert(pages, app.key, homePage, slot, settings.homeCapacity, blocked)
+                    ?: HomePages.add(pages, app.key, settings.homeCapacity, first = homePage, blocked = blocked)
+                onLayoutChange(placed, folders)
+            }
+        }
+    }
 
     val dragBy: (Float) -> Unit = { dy -> motion.drag(-dy / range) }
     val homePull = remember { HomePull() }
@@ -227,6 +260,7 @@ internal fun LauncherScreen(
         Modifier
             .fillMaxSize()
             .onSizeChanged { height = it.height.coerceAtLeast(1) }
+            .onGloballyPositioned { rootAt[0] = it }
             // Dim drawn per frame, without recomposing.
             .drawBehind { drawRect(Color.Black, alpha = dim * motion.progress) }
             .draggable(
@@ -306,7 +340,7 @@ internal fun LauncherScreen(
                     onCellSize = { cell = it },
                     onLongPressEmpty = onLongPressEmpty,
                     onDoubleTap = if (settings.doubleTap != GestureAction.None) ({ onGesture(settings.doubleTap) }) else null,
-                    modifier = modifier,
+                    modifier = modifier.onGloballyPositioned { gridAt[0] = it },
                 )
             },
             dock = {
@@ -324,6 +358,7 @@ internal fun LauncherScreen(
                         // Slots past a smaller grid stay as they were.
                         onArrange = { shown -> onDockChange((shown.map { it?.key.orEmpty() } + dockKeys.drop(shown.size)).dropLastWhile { it.isEmpty() }) },
                         onRemove = { app -> onDockChange(DockSlots.remove(dockKeys, app.key)) },
+                        onDropTarget = { dockSlotAt[0] = it },
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -364,6 +399,17 @@ internal fun LauncherScreen(
                 onRelease = settle,
                 isOpen = { motion.progress == 1f },
                 onOpenSettings = onOpenSettings,
+                // Dragged out: the drawer goes, showing the home screen to drop onto.
+                onDragOut = { d ->
+                    keyboard?.hide()
+                    drawerDrag = d
+                    motion.settle(scope, 0f, null)
+                },
+                onDragEnd = { d, placed ->
+                    drawerDrag = null
+                    if (placed) dropApp(d.app, d.at)
+                    onDrawerOpenChange(false)
+                },
                 modifier = Modifier
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
@@ -373,6 +419,23 @@ internal fun LauncherScreen(
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
+        // The app dragged from the drawer, under the finger.
+        drawerDrag?.let { d ->
+            val size = settings.homeIconSize.dp
+            Box(
+                Modifier
+                    .offset {
+                        val at = rootAt[0]?.takeIf { it.isAttached }?.windowToLocal(d.at) ?: d.at
+                        val half = size.toPx() / 2
+                        IntOffset((at.x - half).roundToInt(), (at.y - half).roundToInt())
+                    }
+                    .size(size)
+                    .graphicsLayer {
+                        scaleX = 1.1f
+                        scaleY = 1.1f
+                    },
+            ) { d.icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
+        }
         // A new widget's spot, once Android has bound it and its setup screen (if any) is done:
         // read then, after the picker has gone, so it must stay current.
         val place by rememberUpdatedState { id: Int, info: AppWidgetProviderInfo ->
@@ -748,6 +811,8 @@ private fun AppDrawer(
     onRelease: (Float) -> Unit,
     isOpen: () -> Boolean,
     onOpenSettings: () -> Unit,
+    onDragOut: (DrawerDrag) -> Unit,
+    onDragEnd: (DrawerDrag, placed: Boolean) -> Unit,
     modifier: Modifier,
 ) {
     var query by remember { mutableStateOf("") }
@@ -879,6 +944,8 @@ private fun AppDrawer(
                         onHomeToggle = { onHomeToggle(app) },
                         onHide = { onHide(app) },
                         onOpen = open,
+                        onDragOut = onDragOut,
+                        onDragEnd = onDragEnd,
                     )
                 }
             }
@@ -966,8 +1033,10 @@ internal fun AppTileContent(
     }
 }
 
-/** Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for App info. */
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * Icon and name. Tap opens the app (the launch animation grows from the tile); long-press for its
+ * menu. Keep holding and drag (unless locked) to take it out of the drawer to the home screen or dock.
+ */
 @Composable
 private fun AppTile(
     app: AppEntry,
@@ -983,6 +1052,8 @@ private fun AppTile(
     onHomeToggle: () -> Unit,
     onHide: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
+    onDragOut: (DrawerDrag) -> Unit,
+    onDragEnd: (DrawerDrag, placed: Boolean) -> Unit,
 ) {
     val sizePx = with(LocalDensity.current) { iconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
@@ -997,6 +1068,14 @@ private fun AppTile(
     var menu by remember { mutableStateOf(false) }
     // The drawer stays composed when shut; its menu must not outlive it.
     LaunchedEffect(drawerOpen) { if (!drawerOpen) menu = false }
+    val tileCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    // The gesture below is set up once per app; these keep it on the latest values.
+    val editable by rememberUpdatedState(canEdit)
+    val out by rememberUpdatedState(onDragOut)
+    val end by rememberUpdatedState(onDragEnd)
+    val tileIcon by rememberUpdatedState(icon)
+    val haptics = LocalHapticFeedback.current
+    val slop = LocalViewConfiguration.current.touchSlop
     Box {
         AppTileContent(
             icon,
@@ -1005,7 +1084,35 @@ private fun AppTile(
             iconSize,
             Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .combinedClickable(onClick = { onOpen(app, bounds()) }, onLongClick = { menu = true }),
+                .onGloballyPositioned { tileCoords[0] = it }
+                // A release after a long-press opens nothing: that press was for the menu or a drag.
+                .clickable { if (!menu) onOpen(app, bounds()) }
+                .semantics { onLongClick { menu = true; true } }
+                .pointerInput(app.key) {
+                    var travelled = Offset.Zero
+                    var dragged: DrawerDrag? = null
+                    // In the window: the drawer slides away under the finger, so local positions would jump.
+                    fun window(at: Offset) = tileCoords[0]?.takeIf { it.isAttached }?.localToWindow(at) ?: at
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            travelled = Offset.Zero
+                            dragged = null
+                            menu = true
+                        },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            travelled += amount
+                            // Locked: the menu only.
+                            if (!editable || (dragged == null && travelled.getDistance() <= slop)) return@detectDragGesturesAfterLongPress
+                            menu = false
+                            val at = window(change.position)
+                            dragged?.let { it.at = at } ?: DrawerDrag(app, tileIcon, at).also { dragged = it; out(it) }
+                        },
+                        onDragEnd = { dragged?.let { end(it, true) } },
+                        onDragCancel = { dragged?.let { end(it, false) } },
+                    )
+                },
             iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
         )
         AppMenu(

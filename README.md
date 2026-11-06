@@ -37,7 +37,8 @@ Application ID `app.zenith.launcher`.
 - The list updates when apps are installed, removed or changed, from Android's package events,
   never by polling.
 - Home screen apps: pages of 1 to 20 columns and rows (4 by 5 to start), swiped sideways, with
-  dots for the pages (a setting). Long-press an app in the drawer to add it to the home screen. Long-press a
+  dots for the pages (a setting). Long-press an app in the drawer to add it to the home screen, or keep holding and drag it out: the drawer
+  closes and you drop it onto a home screen slot (the others make room) or into the dock. Long-press a
   home screen app for the same menu as in the drawer (Remove from Home, Uninstall), or keep holding and drag it to any slot: the others
   make room as you go. Hold it at a side edge to go to the page there, or a new page past the
   last. A page stays until you remove it. Screen readers get Move left, Move right and Remove.
