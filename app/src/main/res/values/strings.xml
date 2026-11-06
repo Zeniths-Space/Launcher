@@ -25,6 +25,11 @@
     <string name="folder_style_apps">Apps</string>
     <string name="folder_style_symbol">Folder</string>
     <string name="folder_color">Colour</string>
+    <string name="folder_layout">Layout</string>
+    <string name="folder_layout_grid">Grid</string>
+    <string name="folder_layout_hexagon">Hexagon</string>
+    <string name="folder_layout_circle">Circle</string>
+    <string name="folder_transparent">Transparent background</string>
     <string name="folder_color_n">Colour %1$d</string>
     <string name="folder_no_room">No room for a large folder here: it needs the cells to its right and below free</string>
     <string name="widgets_title">Widgets</string>

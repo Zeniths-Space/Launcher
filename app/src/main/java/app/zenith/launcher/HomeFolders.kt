@@ -3,6 +3,9 @@ package app.zenith.launcher
 /** How a folder's tile looks: small icons of its apps, or a folder symbol. */
 enum class FolderStyle { Apps, Symbol }
 
+/** How a large folder lays out its apps: rows of three, one in the middle with six round it, or a ring. */
+enum class FolderLayout { Grid, Hexagon, Circle }
+
 /**
  * A home screen folder: its [apps] by key, in order, under [name] ("" for the default name).
  * [large] takes [HomeFolders.LargeSpan] by [HomeFolders.LargeSpan] cells, its slot being the top-left one; [color] picks the tile colour
@@ -15,11 +18,14 @@ data class HomeFolder(
     val large: Boolean = false,
     val style: FolderStyle = FolderStyle.Apps,
     val color: Int = 0,
+    val layout: FolderLayout = FolderLayout.Grid,
+    /** No tile behind the apps or symbol. */
+    val transparent: Boolean = false,
 )
 
 /**
  * Home screen folders. A folder sits in a home slot as [key] ("folder:<id>"); its apps are listed
- * here, not in the slots. Stored one per line as id, apps, looks ("large,style,color") and name,
+ * here, not in the slots. Stored one per line as id, apps, looks ("large,style,color,layout,transparent") and name,
  * split by tabs (apps by [AppSeparator]); names lose tabs and line breaks. Lines from before looks
  * existed have no looks field.
  */
@@ -46,11 +52,13 @@ object HomeFolders {
             large = looks.getOrNull(0) == "1",
             style = FolderStyle.entries.firstOrNull { it.name == looks.getOrNull(1) } ?: FolderStyle.Apps,
             color = looks.getOrNull(2)?.toIntOrNull() ?: 0,
+            layout = FolderLayout.entries.firstOrNull { it.name == looks.getOrNull(3) } ?: FolderLayout.Grid,
+            transparent = looks.getOrNull(4) == "1",
         )
     }
 
     fun format(folders: List<HomeFolder>): String = folders.joinToString("\n") { f ->
-        "${f.id}\t${f.apps.joinToString(AppSeparator)}\t${if (f.large) 1 else 0},${f.style.name},${f.color}\t${clean(f.name)}"
+        "${f.id}\t${f.apps.joinToString(AppSeparator)}\t${if (f.large) 1 else 0},${f.style.name},${f.color},${f.layout.name},${if (f.transparent) 1 else 0}\t${clean(f.name)}"
     }
 
     /** The slots of a large folder whose top-left slot is [slot]. */

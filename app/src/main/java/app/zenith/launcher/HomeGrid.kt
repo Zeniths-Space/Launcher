@@ -459,7 +459,9 @@ fun HomeGrid(
                             }
                         }
                         slots.take(capacity).forEachIndexed { i, k ->
-                            if (k == null || k == drag?.key) return@forEachIndexed
+                            if (k == null) return@forEachIndexed
+                            // The one being dragged stays, unseen, so its menu shows while the finger is still down.
+                            val hidden = k == drag?.key
                             val folder = HomeFolders.idOf(k)?.let { id -> localFolders.firstOrNull { it.id == id } }
                             val app = apps[k]
                             if (folder == null && app == null) return@forEachIndexed
@@ -468,8 +470,12 @@ fun HomeGrid(
                             key(k) {
                                 // A large folder's middle is where its four cells meet.
                                 val home = if (large) center(i) + toMiddle else center(i)
-                                val position = remember { Animatable(dropAt?.takeIf { it.first == k }?.second ?: home, Offset.VectorConverter) }
-                                LaunchedEffect(home) { position.animateTo(home) }
+                                val position = remember { Animatable(home, Offset.VectorConverter) }
+                                // Glides from where it was let go, or to its new slot when the others make room.
+                                LaunchedEffect(home, dropAt) {
+                                    dropAt?.takeIf { it.first == k }?.let { position.snapTo(it.second) }
+                                    position.animateTo(home)
+                                }
                                 if (folder != null) {
                                     val span = if (large) largeSpan else 1
                                     FolderIcon(
@@ -494,7 +500,8 @@ fun HomeGrid(
                                         onRemove = { HomeFolders.removeFolder(local, localFolders, folder.id).let { (p, f) -> commitLayout(p, f) } },
                                         modifier = Modifier
                                             .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
-                                            .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() },
+                                            .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
+                                            .graphicsLayer { alpha = if (hidden) 0f else 1f },
                                     )
                                 } else if (app != null) HomeIcon(
                                     app = app,
@@ -511,7 +518,8 @@ fun HomeGrid(
                                     onRemove = { commit(HomePages.remove(local, app.key)) },
                                     modifier = Modifier
                                         .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
-                                        .offset { (position.value - Offset(cellW / 2, cellH / 2)).round() },
+                                        .offset { (position.value - Offset(cellW / 2, cellH / 2)).round() }
+                                        .graphicsLayer { alpha = if (hidden) 0f else 1f },
                                 )
                             }
                         }

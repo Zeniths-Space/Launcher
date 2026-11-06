@@ -48,9 +48,12 @@ class HomeFoldersTest {
         assertEquals(listOf(listOf("", "c")) to emptyList<HomeFolder>(), HomeFolders.removeFolder(listOf(listOf("folder:1", "c")), listOf(HomeFolder(1, "", listOf("a", "b"))), 1))
 
     @Test fun looksRoundTrip() {
-        val folder = HomeFolder(4, "Big", listOf("a", "b"), large = true, style = FolderStyle.Symbol, color = 3)
+        val folder = HomeFolder(4, "Big", listOf("a", "b"), large = true, style = FolderStyle.Symbol, color = 3, layout = FolderLayout.Hexagon, transparent = true)
         assertEquals(listOf(folder), HomeFolders.parse(HomeFolders.format(listOf(folder))))
     }
+
+    @Test fun threeFieldLooksReadWithDefaultLayout() =
+        assertEquals(HomeFolder(1, "A", listOf("a", "b"), large = true), HomeFolders.parse("1\ta\u001Fb\t1,Apps,0\tA").single())
 
     @Test fun oldLinesReadWithDefaultLooks() = assertEquals(HomeFolder(1, "Old", listOf("a", "b")), HomeFolders.parse("1\ta\u001Fb\tOld").single())
 

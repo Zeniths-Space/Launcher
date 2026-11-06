@@ -5,9 +5,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -75,6 +78,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A folder on the home screen: tap opens it (a large one's apps open directly); long-press for its
@@ -161,13 +167,18 @@ internal fun FolderFace(
             Modifier
                 .size(tile)
                 .clip(RoundedCornerShape(tile * (if (large) 0.2f else 0.3f)))
-                .background(folderColor(folder.color))
+                .background(if (folder.transparent) Color.Transparent else folderColor(folder.color))
                 .padding(pad),
-            // A large folder fills from the top-left; a small one and the symbol sit in the middle.
-            contentAlignment = if (large && folder.style == FolderStyle.Apps) Alignment.TopStart else Alignment.Center,
+            // A large folder's grid fills from the top-left; everything else sits in the middle.
+            contentAlignment = if (large && folder.style == FolderStyle.Apps && folder.layout == FolderLayout.Grid) Alignment.TopStart else Alignment.Center,
         ) {
             when {
                 folder.style == FolderStyle.Symbol -> Icon(Icons.FolderFilled, contentDescription = null, tint = Color.White, modifier = Modifier.size(tile * 0.5f))
+                large && folder.layout == FolderLayout.Hexagon ->
+                    Ring(members, repository, tile - pad * 2, around = 6, middle = true, iconShare = 0.29f, onLaunch = onLaunch)
+                large && folder.layout == FolderLayout.Circle ->
+                    // Spread evenly over however many there are, up to eight.
+                    Ring(members, repository, tile - pad * 2, around = members.size.coerceIn(1, 8), middle = false, iconShare = 0.26f, onLaunch = onLaunch)
                 large -> {
                     // Nine places: apps, the last one showing the rest when there are more than nine.
                     val places = LargeColumns * LargeColumns
@@ -203,6 +214,30 @@ internal fun FolderFace(
 }
 
 private const val LargeColumns = 3
+
+/**
+ * Apps evenly round a ring in [size], the first at the top, and the very first in the middle when
+ * [middle]; icons take [iconShare] of [size], small enough that neighbours don't touch.
+ */
+@Composable
+private fun Ring(members: List<AppEntry>, repository: AppRepository, size: Dp, around: Int, middle: Boolean, iconShare: Float, onLaunch: ((AppEntry) -> Unit)?) {
+    val icon = size * iconShare
+    val radius = (size - icon) / 2
+    Box(Modifier.size(size)) {
+        members.take(around + if (middle) 1 else 0).forEachIndexed { i, app ->
+            val k = if (middle) i - 1 else i
+            val angle = -PI / 2 + 2 * PI * k / around
+            val dx = if (k < 0) 0f else cos(angle).toFloat()
+            val dy = if (k < 0) 0f else sin(angle).toFloat()
+            Box(
+                Modifier
+                    .offset(x = radius + radius * dx, y = radius + radius * dy)
+                    .size(icon)
+                    .pointerInput(app.key) { detectTapGestures(onTap = { onLaunch?.invoke(app) }) },
+            ) { AppIcon(app, repository, icon) }
+        }
+    }
+}
 
 // Up to four apps, small, two by two in [size].
 @Composable
@@ -281,7 +316,28 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
                     listOf(stringResource(R.string.folder_style_apps), stringResource(R.string.folder_style_symbol)),
                     selected = folder.style.ordinal,
                 ) { i -> onChange(folder.copy(style = FolderStyle.entries[i])) }
-                Spacer(Modifier.height(16.dp))
+                // How a large folder's apps are laid out.
+                if (folder.large && folder.style == FolderStyle.Apps) {
+                    Spacer(Modifier.height(16.dp))
+                    Choice(
+                        stringResource(R.string.folder_layout),
+                        listOf(stringResource(R.string.folder_layout_grid), stringResource(R.string.folder_layout_hexagon), stringResource(R.string.folder_layout_circle)),
+                        selected = folder.layout.ordinal,
+                    ) { i -> onChange(folder.copy(layout = FolderLayout.entries[i])) }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .toggleable(folder.transparent, role = Role.Switch) { onChange(folder.copy(transparent = it)) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.folder_transparent), style = MaterialTheme.typography.bodyLarge, color = cs.onSurface, modifier = Modifier.weight(1f))
+                    Switch(checked = folder.transparent, onCheckedChange = null)
+                }
+                Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.folder_color), style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
