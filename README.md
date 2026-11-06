@@ -41,8 +41,8 @@ Application ID `app.zenith.launcher`.
   folder to open it: tap its name to rename it, tap an app to open it, long-press an app for
   Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
   into that app. Long-press a folder to drag it, or for Customize and Remove (it and its apps
-  leave the home screen; they stay installed). Customize sets, per folder: Small or Large (2 × 2
-  cells, needing the cells to its right and below free; its apps show three by three from the
+  leave the home screen; they stay installed). Customize sets, per folder: Small or Large (3 × 3
+  cells, needing the two cells to its right and the two rows below free; its apps show three by three from the
   top-left and open with a tap, and with more than nine the last place shows the rest), Apps or Folder icon (small
   app icons, or a folder symbol), and the tile colour (the default tint or one of nine colours).
   A large folder drags on its own to free cells; drop an app anywhere over its middle to add it. Remove from Home in the drawer also takes an app out of its folder.
@@ -104,7 +104,7 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   whose app is removed shows Android's "problem loading widget" box until you remove it.
 - **Folders, first version.** Home screen only, not the dock. Apps can't be dragged out of an open
   folder or reordered in it; use Remove from folder. A folder can't be dropped into another. Tiles
-  are rounded squares only. A large folder in the last column or row shows small.
+  are rounded squares only. A large folder in the last two columns or rows shows small.
 
 ## Build
 
