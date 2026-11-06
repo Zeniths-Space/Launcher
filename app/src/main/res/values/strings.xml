@@ -68,7 +68,7 @@
     <string name="gesture_quick_settings">Open quick settings</string>
     <string name="gesture_lock">Lock the screen</string>
     <string name="settings_home_sub">Clock, swipe hint</string>
-    <string name="settings_drawer_sub">App names</string>
+    <string name="settings_drawer_sub">Columns, icon size, spacing</string>
     <string name="settings_wallpaper">Wallpaper</string>
     <string name="settings_wallpaper_sub">Pick a photo, then crop and set it</string>
     <string name="settings_clock">Clock</string>
@@ -78,6 +78,10 @@
     <string name="settings_section_drawer">App drawer</string>
     <string name="settings_labels">App names</string>
     <string name="settings_labels_sub">Names under the icons</string>
+    <string name="settings_drawer_columns">Columns</string>
+    <string name="settings_drawer_icon_size">Icon size</string>
+    <string name="settings_drawer_row_gap">Row spacing</string>
+    <string name="settings_drawer_padding">Side padding</string>
     <string name="settings_pure_black">Pure black</string>
     <string name="settings_pure_black_sub">Black drawer and settings in dark mode</string>
     <string name="settings_section_about">About</string>

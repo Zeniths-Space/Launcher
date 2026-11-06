@@ -44,6 +44,12 @@ data class LauncherSettings(
     val homeLabels: Boolean = true,
     /** Dots under the home screen pages showing which one is shown. */
     val homeDots: Boolean = true,
+    val drawerColumns: Int = 4,
+    val drawerIconSize: Int = 52,
+    /** Space between app drawer rows in dp. */
+    val drawerRowGap: Int = 12,
+    /** Space between the app drawer grid and the screen's left and right edges in dp. */
+    val drawerPadding: Int = 8,
     /** Home screen and dock apps can't be moved, added or removed. */
     val locked: Boolean = false,
 ) {
@@ -81,6 +87,10 @@ class SettingsStore(context: Context) {
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
                 homeLabels = p[HOME_LABELS] ?: true,
                 homeDots = p[HOME_DOTS] ?: true,
+                drawerColumns = (p[DRAWER_COLUMNS] ?: 4).coerceIn(DrawerColumnRange),
+                drawerIconSize = (p[DRAWER_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
+                drawerRowGap = (p[DRAWER_ROW_GAP] ?: 12).coerceIn(DockRowGapRange),
+                drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerPaddingRange),
                 locked = p[LOCKED] ?: false,
             )
         }
@@ -105,6 +115,10 @@ class SettingsStore(context: Context) {
     suspend fun setHomeIconSize(dp: Int) = store.edit { it[HOME_ICON_SIZE] = dp.coerceIn(DockIconRange) }
     suspend fun setHomeLabels(on: Boolean) = set(HOME_LABELS, on)
     suspend fun setHomeDots(on: Boolean) = set(HOME_DOTS, on)
+    suspend fun setDrawerColumns(n: Int) = store.edit { it[DRAWER_COLUMNS] = n.coerceIn(DrawerColumnRange) }
+    suspend fun setDrawerIconSize(dp: Int) = store.edit { it[DRAWER_ICON_SIZE] = dp.coerceIn(DockIconRange) }
+    suspend fun setDrawerRowGap(dp: Int) = store.edit { it[DRAWER_ROW_GAP] = dp.coerceIn(DockRowGapRange) }
+    suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerPaddingRange) }
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
@@ -139,6 +153,10 @@ class SettingsStore(context: Context) {
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")
         val HOME_LABELS = booleanPreferencesKey("home_labels")
         val HOME_DOTS = booleanPreferencesKey("home_dots")
+        val DRAWER_COLUMNS = intPreferencesKey("drawer_columns")
+        val DRAWER_ICON_SIZE = intPreferencesKey("drawer_icon_size")
+        val DRAWER_ROW_GAP = intPreferencesKey("drawer_row_gap")
+        val DRAWER_PADDING = intPreferencesKey("drawer_padding")
         val LOCKED = booleanPreferencesKey("locked")
     }
 }
@@ -148,6 +166,12 @@ val DockGridRange = 1..20
 
 /** Dock icon sizes, in dp. */
 val DockIconRange = 32..96
+
+/** App drawer columns. */
+val DrawerColumnRange = 1..10
+
+/** Space at the app drawer's left and right edges, in dp. */
+val DrawerPaddingRange = 0..48
 
 /** Space between dock rows, in dp. */
 val DockRowGapRange = 0..40

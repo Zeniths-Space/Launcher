@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -113,6 +115,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import java.util.Date
@@ -308,6 +311,10 @@ internal fun LauncherScreen(
                 apps,
                 repository,
                 settings.showLabels,
+                columns = settings.drawerColumns,
+                iconSize = settings.drawerIconSize.dp,
+                rowGap = settings.drawerRowGap.dp,
+                sidePadding = settings.drawerPadding.dp,
                 dockKeys = dockKeys,
                 dockCapacity = settings.dockCapacity,
                 onDockChange = onDockChange,
@@ -693,6 +700,10 @@ private fun AppDrawer(
     apps: List<AppEntry>?,
     repository: AppRepository,
     showLabels: Boolean,
+    columns: Int,
+    iconSize: Dp,
+    rowGap: Dp,
+    sidePadding: Dp,
     dockKeys: List<String>,
     dockCapacity: Int,
     onDockChange: (List<String>) -> Unit,
@@ -780,17 +791,18 @@ private fun AppDrawer(
                 modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
             )
             else -> LazyVerticalGrid(
-                GridCells.Adaptive(76.dp),
+                GridCells.Fixed(columns),
                 state = grid,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = sidePadding, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(rowGap),
             ) {
                 items(shown, key = { it.key }) { app ->
                     AppTile(
                         app,
                         repository,
                         showLabels,
+                        iconSize,
                         inDock = app.key in dockKeys,
                         dockFull = !DockSlots.hasRoom(dockKeys, dockCapacity),
                         onDockToggle = {
@@ -846,6 +858,7 @@ private fun AppTile(
     app: AppEntry,
     repository: AppRepository,
     showLabels: Boolean,
+    iconSize: Dp,
     inDock: Boolean,
     dockFull: Boolean,
     onDockToggle: () -> Unit,
@@ -855,7 +868,7 @@ private fun AppTile(
     onHomeToggle: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
 ) {
-    val sizePx = with(LocalDensity.current) { IconSize.roundToPx() }
+    val sizePx = with(LocalDensity.current) { iconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, app.key, sizePx) { value = repository.icon(app, sizePx) }
     // Read at tap time only: a state written on every layout would recompose each tile per frame
     // while the drawer moves.
@@ -879,7 +892,9 @@ private fun AppTile(
         ) {
             Box(
                 Modifier
-                    .size(IconSize)
+                    // Shrinks to the column, staying square, when the icon is wider than it.
+                    .widthIn(max = iconSize)
+                    .aspectRatio(1f)
                     .onGloballyPositioned { iconCoords[0] = it },
             ) {
                 icon?.let { Image(it, contentDescription = if (showLabels) null else app.label, modifier = Modifier.fillMaxSize()) }
@@ -927,5 +942,3 @@ private fun AppTile(
         }
     }
 }
-
-internal val IconSize = 52.dp

@@ -54,6 +54,7 @@ object Icons {
     )
     val Columns = filled("M14.67,5v14H9.33V5H14.67zM15.67,19H21V5h-5.33V19zM8.33,19V5H3v14H8.33z")
     val Rows = filled("M21,8H3V4h18V8zM21,10H3v4h18V10zM21,16H3v4h18V16z")
+    val SidePadding = filled("M8,16l-4,-4 4,-4 1.41,1.41L7.83,11h8.34l-1.58,-1.59L16,8l4,4 -4,4 -1.41,-1.41L16.17,13H7.83l1.58,1.59z")
     val IconSize = filled(
         "M19,12h-2v3h-3v2h5v-5zM7,9h3V7H5v5h2V9zM21,3H3c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h18c1.1,0 2,-0.9 2,-2V5" +
             "c0,-1.1 -0.9,-2 -2,-2zM21,19.01H3V4.99h18v14.02z",
