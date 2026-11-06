@@ -794,7 +794,8 @@ private fun AppDrawer(
                 GridCells.Fixed(columns),
                 state = grid,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = sidePadding, vertical = 8.dp),
+                // Extra room under the last row, so the end of the list clears the screen edge.
+                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = 48.dp),
                 verticalArrangement = Arrangement.spacedBy(rowGap),
             ) {
                 items(shown, key = { it.key }) { app ->
