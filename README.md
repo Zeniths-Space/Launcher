@@ -41,7 +41,7 @@ Application ID `app.zenith.launcher`.
   folder to open it: tap its name to rename it, tap an app to open it, long-press an app for
   Remove from folder (back to a free slot) and Uninstall. A folder left with one app turns back
   into that app. Long-press a folder to drag it, or for Customize and Remove (it and its apps
-  leave the home screen; they stay installed). Customize sets, per folder: Small, 2 × 2 or 3 × 3
+  leave the home screen; they stay installed). Customize opens a sheet from the bottom (swipe down or tap outside to close; the folder stays in view, so each change shows at once) that sets, per folder: Small, 2 × 2 or 3 × 3
   cells (a larger one needs the cells to its right and below it free; its apps show three by three from the
   top-left and open with a tap, and with more than nine the last place shows the rest), Apps or Folder icon (small
   app icons, or a folder symbol), the tile colour (the default tint or one of nine colours) and a

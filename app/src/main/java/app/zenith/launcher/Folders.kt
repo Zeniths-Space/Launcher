@@ -1,6 +1,14 @@
 package app.zenith.launcher
 
 import android.widget.Toast
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -261,7 +269,7 @@ internal val FolderColors = listOf(
 internal fun folderColor(index: Int) = FolderColors.getOrElse(index) { FolderColors[0] }
 
 /**
- * A folder's Customize card: Small, 2 by 2 or 3 by 3 cells, Apps or Folder style, and a colour. Each
+ * A folder's Customize sheet, from the bottom edge (swipe down to close): Small, 2 by 2 or 3 by 3 cells, Apps or Folder style, and a colour. Each
  * choice applies at once through [onChange], which says whether it could (a large folder needs
  * free cells).
  */
@@ -278,31 +286,46 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
     val context = LocalContext.current
     val noRoom = stringResource(R.string.folder_no_room)
     val colorNames = FolderColors.indices.map { stringResource(R.string.folder_color_n, it + 1) }
-    val shape = RoundedCornerShape(28.dp)
+    val shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    // How far the sheet is pulled down; past a quarter of its height, or flung, it closes.
+    var pull by remember { mutableFloatStateOf(0f) }
+    var sheetHeight by remember { mutableIntStateOf(0) }
+    LaunchedEffect(expanded) { if (expanded) pull = 0f }
     Popup(popupPositionProvider = FullWindow, onDismissRequest = onDismiss, properties = PopupProperties(focusable = expanded)) {
         Box(
             Modifier
                 .fillMaxSize()
+                // Light, so the folder stays in view and each change shows on it at once.
                 .graphicsLayer { alpha = shown.coerceIn(0f, 1f) }
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = 0.2f))
                 .pointerInput(Unit) { detectTapGestures { onDismiss() } },
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.BottomCenter,
         ) {
             Column(
                 Modifier
-                    .graphicsLayer {
-                        val scale = 0.85f + 0.15f * shown
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .fillMaxWidth(0.88f)
-                    .widthIn(max = 400.dp)
+                    .onSizeChanged { sheetHeight = it.height }
+                    .graphicsLayer { translationY = pull + (1f - shown) * size.height }
+                    .fillMaxWidth()
+                    .widthIn(max = 560.dp)
                     .shadow(8.dp, shape)
                     .clip(shape)
                     .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh)
                     .pointerInput(Unit) { detectTapGestures { } }
-                    .padding(20.dp),
+                    .draggable(
+                        rememberDraggableState { pull = (pull + it).coerceAtLeast(0f) },
+                        Orientation.Vertical,
+                        onDragStopped = { velocity -> if (pull > sheetHeight / 4f || velocity > 1500f) onDismiss() else pull = 0f },
+                    )
+                    .navigationBarsPadding()
+                    .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
             ) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 14.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .background(cs.onSurfaceVariant.copy(alpha = 0.4f), CircleShape),
+                )
                 Text(stringResource(R.string.folder_customize), style = MaterialTheme.typography.titleLarge, color = cs.onSurface)
                 Spacer(Modifier.height(20.dp))
                 Choice(
