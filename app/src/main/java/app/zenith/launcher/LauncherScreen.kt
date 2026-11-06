@@ -3,6 +3,8 @@ package app.zenith.launcher
 import android.appwidget.AppWidgetProviderInfo
 import android.graphics.Rect
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
@@ -147,6 +149,9 @@ private class HomePull {
     var startedClosed = false
 }
 private val HomeLift = 16.dp
+private const val HomeSink = 0.06f
+private const val HomeEnterScale = 0.9f
+private val HomeEnterSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
 
 /** An app dragged out of the drawer onto the home screen or dock, and where the finger is, in the window. */
 private class DrawerDrag(val app: AppEntry, val icon: ImageBitmap?, at: Offset) {
@@ -161,6 +166,7 @@ internal fun LauncherScreen(
     settings: LauncherSettings,
     drawerOpen: Boolean,
     resets: Int,
+    entrances: Int,
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
@@ -255,6 +261,12 @@ internal fun LauncherScreen(
         motion.settle(scope, if (drawerOpen) 1f else 0f, null)
     }
     BackHandler(enabled = drawerOpen) { onDrawerOpenChange(false) }
+    // The home screen settles in from slightly smaller as it comes back into view, under the app closing.
+    val enter = remember { Animatable(1f) }
+    LaunchedEffect(entrances) {
+        enter.snapTo(HomeEnterScale)
+        enter.animateTo(1f, HomeEnterSpring)
+    }
 
     Box(
         Modifier
@@ -316,6 +328,10 @@ internal fun LauncherScreen(
                     val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
                     alpha = 1f - gone
                     translationY = -gone * HomeLift.toPx()
+                    // Sinks back a little as the drawer rises over it.
+                    val scale = enter.value * (1f - gone * HomeSink)
+                    scaleX = scale
+                    scaleY = scale
                 },
             grid = { onLongPressEmpty, modifier ->
                 HomeGrid(

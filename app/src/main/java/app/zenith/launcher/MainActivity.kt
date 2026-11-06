@@ -31,6 +31,8 @@ class MainActivity : ComponentActivity() {
     private var drawerOpen by mutableStateOf(false)
     // Counts Home presses and leaving, which also close the home sheet.
     private var resets by mutableIntStateOf(0)
+    // Counts each time the home screen comes into view (back from an app, after unlock), which it zooms in for.
+    private var entrances by mutableIntStateOf(0)
     private val drawer = DrawerMotion()
     private val widgets = WidgetHost(this)
 
@@ -61,6 +63,7 @@ class MainActivity : ComponentActivity() {
                         settings = settings,
                         drawerOpen = drawerOpen,
                         resets = resets,
+                        entrances = entrances,
                         onDrawerOpenChange = { drawerOpen = it },
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                         onSettings = { edit -> lifecycleScope.launch { store.edit() } },
@@ -137,6 +140,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         widgets.startListening()
+        entrances++
     }
 
     @Deprecated("Android delivers a widget's setup screen result only here.")
