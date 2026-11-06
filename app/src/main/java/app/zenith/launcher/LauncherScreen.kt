@@ -169,8 +169,10 @@ internal fun LauncherScreen(
     val homeKeys = remember(homePages, settings.folders) {
         homePages.flatten().filterTo(HashSet()) { it.isNotEmpty() && !HomeFolders.isFolder(it) } + HomeFolders.apps(settings.folders)
     }
-    // App slots under widgets, which apps added from the drawer skip.
-    val blocked = { p: Int -> HomeWidgets.blocked(settings.widgets, p, settings.homeColumns, settings.homeRows) }
+    // App slots under large folders on a page, which apps and widgets keep out of.
+    val largeOf = { p: Int -> HomeFolders.largeCells(homePages, settings.folders, p, settings.homeColumns, settings.homeRows) }
+    // App slots under widgets and large folders, which apps added from the drawer skip.
+    val blocked = { p: Int -> HomeWidgets.blocked(settings.widgets, p, settings.homeColumns, settings.homeRows) + largeOf(p) }
     var cell by remember { mutableStateOf(Size.Zero) }
     var pickingWidget by remember { mutableStateOf(false) }
     // Dock keys by slot ("" empty); an app that is gone leaves its slot empty. Kept as stored until apps load.
@@ -365,7 +367,7 @@ internal fun LauncherScreen(
         // read then, after the picker has gone, so it must stay current.
         val place by rememberUpdatedState { id: Int, info: AppWidgetProviderInfo ->
             val (w, h) = widgetSpan(info, cell, settings.homeColumns, settings.homeRows)
-            val spot = HomeWidgets.place(id, w, h, homePages, settings.widgets, settings.homeColumns, settings.homeRows, first = homePage)
+            val spot = HomeWidgets.place(id, w, h, homePages, settings.widgets, settings.homeColumns, settings.homeRows, first = homePage, also = largeOf)
             onWidgetsChange(settings.widgets + spot)
             if (spot.page >= homePages.size) onHomeChange(homePages + List(spot.page + 1 - homePages.size) { emptyList() })
             homePage = spot.page

@@ -34,11 +34,21 @@ object HomeWidgets {
     fun blocked(widgets: List<HomeWidget>, page: Int, columns: Int, rows: Int, except: Int? = null): Set<Int> =
         widgets.filter { it.page == page && it.id != except }.flatMap { it.slots(columns, rows) }.toSet()
 
-    /** Whether [widget] lies inside the grid on cells free of apps (in [pages]) and of the other widgets. */
-    fun fits(widget: HomeWidget, pages: List<List<String>>, widgets: List<HomeWidget>, columns: Int, rows: Int): Boolean {
+    /**
+     * Whether [widget] lies inside the grid on cells free of apps (in [pages]), of the other
+     * widgets and of slots [also] taken on its page (large folders).
+     */
+    fun fits(
+        widget: HomeWidget,
+        pages: List<List<String>>,
+        widgets: List<HomeWidget>,
+        columns: Int,
+        rows: Int,
+        also: (page: Int) -> Set<Int> = { emptySet() },
+    ): Boolean {
         if (widget.col < 0 || widget.row < 0 || widget.col + widget.w > columns || widget.row + widget.h > rows) return false
         val apps = HomePages.slots(pages.getOrNull(widget.page), columns * rows)
-        val taken = blocked(widgets, widget.page, columns, rows, except = widget.id)
+        val taken = blocked(widgets, widget.page, columns, rows, except = widget.id) + also(widget.page)
         return widget.slots(columns, rows).none { apps.getOrNull(it) != null || it in taken }
     }
 
@@ -46,14 +56,24 @@ object HomeWidgets {
      * Where a new [w] by [h] widget goes: the first free spot in reading order on page [first], else
      * on any page, else at the top of a new page after the last.
      */
-    fun place(id: Int, w: Int, h: Int, pages: List<List<String>>, widgets: List<HomeWidget>, columns: Int, rows: Int, first: Int): HomeWidget {
+    fun place(
+        id: Int,
+        w: Int,
+        h: Int,
+        pages: List<List<String>>,
+        widgets: List<HomeWidget>,
+        columns: Int,
+        rows: Int,
+        first: Int,
+        also: (page: Int) -> Set<Int> = { emptySet() },
+    ): HomeWidget {
         val fw = w.coerceIn(1, columns)
         val fh = h.coerceIn(1, rows)
         val count = maxOf(pages.size, (widgets.maxOfOrNull { it.page } ?: -1) + 1, 1)
         for (page in (listOf(first) + (0 until count)).distinct()) {
             for (row in 0..rows - fh) for (col in 0..columns - fw) {
                 val spot = HomeWidget(id, page, col, row, fw, fh)
-                if (fits(spot, pages, widgets, columns, rows)) return spot
+                if (fits(spot, pages, widgets, columns, rows, also)) return spot
             }
         }
         return HomeWidget(id, count, 0, 0, fw, fh)

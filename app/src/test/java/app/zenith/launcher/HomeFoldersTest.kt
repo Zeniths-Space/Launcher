@@ -46,4 +46,30 @@ class HomeFoldersTest {
 
     @Test fun removeFolderClearsSlot() =
         assertEquals(listOf(listOf("", "c")) to emptyList<HomeFolder>(), HomeFolders.removeFolder(listOf(listOf("folder:1", "c")), listOf(HomeFolder(1, "", listOf("a", "b"))), 1))
+
+    @Test fun looksRoundTrip() {
+        val folder = HomeFolder(4, "Big", listOf("a", "b"), large = true, style = FolderStyle.Symbol, color = 3)
+        assertEquals(listOf(folder), HomeFolders.parse(HomeFolders.format(listOf(folder))))
+    }
+
+    @Test fun oldLinesReadWithDefaultLooks() = assertEquals(HomeFolder(1, "Old", listOf("a", "b")), HomeFolders.parse("1\ta\u001Fb\tOld").single())
+
+    @Test fun largeFolderCoversFourCells() {
+        val pages = listOf(listOf("", "folder:1"))
+        val folders = listOf(HomeFolder(1, "", listOf("a", "b"), large = true))
+        assertEquals(setOf(1, 2, 5, 6), HomeFolders.largeCells(pages, folders, 0, columns = 4, rows = 4))
+        assertEquals(1, HomeFolders.anchorAt(pages, folders, 0, 6, 4, 4))
+        assertEquals(3, HomeFolders.anchorAt(pages, folders, 0, 3, 4, 4))
+    }
+
+    @Test fun largeInLastColumnShowsSmall() =
+        assertEquals(emptySet<Int>(), HomeFolders.largeCells(listOf(listOf("", "", "", "folder:1")), listOf(HomeFolder(1, "", listOf("a", "b"), large = true)), 0, 4, 4))
+
+    @Test fun fitsLargeNeedsFreeCells() {
+        val pages = listOf(listOf("folder:1", "", "", "", "", "", "x"))
+        assertEquals(true, HomeFolders.fitsLarge(pages, 0, 0, 4, 4, emptySet(), "folder:1"))
+        assertEquals(false, HomeFolders.fitsLarge(pages, 0, 1, 4, 4, emptySet(), "folder:1"))
+        assertEquals(false, HomeFolders.fitsLarge(pages, 0, 0, 4, 4, setOf(4), "folder:1"))
+        assertEquals(false, HomeFolders.fitsLarge(pages, 0, 3, 4, 4, emptySet(), "folder:1"))
+    }
 }
