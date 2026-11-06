@@ -6,7 +6,11 @@ No other ecosystem app is needed.
 | File | Role |
 |---|---|
 | `MainActivity.kt` | The home activity: `singleTask`, transparent over the wallpaper. Home pressed while it shows closes the drawer. |
-| `LauncherScreen.kt` | Compose UI: home screen with the clock, the app drawer with search, app tiles. |
+| `LauncherScreen.kt` | Compose UI: home screen, the app drawer with search, app tiles, the home sheet. |
+| `Widgets.kt` | `WidgetHost` (Android's `AppWidgetHost`, binding, setup screens), widget views and their touch hand-off, widget menu and resize frame. |
+| `WidgetPicker.kt` | The widget picker and how many cells a new widget takes. |
+| `HomeWidgets.kt` | Widgets as cell rectangles per page: stored form, fitting, placing, page removal (unit tested). |
+| `AppMenu.kt` | The long-press menu popup shared by drawer, home, dock apps and widgets. |
 | `AppRepository.kt` | Apps from `LauncherApps` for every profile, package-change callbacks, icons, launching. |
 | `SettingsActivity.kt` | Settings (not exported): home app status and category list, one page per category. |
 | `SettingsStore.kt` | `LauncherSettings` in a Preferences DataStore, as a Flow both activities collect. |
@@ -26,8 +30,8 @@ No other ecosystem app is needed.
   profile. The manifest's `<queries>` entry (MAIN + LAUNCHER) is the only visibility needed on
   Android 11+; there is no `QUERY_ALL_PACKAGES`.
 - **Event-driven, no polling.** A `LauncherApps.Callback` reloads the list on package add, remove,
-  change and availability. The clock listens to `ACTION_TIME_TICK`, time and zone changes only
-  while composed.
+  change and availability. Widgets update through Android's widget host, listening only
+  between the home activity's onStart and onStop.
 - **Icons on demand.** Each tile asks for its icon at its pixel size; the repository draws it off
   the main thread once and keeps it in memory until the app changes or leaves.
   Legacy (non-adaptive) icons are wrapped, as Launcher3 does, at 70% on white inside an
@@ -98,3 +102,9 @@ No other ecosystem app is needed.
   `WallpaperManager.getCropAndSetWallpaperIntent` works on every device (Android uses the
   current home app's cropper if it has one, else the system's); `ACTION_ATTACH_DATA` is the
   fallback.
+- **Widgets beside apps, not in the slot lists.** Apps stay as reading-order slots per page; widgets
+  are stored separately as cell rectangles. App moves skip the cells under widgets (the slots are
+  compressed past them), so the existing make-room logic still applies, and a widget only lands on
+  free cells. Compose sees every touch on a widget first and hands it to the widget's view without
+  consuming it: taps reach the widget, a hold becomes the home screen's menu or drag, and swipes
+  stay the home screen's unless the widget has a list and the swipe is vertical.

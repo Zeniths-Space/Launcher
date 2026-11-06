@@ -5,8 +5,16 @@ Application ID `app.zenith.launcher`.
 
 ## Features
 
-- Home screen over your wallpaper with the time and date. The clock updates on Android's minute
-  tick while the home screen is showing; the launcher runs no timer of its own.
+- Home screen over your wallpaper. There is no built-in clock: add a clock widget instead.
+- Widgets: long-press the home screen, then Widgets, for every app's widgets with a preview and
+  size; tap one to add it. Android asks once whether Zenith may show widget content, and a widget
+  with a setup screen opens it. A widget goes in the first free spot of the page shown (else
+  another page, else a new one), at least as big as its smallest size. Long-press a widget for its
+  name, App info, Resize and Remove; keep holding and drag to move it to free cells (an outline
+  shows where it lands). Resize shows a frame with a handle on each side it can grow from; let go
+  and it snaps to the cells. Apps never move into a widget's cells. Taps reach the widget; swipes
+  that start on it still turn pages and open the drawer, except up and down on a widget with a
+  list, which scrolls it. Widgets update only while the home screen is started.
 - Swipe up anywhere for the app drawer: every app with a launcher icon, alphabetical, work-profile
   apps included (with their badge). The drawer follows your finger, with the same timing as One UI
   Home (measured from screen recordings): home fades first, then the drawer rises over the dimmed
@@ -29,14 +37,14 @@ Application ID `app.zenith.launcher`.
   last. A page stays until you remove it. Screen readers get Move left, Move right and Remove.
 - Long-press an empty spot on the home screen for a sheet from the bottom: Add app (the drawer
   opens; tap an app to put it on the page you were on), Add page, Remove page (the page shown,
-  with its apps; they stay installed) and Widgets (not available yet), a lock that keeps home
+  with its apps; they stay installed) and Widgets, a lock that keeps home
   screen and dock apps from being moved, added or removed, and the first settings categories
   (Appearance, Dock, Home screen, App drawer). The sheet follows your finger: pull it up and the
   same list goes on with Gestures, About and the home app card. A category slides its page in
   over the sheet; Back returns to it. Drag it down, tap outside, or press Back or Home to close it.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper, pure black in dark mode), Dock (on or
-  off, background bar, columns, rows, icon size, row spacing), Home screen (clock, swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview), Gestures and About.
+  off, background bar, columns, rows, icon size, row spacing), Home screen (swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the
@@ -79,6 +87,10 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
   recents component even when another home app is the default.
 - Returning from an app can show the drawer's last frame for a moment before the home screen,
   since Android animates the launcher's last drawn frame.
+- **Widgets, first version.** Previews are the image an app ships (or its icon); Android 12's
+  live preview layouts aren't drawn yet. A widget can't be dragged to another page, only within
+  its own. Making the home grid smaller can leave a widget over apps until one is moved. A widget
+  whose app is removed shows Android's "problem loading widget" box until you remove it.
 
 ## Build
 

@@ -13,11 +13,11 @@
 - [ ] Folders
 - [ ] App shortcuts (long-press menu)
 - [ ] Hidden apps
-- [x] Settings screen: home app status, wallpaper, clock, swipe hint, app names, pure black
+- [x] Settings screen: home app status, wallpaper, swipe hint, app names, pure black
 - [ ] More settings: grid size, icon size
 - [ ] Gestures (double-tap to lock, swipe down for notifications)
 
 ## Later
-- [ ] Widgets (AppWidgetHost)
+- [x] Widgets (AppWidgetHost): picker, place, move, resize, remove
 - [ ] Icon packs
 - [ ] Backup and restore of the layout
