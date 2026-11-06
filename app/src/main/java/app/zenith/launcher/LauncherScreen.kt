@@ -330,7 +330,7 @@ internal fun LauncherScreen(
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
-                apps,
+                remember(apps, settings.hidden) { apps?.filter { it.key !in settings.hidden } },
                 repository,
                 settings.showLabels,
                 columns = settings.drawerColumns,
@@ -347,6 +347,7 @@ internal fun LauncherScreen(
                     if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage, blocked = blocked))
                     onDrawerOpenChange(false)
                 }) else null,
+                onHide = { app -> onSettings { setHidden(app.key, true) } },
                 onHomeToggle = { app ->
                     if (app.key in homeKeys) {
                         HomeFolders.removeApp(homePages, settings.folders, app.key).let { (p, f) -> onLayoutChange(p, f) }
@@ -718,6 +719,7 @@ private fun AppDrawer(
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
+    onHide: (AppEntry) -> Unit,
     onHomeToggle: (AppEntry) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
@@ -845,6 +847,7 @@ private fun AppDrawer(
                         canEdit = !locked,
                         drawerOpen = drawerOpen,
                         onHomeToggle = { onHomeToggle(app) },
+                        onHide = { onHide(app) },
                         onOpen = open,
                     )
                 }
@@ -948,6 +951,7 @@ private fun AppTile(
     canEdit: Boolean,
     drawerOpen: Boolean,
     onHomeToggle: () -> Unit,
+    onHide: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
 ) {
     val sizePx = with(LocalDensity.current) { iconSize.roundToPx() }
@@ -986,6 +990,8 @@ private fun AppTile(
                 if (canEdit && (inDock || !dockFull)) {
                     add(MenuAction(Icons.DockBottom, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onClick = onDockToggle))
                 }
+                // Out of the drawer and search; Settings > App drawer brings it back.
+                add(MenuAction(Icons.Hide, stringResource(R.string.menu_hide), onClick = onHide))
                 if (repository.canUninstall(app)) {
                     add(MenuAction(Icons.Uninstall, stringResource(R.string.menu_uninstall), danger = true) { repository.uninstall(app) })
                 }

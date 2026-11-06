@@ -41,6 +41,8 @@ data class LauncherSettings(
     val folders: List<HomeFolder> = emptyList(),
     /** Names the user gave apps, by [AppEntry.key]; an app not here has its own name. */
     val labels: Map<String, String> = emptyMap(),
+    /** Apps kept out of the drawer and its search, by [AppEntry.key]. Home screen and dock copies stay. */
+    val hidden: Set<String> = emptySet(),
     /** Widgets on the home screen pages. */
     val widgets: List<HomeWidget> = emptyList(),
     val homeColumns: Int = 4,
@@ -91,6 +93,7 @@ class SettingsStore(context: Context) {
                 folders = HomeFolders.parse(p[HOME_FOLDERS]),
                 widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
                 labels = AppLabels.parse(p[APP_LABELS]),
+                hidden = p[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(HashSet()) { it.isNotEmpty() }.orEmpty(),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
@@ -131,6 +134,11 @@ class SettingsStore(context: Context) {
         val clean = AppLabels.clean(label)
         if (clean.isEmpty()) labels.remove(key) else labels[key] = clean
         it[APP_LABELS] = AppLabels.format(labels)
+    }
+    suspend fun setHidden(key: String, hidden: Boolean) = store.edit {
+        val keys = it[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(LinkedHashSet()) { k -> k.isNotEmpty() } ?: LinkedHashSet()
+        if (hidden) keys += key else keys -= key
+        it[HIDDEN_APPS] = keys.joinToString(DockSeparator)
     }
     suspend fun setWidgets(widgets: List<HomeWidget>) = store.edit { it[HOME_WIDGETS] = HomeWidgets.format(widgets) }
     suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
@@ -174,6 +182,7 @@ class SettingsStore(context: Context) {
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
         val HOME_FOLDERS = stringPreferencesKey("home_folders")
         val APP_LABELS = stringPreferencesKey("app_labels")
+        val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")

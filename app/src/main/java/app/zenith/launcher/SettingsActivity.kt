@@ -1,5 +1,7 @@
 package app.zenith.launcher
 
+import androidx.compose.foundation.Image
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
@@ -211,7 +213,7 @@ internal fun SettingsScreen(
             var sidePadding by remember(settings.drawerPadding) { mutableIntStateOf(settings.drawerPadding) }
             Column(Modifier.fillMaxSize().padding(padding)) {
             // Pinned above the list, so it stays in view while any slider is dragged.
-            if (shown == Page.Drawer) DrawerPreview(repository, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
+            if (shown == Page.Drawer) DrawerPreview(repository, settings.hidden, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
             Column(
                 Modifier
                     .weight(1f)
@@ -314,6 +316,8 @@ internal fun SettingsScreen(
                             ),
                             Modifier.padding(top = 16.dp),
                         )
+                        SectionHeader(stringResource(R.string.settings_hidden))
+                        HiddenApps(repository, settings) { key -> save { store.setHidden(key, false) } }
                     }
                     Page.Dock -> {
                         SegmentedGroup(
@@ -601,7 +605,7 @@ private fun GroupTile(
 
 /** The first drawer rows, drawn like the drawer at the screen's full width, so columns and side padding look as they will. */
 @Composable
-private fun DrawerPreview(repository: AppRepository, showLabels: Boolean, columns: Int, iconSize: Dp, rowGap: Dp, sidePadding: Dp) {
+private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLabels: Boolean, columns: Int, iconSize: Dp, rowGap: Dp, sidePadding: Dp) {
     val context = LocalContext.current
     val apps by repository.apps.collectAsState()
     // Opened from the launcher the list is already there; on its own, settings loads it once.
@@ -618,7 +622,7 @@ private fun DrawerPreview(repository: AppRepository, showLabels: Boolean, column
             .padding(horizontal = sidePadding, vertical = 8.dp),
     ) {
         Column(Modifier.wrapContentHeight(Alignment.Top, unbounded = true), verticalArrangement = Arrangement.spacedBy(rowGap)) {
-            apps.orEmpty().take(columns * PreviewRows).chunked(columns).forEach { row ->
+            apps.orEmpty().filter { it.key !in hidden }.take(columns * PreviewRows).chunked(columns).forEach { row ->
                 Row {
                     row.forEach { app ->
                         val icon by produceState<ImageBitmap?>(null, app.key) { value = repository.icon(app, sizePx) }
@@ -629,6 +633,43 @@ private fun DrawerPreview(repository: AppRepository, showLabels: Boolean, column
             }
         }
     }
+}
+
+/** Each hidden app that is still installed, with Unhide; or a line saying how to hide one. */
+@Composable
+private fun HiddenApps(repository: AppRepository, settings: LauncherSettings, onUnhide: (String) -> Unit) {
+    val apps by repository.apps.collectAsState()
+    val hidden = remember(apps, settings.hidden, settings.labels) {
+        apps.orEmpty().filter { it.key in settings.hidden }.let { renameApps(it, settings.labels) }
+    }
+    if (hidden.isEmpty()) {
+        Text(
+            stringResource(R.string.settings_hidden_none),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        return
+    }
+    val sizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
+    SegmentedGroup(
+        hidden.map { app ->
+            {
+                val icon by produceState<ImageBitmap?>(null, app.key) { value = repository.icon(app, sizePx) }
+                val unhide = stringResource(R.string.settings_unhide_app, app.label)
+                GroupTile(
+                    badge = { Box(Modifier.size(40.dp)) { icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } } },
+                    title = app.label,
+                    subtitle = app.packageName,
+                    trailing = {
+                        TextButton(onClick = { onUnhide(app.key) }, modifier = Modifier.semantics { contentDescription = unhide }) {
+                            Text(stringResource(R.string.settings_unhide))
+                        }
+                    },
+                )
+            }
+        },
+    )
 }
 
 private val PreviewHeight = 200.dp

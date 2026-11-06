@@ -168,7 +168,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(8.dp)
-            .width(MenuWidth)
+            .width(maxOf(MenuWidth, ActionWidth * actions.size + 16.dp))
             .shadow(8.dp, shape)
             .clip(shape)
             .background(if (pureBlack) PureBlackCard else cs.surfaceContainerHigh),
@@ -279,6 +279,7 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 private const val MaxNameLength = 40
 
 private val MenuWidth = 264.dp
+private val ActionWidth = 64.dp
 
 /** The header on the pure black card: a step lighter than [PureBlackCard]. */
 private val PureBlackHeader = Color(0xFF262626)
