@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -183,16 +182,9 @@ private fun androidx.compose.foundation.layout.RowScope.ActionButton(action: Men
             .padding(horizontal = 4.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .background(if (action.danger) cs.errorContainer else ZenithColors.indicator, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            // The label below names it.
-            Icon(action.icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (action.danger) cs.onErrorContainer else ZenithColors.onIndicator)
-        }
-        Spacer(Modifier.height(6.dp))
+        // The label below names it.
+        Icon(action.icon, contentDescription = null, tint = if (action.danger) cs.error else cs.onSurface)
+        Spacer(Modifier.height(8.dp))
         Text(
             action.label,
             style = MaterialTheme.typography.labelSmall,
