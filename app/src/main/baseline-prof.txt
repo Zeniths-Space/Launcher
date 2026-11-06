@@ -1,0 +1,5 @@
+# Baseline profile: Android compiles these ahead of time instead of interpreting them on first use.
+# The launcher is small and every screen is on the hot path, so all of its own code is listed.
+# AGP maps these names through R8 for release builds.
+Lapp/zenith/launcher/**;
+HSPLapp/zenith/launcher/**;->**(**)**
