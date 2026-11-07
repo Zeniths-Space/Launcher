@@ -234,7 +234,7 @@ private fun DockIcon(
     modifier: Modifier,
 ) {
     val sizePx = with(LocalDensity.current) { size.roundToPx() }
-    val icon by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx) { value = repository.icon(app, sizePx) }
+    val icon by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx, repository.iconShape) { value = repository.icon(app, sizePx) }
     val coords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val bounds = {
         coords[0]?.takeIf { it.isAttached }?.boundsInWindow()?.let { r ->

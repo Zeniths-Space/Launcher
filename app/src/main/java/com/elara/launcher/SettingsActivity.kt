@@ -1,6 +1,9 @@
 package com.elara.launcher
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.mutableIntStateOf
@@ -112,6 +115,8 @@ class SettingsActivity : ComponentActivity() {
         val versionName = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
+            // Before any icon below is asked for, so none is drawn in the wrong shape first.
+            repository.useIconShape(settings.iconShape)
             ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
                 SettingsScreen(
                     settings = settings,
@@ -250,6 +255,7 @@ internal fun SettingsScreen(
                                     onClick = onWallpaper,
                                 )
                             },
+                            { IconShapeTile(settings, store) },
                             { FontTile(settings, store) },
                             {
                                 SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {
@@ -597,6 +603,82 @@ private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen:
     GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
 }
 
+/** The outline of every app icon: a sheet of shapes, each previewed with a real app's icon. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun IconShapeTile(settings: LauncherSettings, store: SettingsStore) {
+    val scope = rememberCoroutineScope()
+    val cs = MaterialTheme.colorScheme
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    GroupTile(
+        badge = { ScallopBadge(Icons.Apps) },
+        title = stringResource(R.string.settings_icon_shape),
+        subtitle = stringResource(settings.iconShape.label),
+        onClick = { choosing = true },
+    )
+    if (!choosing) return
+    ModalBottomSheet(
+        onDismissRequest = { choosing = false },
+        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
+    ) {
+        Text(
+            stringResource(R.string.settings_icon_shape),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        val accent = LocalAccent.current
+        Column(
+            Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 24.dp),
+        ) {
+            IconShape.entries.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach { shape ->
+                        val selected = shape == settings.iconShape
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .selectable(selected = selected, role = Role.RadioButton) {
+                                    scope.launch { store.setIconShape(shape) }
+                                }
+                                .background(if (selected) (accent?.container ?: cs.secondaryContainer) else Color.Transparent)
+                                .padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            // System has no shape of its own here: shown as the phone's mask would be, a plain tile.
+                            Box(
+                                Modifier
+                                    .size(52.dp)
+                                    .background(accent?.strong ?: cs.primary, shape.shape ?: systemIconShape()),
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                stringResource(shape.label),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) (accent?.content ?: cs.onSecondaryContainer) else cs.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+/** The phone's own icon mask (a 100 by 100 path from Android), scaled to fit. */
+@Composable
+private fun systemIconShape(): androidx.compose.ui.graphics.Shape = remember {
+    val mask = android.graphics.drawable.AdaptiveIconDrawable(null, null).iconMask
+    androidx.compose.foundation.shape.GenericShape { size, _ ->
+        val path = android.graphics.Path(mask)
+        path.transform(android.graphics.Matrix().apply { setScale(size.width / 100f, size.height / 100f) })
+        addPath(path.asComposePath())
+    }
+}
+
 /** The font for all the launcher's text: a sheet to choose the system font or a custom TTF or OTF file. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -743,7 +825,7 @@ private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLa
             apps.orEmpty().filter { it.key !in hidden }.take(columns * PreviewRows).chunked(columns).forEach { row ->
                 Row {
                     row.forEach { app ->
-                        val icon by produceState<ImageBitmap?>(null, app.key) { value = repository.icon(app, sizePx) }
+                        val icon by produceState<ImageBitmap?>(null, app.key, repository.iconShape) { value = repository.icon(app, sizePx) }
                         AppTileContent(icon, app.label, showLabels, iconSize, Modifier.weight(1f))
                     }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }

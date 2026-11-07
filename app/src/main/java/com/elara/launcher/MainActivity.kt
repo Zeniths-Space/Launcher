@@ -50,6 +50,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
+            // Before any icon below is asked for, so none is drawn in the wrong shape first.
+            repository.useIconShape(settings.iconShape)
             // The first time apps are known, fill the dock with the default Phone, Messages,
             // Browser and Camera apps (once: the store keeps it from happening again).
             val apps by repository.apps.collectAsState()

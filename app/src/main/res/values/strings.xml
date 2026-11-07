@@ -69,7 +69,7 @@
     <string name="settings_hero_set_home">Set as home app</string>
     <string name="settings_section_home">Home screen</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_appearance_sub">Wallpaper, font, pure black</string>
+    <string name="settings_appearance_sub">Wallpaper, icon shape, font, pure black</string>
     <string name="settings_section_dock">Dock</string>
     <string name="settings_section_gestures">Gestures</string>
     <string name="settings_dock_sub">Apps at the bottom of the home screen</string>
@@ -176,4 +176,19 @@
     <string name="settings_font_custom_current">%1$s. Tap to pick another file</string>
     <string name="settings_font_custom">Custom font</string>
     <string name="settings_font_invalid">That file isn\'t a font Android can use</string>
+    <string name="settings_icon_shape">Icon shape</string>
+    <string name="shape_system">System</string>
+    <string name="shape_circle">Circle</string>
+    <string name="shape_squircle">Squircle</string>
+    <string name="shape_rounded_square">Rounded square</string>
+    <string name="shape_square">Square</string>
+    <string name="shape_teardrop">Teardrop</string>
+    <string name="shape_arch">Arch</string>
+    <string name="shape_hexagon">Hexagon</string>
+    <string name="shape_octagon">Octagon</string>
+    <string name="shape_rice_ball">Rice ball</string>
+    <string name="shape_heart">Heart</string>
+    <string name="shape_cookie">Cookie</string>
+    <string name="shape_flower">Flower</string>
+    <string name="shape_clover">Clover</string>
 </resources>

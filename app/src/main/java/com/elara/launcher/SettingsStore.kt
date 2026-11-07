@@ -69,6 +69,8 @@ data class LauncherSettings(
     val fontVersion: Long = 0,
     /** The picked font's file name, for settings to show. */
     val fontName: String = "",
+    /** The outline every app icon is drawn in. */
+    val iconShape: IconShape = IconShape.System,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -116,6 +118,7 @@ class SettingsStore(context: Context) {
                 setupDone = p[SETUP_DONE] ?: false,
                 fontVersion = p[FONT_VERSION] ?: 0L,
                 fontName = p[FONT_NAME].orEmpty(),
+                iconShape = IconShape.parse(p[ICON_SHAPE]),
             )
         }
 
@@ -164,6 +167,7 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
     suspend fun setSetupDone() = set(SETUP_DONE, true)
+    suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
     /** A new custom font was copied in as [name]; null goes back to the system font. */
     suspend fun setFont(name: String?) = store.edit {
         if (name == null) {
@@ -219,6 +223,7 @@ class SettingsStore(context: Context) {
         val SETUP_DONE = booleanPreferencesKey("setup_done")
         val FONT_VERSION = longPreferencesKey("font_version")
         val FONT_NAME = stringPreferencesKey("font_name")
+        val ICON_SHAPE = stringPreferencesKey("icon_shape")
     }
 }
 

@@ -742,7 +742,7 @@ private fun HomeIcon(
 @Composable
 private fun HomeIconFace(app: AppEntry, repository: AppRepository, icon: Dp, showLabels: Boolean, modifier: Modifier) {
     val sizePx = with(LocalDensity.current) { icon.roundToPx() }
-    val bitmap by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx) { value = repository.icon(app, sizePx) }
+    val bitmap by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx, repository.iconShape) { value = repository.icon(app, sizePx) }
     Column(modifier, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(icon)) { bitmap?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
         if (showLabels) {

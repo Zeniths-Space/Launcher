@@ -90,7 +90,7 @@ internal fun AppMenu(
     icon: ImageBitmap? = null,
 ) {
     val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
-    val header by produceState(icon, app.key) { if (value == null) value = repository.icon(app, headerPx) }
+    val header by produceState(icon, app.key, repository.iconShape) { if (value == null) value = repository.icon(app, headerPx) }
     val rename = LocalRenameApp.current
     val all = if (rename == null) actions else listOf(MenuAction(Icons.Edit, stringResource(R.string.menu_rename)) { rename(app) }) + actions
     MenuPopup(expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss)

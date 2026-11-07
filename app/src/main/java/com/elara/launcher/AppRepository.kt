@@ -11,6 +11,18 @@ import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.InsetDrawable
@@ -54,6 +66,16 @@ class AppRepository(context: Context) {
 
     private val infos = HashMap<String, LauncherActivityInfo>()
     private val icons = HashMap<String, ImageBitmap>()
+
+    /** The outline icons are drawn in. Set from settings; a change draws every icon again. Callers key their icon state on it. */
+    var iconShape by mutableStateOf(IconShape.System)
+        private set
+
+    fun useIconShape(shape: IconShape) {
+        if (shape == iconShape) return
+        synchronized(infos) { icons.clear() }
+        iconShape = shape
+    }
 
     /** Any package change reloads the list (cheap: one LauncherApps call per profile). */
     var onChanged: () -> Unit = {}
@@ -103,9 +125,14 @@ class AppRepository(context: Context) {
         val cacheKey = "${app.key}@$sizePx"
         synchronized(infos) { icons[cacheKey] }?.let { return@withContext it }
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
-        val drawable = runCatching { pm.getUserBadgedIcon(info.getIcon(density).inSystemShape(), info.user) }.getOrNull()
-            ?: return@withContext null
-        drawable.toImageBitmap(sizePx).also { synchronized(infos) { icons[cacheKey] = it } }
+        val shape = iconShape
+        val drawable = runCatching {
+            val icon = info.getIcon(density).inSystemShape()
+            val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
+            pm.getUserBadgedIcon(shaped, info.user)
+        }.getOrNull() ?: return@withContext null
+        // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
+        drawable.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
     }
 
     /** Apps that came with the device can't be uninstalled, only disabled from App info. */
@@ -179,9 +206,30 @@ class AppRepository(context: Context) {
  * the system shape. Like Launcher3, place them on white inside an adaptive icon so Android masks
  * them to the same shape: scaled to 70% of the visible area, the layer being 1.5 times that area.
  */
-private fun Drawable.inSystemShape(): Drawable =
+private fun Drawable.inSystemShape(): AdaptiveIconDrawable =
     if (this is AdaptiveIconDrawable) this
     else AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
+
+/**
+ * The adaptive icon's two layers inside [shape] instead of the system mask. Layers are 1.5 times the
+ * visible icon, as Android draws them, and the outline is antialiased (a clip path would not be).
+ */
+private fun AdaptiveIconDrawable.masked(shape: Shape, sizePx: Int): android.graphics.Bitmap {
+    val bitmap = createBitmap(sizePx, sizePx)
+    val canvas = Canvas(bitmap)
+    val outline = shape.createOutline(Size(sizePx.toFloat(), sizePx.toFloat()), LayoutDirection.Ltr, Density(1f))
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    canvas.drawPath(androidx.compose.ui.graphics.Path().apply { addOutline(outline) }.asAndroidPath(), paint)
+    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+    val layer = canvas.saveLayer(null, paint)
+    val inset = sizePx / 4
+    listOfNotNull(background, foreground).forEach {
+        it.setBounds(-inset, -inset, sizePx + inset, sizePx + inset)
+        it.draw(canvas)
+    }
+    canvas.restoreToCount(layer)
+    return bitmap
+}
 
 internal fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
     val bitmap = createBitmap(sizePx, sizePx)

@@ -13,6 +13,7 @@
 - [x] Folders (home screen; dock later)
 - [ ] App shortcuts (long-press menu)
 - [x] Hidden apps
+- [x] Icon shapes for all app icons
 - [x] Custom font (TTF/OTF) for all the launcher's text
 - [x] First-run setup: welcome, home app, wallpaper, gestures
 - [x] Settings screen: home app status, wallpaper, app names, pure black

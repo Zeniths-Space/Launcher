@@ -493,7 +493,7 @@ private fun DrawScope.layoutGlyph(layout: FolderLayout, tint: Color) {
 @Composable
 private fun AppIcon(app: AppEntry, repository: AppRepository, size: Dp) {
     val px = with(LocalDensity.current) { size.roundToPx() }
-    val bitmap by produceState(repository.cachedIcon(app, px), app.key, px) { value = repository.icon(app, px) }
+    val bitmap by produceState(repository.cachedIcon(app, px), app.key, px, repository.iconShape) { value = repository.icon(app, px) }
     Box(Modifier.size(size)) { bitmap?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
 }
 
@@ -601,7 +601,7 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
     // Read at tap time only, for the app to open out of its icon.
     val iconCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
-    val icon by produceState(repository.cachedIcon(app, px), app.key, px) { value = repository.icon(app, px) }
+    val icon by produceState(repository.cachedIcon(app, px), app.key, px, repository.iconShape) { value = repository.icon(app, px) }
     Box(modifier) {
         Column(
             Modifier
