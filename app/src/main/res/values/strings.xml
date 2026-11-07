@@ -69,7 +69,7 @@
     <string name="settings_hero_set_home">Set as home app</string>
     <string name="settings_section_home">Home screen</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_appearance_sub">Wallpaper, pure black</string>
+    <string name="settings_appearance_sub">Wallpaper, font, pure black</string>
     <string name="settings_section_dock">Dock</string>
     <string name="settings_section_gestures">Gestures</string>
     <string name="settings_dock_sub">Apps at the bottom of the home screen</string>
@@ -169,4 +169,9 @@
     <string name="setup_skip">Skip</string>
     <string name="setup_done">Done</string>
     <string name="setup_step">Step %1$d of %2$d</string>
+    <string name="settings_font">Font</string>
+    <string name="settings_font_system">System font. Tap to pick a TTF or OTF file</string>
+    <string name="settings_font_custom">Custom font</string>
+    <string name="settings_font_reset">Use the system font</string>
+    <string name="settings_font_invalid">That file isn\'t a font Android can use</string>
 </resources>

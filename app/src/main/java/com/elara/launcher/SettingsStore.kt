@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +65,10 @@ data class LauncherSettings(
     val locked: Boolean = false,
     /** The first-run setup was finished. True until the store is read, so it never flashes over a set-up home screen. */
     val setupDone: Boolean = true,
+    /** When the current custom font was picked (see [CustomFont]); 0 is the system font. */
+    val fontVersion: Long = 0,
+    /** The picked font's file name, for settings to show. */
+    val fontName: String = "",
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -109,6 +114,8 @@ class SettingsStore(context: Context) {
                 drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
                 locked = p[LOCKED] ?: false,
                 setupDone = p[SETUP_DONE] ?: false,
+                fontVersion = p[FONT_VERSION] ?: 0L,
+                fontName = p[FONT_NAME].orEmpty(),
             )
         }
 
@@ -157,6 +164,16 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
     suspend fun setSetupDone() = set(SETUP_DONE, true)
+    /** A new custom font was copied in as [name]; null goes back to the system font. */
+    suspend fun setFont(name: String?) = store.edit {
+        if (name == null) {
+            it.remove(FONT_VERSION)
+            it.remove(FONT_NAME)
+        } else {
+            it[FONT_VERSION] = System.currentTimeMillis()
+            it[FONT_NAME] = name
+        }
+    }
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -200,6 +217,8 @@ class SettingsStore(context: Context) {
         val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
         val LOCKED = booleanPreferencesKey("locked")
         val SETUP_DONE = booleanPreferencesKey("setup_done")
+        val FONT_VERSION = longPreferencesKey("font_version")
+        val FONT_NAME = stringPreferencesKey("font_name")
     }
 }
 

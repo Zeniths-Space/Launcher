@@ -26,6 +26,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -108,7 +110,7 @@ class SettingsActivity : ComponentActivity() {
         val versionName = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
-            ZenithTheme(pureBlack = settings.pureBlack) {
+            ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
                 SettingsScreen(
                     settings = settings,
                     store = store,
@@ -246,6 +248,7 @@ internal fun SettingsScreen(
                                     onClick = onWallpaper,
                                 )
                             },
+                            { FontTile(settings, store) },
                             {
                                 SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {
                                     save { store.setPureBlack(it) }
@@ -590,6 +593,36 @@ private const val WebsiteUrl = "https://aashutoshkc.com.np/"
 @Composable
 private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen: (Page) -> Unit) {
     GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
+}
+
+/** Picks a TTF or OTF font for all the launcher's text; the clear button goes back to the system font. */
+@Composable
+private fun FontTile(settings: LauncherSettings, store: SettingsStore) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val name = CustomFont.import(context, uri)
+            if (name == null) Toast.makeText(context, R.string.settings_font_invalid, Toast.LENGTH_SHORT).show() else store.setFont(name)
+        }
+    }
+    val custom = settings.fontVersion != 0L
+    GroupTile(
+        badge = { ScallopBadge(Icons.Font) },
+        title = stringResource(R.string.settings_font),
+        subtitle = when {
+            !custom -> stringResource(R.string.settings_font_system)
+            settings.fontName.isBlank() -> stringResource(R.string.settings_font_custom)
+            else -> settings.fontName
+        },
+        onClick = { pick.launch(CustomFont.MimeTypes) },
+        trailing = if (custom) ({
+            IconButton(onClick = { scope.launch { CustomFont.clear(context); store.setFont(null) } }) {
+                Icon(Icons.Close, contentDescription = stringResource(R.string.settings_font_reset))
+            }
+        }) else null,
+    )
 }
 
 /* Grouped tiles, the same building blocks as Zenboard's settings. */

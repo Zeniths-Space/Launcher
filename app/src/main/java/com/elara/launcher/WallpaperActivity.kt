@@ -87,7 +87,7 @@ class WallpaperActivity : ComponentActivity() {
         lifecycleScope.launch { repository.load(packageName) }
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
-            ZenithTheme(pureBlack = settings.pureBlack) {
+            ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
                 WallpaperScreen(uri, settings, repository, onBack = ::finish, onApply = ::apply)
             }
         }

@@ -23,6 +23,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -124,6 +125,25 @@ private val AppTypography = Typography().let { t ->
     )
 }
 
+/** Every text style in [font]: all text in the app comes from these, so this reaches labels, folders and settings alike. */
+private fun Typography.withFont(font: FontFamily) = Typography(
+    displayLarge = displayLarge.copy(fontFamily = font),
+    displayMedium = displayMedium.copy(fontFamily = font),
+    displaySmall = displaySmall.copy(fontFamily = font),
+    headlineLarge = headlineLarge.copy(fontFamily = font),
+    headlineMedium = headlineMedium.copy(fontFamily = font),
+    headlineSmall = headlineSmall.copy(fontFamily = font),
+    titleLarge = titleLarge.copy(fontFamily = font),
+    titleMedium = titleMedium.copy(fontFamily = font),
+    titleSmall = titleSmall.copy(fontFamily = font),
+    bodyLarge = bodyLarge.copy(fontFamily = font),
+    bodyMedium = bodyMedium.copy(fontFamily = font),
+    bodySmall = bodySmall.copy(fontFamily = font),
+    labelLarge = labelLarge.copy(fontFamily = font),
+    labelMedium = labelMedium.copy(fontFamily = font),
+    labelSmall = labelSmall.copy(fontFamily = font),
+)
+
 internal val LocalDark = staticCompositionLocalOf { false }
 
 /** Whether the pure black (AMOLED) surfaces are showing: dark mode with the setting on. */
@@ -189,12 +209,15 @@ private const val PressedScale = 0.88f
 fun ZenithTheme(
     dark: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
+    /** [LauncherSettings.fontVersion]: 0 for the system font. */
+    fontVersion: Long = 0,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
     val scheme = remember(context, dark, pureBlack) { schemeFor(context, dark, pureBlack) }
+    val typography = remember(fontVersion) { CustomFont.family(context, fontVersion)?.let(AppTypography::withFont) ?: AppTypography }
     CompositionLocalProvider(LocalDark provides dark, LocalPureBlack provides (dark && pureBlack)) {
-        MaterialTheme(colorScheme = scheme, typography = AppTypography) {
+        MaterialTheme(colorScheme = scheme, typography = typography) {
             // Screens draw on plain backgrounds, not Surfaces; without this, bare Icons default to black.
             CompositionLocalProvider(LocalContentColor provides scheme.onSurface, content = content)
         }

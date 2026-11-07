@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
             // The app being renamed, from any app's menu.
             var renaming by remember { mutableStateOf<AppEntry?>(null) }
             val focus = LocalFocusManager.current
-            ZenithTheme(pureBlack = settings.pureBlack) {
+            ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
                 CompositionLocalProvider(LocalRenameApp provides { renaming = it }) {
                     LauncherScreen(
                         repository = repository,
