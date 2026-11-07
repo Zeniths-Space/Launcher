@@ -6,10 +6,10 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFDCE3F5"
+        android:fillColor="#FF2A3350"
         android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z" />
     <!-- The star in the accent blue. -->
     <path
-        android:fillColor="#FF8FB4FF"
+        android:fillColor="#FF4A6FD6"
         android:pathData="M71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM79.5,50.5m-2,0a2,2 0 1,1 4,0a2,2 0 1,1 -4,0" />
 </vector>

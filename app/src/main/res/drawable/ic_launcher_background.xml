@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deep slate-blue diagonal gradient, the app's secondary accent family. -->
+<!-- Pale blue-white diagonal gradient. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
@@ -14,20 +14,8 @@
                 android:startY="0"
                 android:endX="108"
                 android:endY="108"
-                android:startColor="#FF4A5A80"
-                android:endColor="#FF1B2236" />
-        </aapt:attr>
-    </path>
-    <!-- Soft highlight in the upper left for depth. -->
-    <path android:pathData="M54,54m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="radial"
-                android:centerX="30"
-                android:centerY="26"
-                android:gradientRadius="60"
-                android:startColor="#33FFFFFF"
-                android:endColor="#00FFFFFF" />
+                android:startColor="#FFF8FAFF"
+                android:endColor="#FFDCE3F5" />
         </aapt:attr>
     </path>
 </vector>
