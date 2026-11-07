@@ -71,6 +71,18 @@ val SquircleShape = GenericShape { size, _ ->
     close()
 }
 
+/** One UI's icon mask, config_icon_mask from a Galaxy S24 Ultra's framework (One UI 8), in a 100 by 100 box. */
+val OneUiShape = GenericShape { size, _ ->
+    val x = size.width / 100
+    val y = size.height / 100
+    moveTo(99 * x, 50 * y)
+    cubicTo(99 * x, 6.935f * y, 77.063f * x, 1 * y, 50 * x, 1 * y)
+    cubicTo(22.935f * x, 1 * y, 1 * x, 6.935f * y, 1 * x, 50 * y)
+    cubicTo(1 * x, 93.063f * y, 22.935f * x, 99 * y, 50 * x, 99 * y)
+    cubicTo(77.063f * x, 99 * y, 99 * x, 93.063f * y, 99 * x, 50 * y)
+    close()
+}
+
 val HeartShape = GenericShape { size, _ ->
     val w = size.width
     val h = size.height
@@ -87,6 +99,7 @@ val HeartShape = GenericShape { size, _ ->
 /** App icon outlines. [System] is the phone's own; the rest mask every icon to the same outline. */
 enum class IconShape(val label: Int, val shape: Shape?) {
     System(R.string.shape_system, null),
+    OneUi(R.string.shape_one_ui, OneUiShape),
     Circle(R.string.shape_circle, CircleShape),
     Squircle(R.string.shape_squircle, SquircleShape),
     RoundedSquare(R.string.shape_rounded_square, RoundedCornerShape(24)),
