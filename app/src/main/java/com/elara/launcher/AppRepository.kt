@@ -133,7 +133,8 @@ class AppRepository(context: Context) {
         val options = if (source != null && bounds != null && !bounds.isEmpty) {
             // The decor view fills the window, so window coordinates are its own.
             // shortcut: One UI (SM-S928B, 2026-11-06) ignores this and crossfades; a true icon-to-app
-            // animation there needs a system-only remote transition. Recheck on AOSP-based devices.
+            // animation there needs a system-only remote transition. makeCustomAnimation is ignored too
+            // (tested 2026-11-07). Recheck on AOSP-based devices.
             ActivityOptions.makeScaleUpAnimation(source, bounds.left, bounds.top, bounds.width(), bounds.height())
         } else {
             ActivityOptions.makeBasic()
