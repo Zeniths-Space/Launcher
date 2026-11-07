@@ -9,6 +9,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextAlign
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import android.content.ActivityNotFoundException
@@ -118,6 +122,7 @@ class SettingsActivity : ComponentActivity() {
                     onWallpaper = rememberWallpaperPicker(),
                     onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
                     onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
+                    onOpenLink = { url -> openSystem(Intent.ACTION_VIEW, url.toUri()) },
                 )
             }
         }
@@ -171,6 +176,7 @@ internal fun SettingsScreen(
     onWallpaper: () -> Unit,
     onAccessibility: () -> Unit,
     onAppInfo: () -> Unit,
+    onOpenLink: (String) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -414,18 +420,7 @@ internal fun SettingsScreen(
                             settings.doubleTap,
                         ) { save { store.setDoubleTap(it) } }
                     }
-                    Page.About -> SegmentedGroup(
-                        listOf(
-                            {
-                                GroupTile(
-                                    badge = { ScallopBadge(Icons.Info) },
-                                    title = stringResource(R.string.app_name),
-                                    subtitle = stringResource(R.string.settings_version, versionName),
-                                )
-                            },
-                        ),
-                        Modifier.padding(top = 8.dp),
-                    )
+                    Page.About -> AboutPage(versionName, onAppInfo, onOpenLink)
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -524,6 +519,77 @@ internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@C
     { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub), onOpen) },
     { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName), onOpen) },
 )
+
+/** The app with its icon and version, what it does and doesn't do, then who made it and where to find them. */
+@Composable
+private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (String) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val iconPx = with(LocalDensity.current) { 88.dp.roundToPx() }
+    val icon = remember(iconPx) { context.packageManager.getApplicationIcon(context.packageName).toBitmap(iconPx, iconPx).asImageBitmap() }
+    val link = @Composable { Icon(Icons.OpenInNew, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+    Column(
+        Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp).semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(icon, contentDescription = null, modifier = Modifier.size(88.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall, color = cs.onSurface)
+        Text(stringResource(R.string.settings_version, versionName), style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.about_tagline),
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+    }
+    SectionHeader(stringResource(R.string.about_section_app))
+    SegmentedGroup(
+        listOf(
+            { GroupTile(badge = { ScallopBadge(Icons.Shield) }, title = stringResource(R.string.about_privacy), subtitle = stringResource(R.string.about_privacy_sub)) },
+            {
+                GroupTile(
+                    badge = { ScallopBadge(Icons.Code) },
+                    title = stringResource(R.string.about_source),
+                    subtitle = stringResource(R.string.about_source_sub),
+                    onClick = { onOpenLink(SourceUrl) },
+                    trailing = link,
+                )
+            },
+            { GroupTile(badge = { ScallopBadge(Icons.Info) }, title = stringResource(R.string.about_app_info), subtitle = stringResource(R.string.about_app_info_sub), onClick = onAppInfo) },
+        ),
+    )
+    SectionHeader(stringResource(R.string.about_section_developer))
+    SegmentedGroup(
+        listOf(
+            { GroupTile(badge = { ScallopBadge(Icons.Person) }, title = stringResource(R.string.about_developer), subtitle = stringResource(R.string.about_developer_sub)) },
+            {
+                GroupTile(
+                    badge = { ScallopBadge(Icons.Code) },
+                    title = stringResource(R.string.about_github),
+                    subtitle = stringResource(R.string.about_github_sub),
+                    onClick = { onOpenLink(GitHubUrl) },
+                    trailing = link,
+                )
+            },
+            {
+                GroupTile(
+                    badge = { ScallopBadge(Icons.Language) },
+                    title = stringResource(R.string.about_website),
+                    subtitle = stringResource(R.string.about_website_sub),
+                    onClick = { onOpenLink(WebsiteUrl) },
+                    trailing = link,
+                )
+            },
+        ),
+    )
+}
+
+private const val SourceUrl = "https://github.com/Zeniths-Space/Launcher"
+private const val GitHubUrl = "https://github.com/ashutoshchettri"
+private const val WebsiteUrl = "https://aashutoshkc.com.np/"
 
 /** A row on the main page that opens a category's page. */
 @Composable
