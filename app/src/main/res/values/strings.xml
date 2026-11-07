@@ -170,8 +170,10 @@
     <string name="setup_done">Done</string>
     <string name="setup_step">Step %1$d of %2$d</string>
     <string name="settings_font">Font</string>
-    <string name="settings_font_system">System font. Tap to pick a TTF or OTF file</string>
+    <string name="settings_font_system">System font</string>
+    <string name="settings_font_system_sub">Your phone\'s own font</string>
+    <string name="settings_font_custom_sub">Pick a TTF or OTF file</string>
+    <string name="settings_font_custom_current">%1$s. Tap to pick another file</string>
     <string name="settings_font_custom">Custom font</string>
-    <string name="settings_font_reset">Use the system font</string>
     <string name="settings_font_invalid">That file isn\'t a font Android can use</string>
 </resources>

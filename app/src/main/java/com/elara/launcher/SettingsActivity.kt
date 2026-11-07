@@ -57,6 +57,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.heading
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -595,11 +597,14 @@ private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen:
     GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
 }
 
-/** Picks a TTF or OTF font for all the launcher's text; the clear button goes back to the system font. */
+/** The font for all the launcher's text: a sheet to choose the system font or a custom TTF or OTF file. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FontTile(settings: LauncherSettings, store: SettingsStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val cs = MaterialTheme.colorScheme
+    var choosing by rememberSaveable { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
@@ -608,21 +613,57 @@ private fun FontTile(settings: LauncherSettings, store: SettingsStore) {
         }
     }
     val custom = settings.fontVersion != 0L
+    val customName = settings.fontName.ifBlank { stringResource(R.string.settings_font_custom) }
     GroupTile(
         badge = { ScallopBadge(Icons.Font) },
         title = stringResource(R.string.settings_font),
-        subtitle = when {
-            !custom -> stringResource(R.string.settings_font_system)
-            settings.fontName.isBlank() -> stringResource(R.string.settings_font_custom)
-            else -> settings.fontName
-        },
-        onClick = { pick.launch(CustomFont.MimeTypes) },
-        trailing = if (custom) ({
-            IconButton(onClick = { scope.launch { CustomFont.clear(context); store.setFont(null) } }) {
-                Icon(Icons.Close, contentDescription = stringResource(R.string.settings_font_reset))
-            }
-        }) else null,
+        subtitle = if (custom) customName else stringResource(R.string.settings_font_system),
+        onClick = { choosing = true },
     )
+    if (!choosing) return
+    ModalBottomSheet(
+        onDismissRequest = { choosing = false },
+        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
+    ) {
+        Text(
+            stringResource(R.string.settings_font),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        Column(Modifier.selectableGroup().padding(bottom = 24.dp)) {
+            FontChoice(stringResource(R.string.settings_font_system), stringResource(R.string.settings_font_system_sub), selected = !custom) {
+                choosing = false
+                if (custom) scope.launch { CustomFont.clear(context); store.setFont(null) }
+            }
+            // Tapped again while chosen, it picks a different file.
+            FontChoice(
+                stringResource(R.string.settings_font_custom),
+                if (custom) stringResource(R.string.settings_font_custom_current, customName) else stringResource(R.string.settings_font_custom_sub),
+                selected = custom,
+            ) {
+                choosing = false
+                pick.launch(CustomFont.MimeTypes)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FontChoice(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = cs.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+        }
+        RadioButton(selected = selected, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = LocalAccent.current?.strong ?: cs.secondary))
+    }
 }
 
 /* Grouped tiles, the same building blocks as Zenboard's settings. */
