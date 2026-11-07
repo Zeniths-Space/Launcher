@@ -477,8 +477,7 @@ internal fun LauncherScreen(
 }
 
 /**
- * The wallpaper with the time and date, the apps [grid], the [dock] and the swipe hint, top to
- * bottom; long-press or double-tap the wallpaper for the menu or gesture. (The swipe up is handled
+ * The wallpaper with the time and date, the apps [grid] and the [dock], top to bottom; long-press or double-tap the wallpaper for the menu or gesture. (The swipe up is handled
  * by [LauncherScreen].) The grid reports long-presses on its empty slots, in window coordinates.
  */
 @Composable
@@ -513,16 +512,7 @@ private fun HomeScreen(
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 16.dp))
             dock()
-            if (settings.showHint) {
-                Text(
-                    stringResource(R.string.home_swipe_hint),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = OnWallpaper.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp, bottom = 16.dp),
-                )
-            } else {
-                Spacer(Modifier.height(16.dp))
-            }
+            Spacer(Modifier.height(16.dp))
         }
         // Composed once, a frame after the home screen, and kept: composing it on the long-press
         // took a whole frame (~35 ms) and the sheet stuttered as it rose.

@@ -258,11 +258,6 @@ internal fun SettingsScreen(
                     SegmentedGroup(
                         listOf(
                             {
-                                SwitchTile(Icons.SwipeUp, stringResource(R.string.settings_hint), stringResource(R.string.settings_hint_sub), settings.showHint) {
-                                    save { store.setShowHint(it) }
-                                }
-                            },
-                            {
                                 SwitchTile(Icons.Label, stringResource(R.string.settings_home_labels), stringResource(R.string.settings_home_labels_sub), settings.homeLabels) {
                                     save { store.setHomeLabels(it) }
                                 }

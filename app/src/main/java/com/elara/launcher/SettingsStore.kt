@@ -14,9 +14,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-/** User settings. Defaults: swipe hint and app names shown; pure black off; swipe down opens notifications. */
+/** User settings. Defaults: app names shown; pure black off; swipe down opens notifications. */
 data class LauncherSettings(
-    val showHint: Boolean = true,
     val showLabels: Boolean = true,
     /** Near-black drawer and settings in dark mode (AMOLED). */
     val pureBlack: Boolean = false,
@@ -79,7 +78,6 @@ class SettingsStore(context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { p ->
             LauncherSettings(
-                showHint = p[SHOW_HINT] ?: true,
                 showLabels = p[SHOW_LABELS] ?: true,
                 pureBlack = p[PURE_BLACK] ?: false,
                 swipeDown = GestureAction.parse(p[SWIPE_DOWN], GestureAction.Notifications),
@@ -111,7 +109,6 @@ class SettingsStore(context: Context) {
             )
         }
 
-    suspend fun setShowHint(on: Boolean) = set(SHOW_HINT, on)
     suspend fun setShowLabels(on: Boolean) = set(SHOW_LABELS, on)
     suspend fun setPureBlack(on: Boolean) = set(PURE_BLACK, on)
     suspend fun setSwipeDown(action: GestureAction) = store.edit { it[SWIPE_DOWN] = action.name }
@@ -169,7 +166,6 @@ class SettingsStore(context: Context) {
     }
 
     private companion object {
-        val SHOW_HINT = booleanPreferencesKey("show_hint")
         val SHOW_LABELS = booleanPreferencesKey("show_labels")
         val PURE_BLACK = booleanPreferencesKey("pure_black")
         val SWIPE_DOWN = stringPreferencesKey("swipe_down")

@@ -211,7 +211,7 @@ private fun WallpaperScreen(
     }
 }
 
-/** The dock and swipe hint where the home screen draws them, faded, so the photo can be placed around them. */
+/** The dock where the home screen draws them, faded, so the photo can be placed around them. */
 @Composable
 private fun HomeOverlay(settings: LauncherSettings, repository: AppRepository) {
     val loaded by repository.apps.collectAsState()
@@ -236,7 +236,7 @@ private fun HomeOverlay(settings: LauncherSettings, repository: AppRepository) {
                 onRemove = {},
             )
         }
-        // Room for the Apply row, which sits where the swipe hint would.
+        // Room for the Apply row.
         Spacer(Modifier.height(88.dp))
     }
 }

@@ -66,7 +66,7 @@ Application ID `com.elara.launcher`.
   over the sheet; Back returns to it. Drag it down, tap outside, or press Back or Home to close it.
 - Settings (also the gear in the drawer): whether this is your home app, with a shortcut to change
   it, then a page per category: Appearance (wallpaper: pick a photo, move and zoom it under a faded dock, then set it on the home screen, lock screen or both; pure black in dark mode), Dock (on or
-  off, background bar, columns, rows, icon size, row and column spacing), Home screen (swipe hint, app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview), Gestures and About.
+  off, background bar, columns, rows, icon size, row and column spacing), Home screen (app names, page indicator, columns, rows, icon size), App drawer (app names, remember scroll position (off: it opens at the top), columns 1–10, icon size, row spacing, side padding, with a live preview), Gestures and About.
 - Dock: apps at the bottom of the home screen, icons only, in a grid of 1 to 20 columns and 1 to
   20 rows (5 by 1 to start). Each app keeps its own slot and slots can stay empty. Icon size is a setting (32 to 96 dp); icons
   shrink below it when the columns are too narrow. Row spacing (0 to 40 dp) sets the gap between rows. A background bar is a setting. Making the

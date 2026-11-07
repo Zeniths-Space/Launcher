@@ -13,7 +13,7 @@
 - [x] Folders (home screen; dock later)
 - [ ] App shortcuts (long-press menu)
 - [x] Hidden apps
-- [x] Settings screen: home app status, wallpaper, swipe hint, app names, pure black
+- [x] Settings screen: home app status, wallpaper, app names, pure black
 - [ ] More settings: grid size, icon size
 - [ ] Gestures (double-tap to lock, swipe down for notifications)
 
