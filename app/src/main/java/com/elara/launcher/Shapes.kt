@@ -55,8 +55,8 @@ fun roundedPolygon(sides: Int, rounding: Float, rotation: Double = -PI / 2, scal
     close()
 }
 
-/** A superellipse |x|⁴ + |y|⁴ = 1: a square with smooth, continuous corners. */
-val SquircleShape = GenericShape { size, _ ->
+/** A superellipse |x|ⁿ + |y|ⁿ = 1: 2 is a circle, higher is squarer with smooth, continuous corners. */
+fun superellipse(n: Double) = GenericShape { size, _ ->
     val rx = size.width / 2
     val ry = size.height / 2
     val steps = 120
@@ -64,8 +64,8 @@ val SquircleShape = GenericShape { size, _ ->
         val t = 2 * PI * i / steps
         val c = cos(t)
         val s = sin(t)
-        val x = rx + rx * (Math.signum(c) * Math.sqrt(Math.abs(c))).toFloat()
-        val y = ry + ry * (Math.signum(s) * Math.sqrt(Math.abs(s))).toFloat()
+        val x = rx + rx * (Math.signum(c) * Math.pow(Math.abs(c), 2 / n)).toFloat()
+        val y = ry + ry * (Math.signum(s) * Math.pow(Math.abs(s), 2 / n)).toFloat()
         if (i == 0) moveTo(x, y) else lineTo(x, y)
     }
     close()
@@ -82,6 +82,11 @@ val OneUiShape = GenericShape { size, _ ->
     cubicTo(77.063f * x, 99 * y, 99 * x, 93.063f * y, 99 * x, 50 * y)
     close()
 }
+
+val SquircleShape = superellipse(4.0)
+
+// Measured from Murine Launcher's RiceBalls path (Apache-2.0): a superellipse of exponent about 2.35.
+val RiceBallShape = superellipse(2.35)
 
 val HeartShape = GenericShape { size, _ ->
     val w = size.width
@@ -101,6 +106,7 @@ enum class IconShape(val label: Int, val shape: Shape?) {
     System(R.string.shape_system, null),
     OneUi(R.string.shape_one_ui, OneUiShape),
     Circle(R.string.shape_circle, CircleShape),
+    RiceBall(R.string.shape_rice_ball, RiceBallShape),
     Squircle(R.string.shape_squircle, SquircleShape),
     RoundedSquare(R.string.shape_rounded_square, RoundedCornerShape(24)),
     Square(R.string.shape_square, RoundedCornerShape(6)),
@@ -108,7 +114,7 @@ enum class IconShape(val label: Int, val shape: Shape?) {
     Arch(R.string.shape_arch, RoundedCornerShape(50, 50, 14, 14)),
     Hexagon(R.string.shape_hexagon, roundedPolygon(6, 0.18f, scale = 1.04f)),
     Octagon(R.string.shape_octagon, roundedPolygon(8, 0.16f, rotation = PI / 8, scale = 1.06f)),
-    RiceBall(R.string.shape_rice_ball, roundedPolygon(3, 0.42f, scale = 1.36f, shiftY = 0.1f)),
+    Triangle(R.string.shape_triangle, roundedPolygon(3, 0.42f, scale = 1.36f, shiftY = 0.1f)),
     Heart(R.string.shape_heart, HeartShape),
     Cookie(R.string.shape_cookie, polarShape(lobes = 9, depth = 0.12f)),
     Flower(R.string.shape_flower, polarShape(lobes = 6, depth = 0.26f, rotation = -PI / 2)),
