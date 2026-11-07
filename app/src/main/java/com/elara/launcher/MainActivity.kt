@@ -28,6 +28,8 @@ class MainActivity : ComponentActivity() {
     private val repository by lazy { AppRepository(this) }
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
+    // Checked on every return, for the setup's home app step: it changes in Android's settings.
+    private var isDefaultHome by mutableStateOf(false)
     // Counts Home presses and leaving, which also close the home sheet.
     private var resets by mutableIntStateOf(0)
     // Counts each time the home screen comes into view (back from an app, after unlock), which it zooms in for.
@@ -88,6 +90,14 @@ class MainActivity : ComponentActivity() {
                         onDismiss = { renaming = null; focus.clearFocus(force = true) },
                     )
                 }
+                if (!settings.setupDone) {
+                    SetupScreen(
+                        isDefaultHome = isDefaultHome,
+                        onChooseHome = { openSystem(android.provider.Settings.ACTION_HOME_SETTINGS) },
+                        onWallpaper = rememberWallpaperPicker(),
+                        onDone = { lifecycleScope.launch { store.setSetupDone() } },
+                    )
+                }
             }
         }
     }
@@ -117,6 +127,11 @@ class MainActivity : ComponentActivity() {
             drawerOpen = false
             resets++
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isDefaultHome = isDefaultHome(this)
     }
 
     // Widgets update only while the home screen is started.

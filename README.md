@@ -5,6 +5,8 @@ Application ID `com.elara.launcher`.
 
 ## Features
 
+- First run: a short setup over the home screen (welcome, make Elara your home app, pick a
+  wallpaper, and the swipe up and long-press gestures), each step skippable. Shown once.
 - Home screen over your wallpaper. There is no built-in clock: add a clock widget instead.
 - Widgets: long-press the home screen, then Widgets, for every app's widgets with a preview and
   size; tap one to add it. Android asks once whether Elara may show widget content, and a widget

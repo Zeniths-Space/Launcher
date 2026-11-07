@@ -152,4 +152,21 @@
     <string name="about_github_sub">github.com/ashutoshchettri</string>
     <string name="about_website">Portfolio</string>
     <string name="about_website_sub">aashutoshkc.com.np</string>
+    <string name="setup_welcome_title">Welcome to Elara</string>
+    <string name="setup_welcome_body">A simple home screen for your phone. No ads, no tracking, and it works offline.</string>
+    <string name="setup_home_title">Make it your home app</string>
+    <string name="setup_home_body">Choose Elara Launcher so the home button brings you here.</string>
+    <string name="setup_home_done">Elara is your home app. The home button brings you here.</string>
+    <string name="setup_wallpaper_title">Pick a wallpaper</string>
+    <string name="setup_wallpaper_body">Any photo, placed just how you like it. You can change it later.</string>
+    <string name="setup_wallpaper_pick">Choose a photo</string>
+    <string name="setup_tips_title">Getting around</string>
+    <string name="setup_tip_drawer">Swipe up for all your apps</string>
+    <string name="setup_tip_menu">Long-press the home screen for wallpaper, widgets and settings</string>
+    <string name="setup_tip_apps">Long-press an app to move, rename or hide it</string>
+    <string name="setup_start">Get started</string>
+    <string name="setup_next">Next</string>
+    <string name="setup_skip">Skip</string>
+    <string name="setup_done">Done</string>
+    <string name="setup_step">Step %1$d of %2$d</string>
 </resources>

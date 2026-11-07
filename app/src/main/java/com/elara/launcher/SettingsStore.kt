@@ -62,6 +62,8 @@ data class LauncherSettings(
     val drawerKeepPosition: Boolean = false,
     /** Home screen and dock apps can't be moved, added or removed. */
     val locked: Boolean = false,
+    /** The first-run setup was finished. True until the store is read, so it never flashes over a set-up home screen. */
+    val setupDone: Boolean = true,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -106,6 +108,7 @@ class SettingsStore(context: Context) {
                 drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerSpacingRange),
                 drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
                 locked = p[LOCKED] ?: false,
+                setupDone = p[SETUP_DONE] ?: false,
             )
         }
 
@@ -153,6 +156,7 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
+    suspend fun setSetupDone() = set(SETUP_DONE, true)
 
     /** Fills the dock once, the first time; later calls, or a dock the user has changed, are left alone. */
     suspend fun seedDock(keys: List<String>) = store.edit {
@@ -195,6 +199,7 @@ class SettingsStore(context: Context) {
         val DRAWER_PADDING = intPreferencesKey("drawer_padding")
         val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
         val LOCKED = booleanPreferencesKey("locked")
+        val SETUP_DONE = booleanPreferencesKey("setup_done")
     }
 }
 
