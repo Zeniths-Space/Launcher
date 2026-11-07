@@ -2,6 +2,7 @@ package com.elara.launcher
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.PowerManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,6 +32,9 @@ class MainActivity : ComponentActivity() {
     private var resets by mutableIntStateOf(0)
     // Counts each time the home screen comes into view (back from an app, after unlock), which it zooms in for.
     private var entrances by mutableIntStateOf(0)
+
+    // Stopped because the screen went off: on unlock the home screen comes back as it was, like One UI.
+    private var stoppedAsleep = false
     private val drawer = DrawerMotion()
     private val widgets = WidgetHost(this)
 
@@ -119,7 +123,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         widgets.startListening()
-        entrances++
+        if (stoppedAsleep) stoppedAsleep = false else entrances++
     }
 
     @Deprecated("Android delivers a widget's setup screen result only here.")
@@ -133,6 +137,8 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         widgets.stopListening()
+        stoppedAsleep = !getSystemService(PowerManager::class.java).isInteractive
+        if (stoppedAsleep) return
         drawer.jump(0f)
         drawerOpen = false
         resets++
