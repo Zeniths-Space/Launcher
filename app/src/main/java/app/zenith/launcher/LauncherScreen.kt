@@ -78,6 +78,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -170,8 +171,7 @@ internal fun LauncherScreen(
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
-    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
-    homeAppCard: @Composable () -> Unit,
+    onWallpaper: () -> Unit,
     onGesture: (GestureAction) -> Unit,
     onDockChange: (List<String>) -> Unit,
     onHomeChange: (List<List<String>>) -> Unit,
@@ -299,8 +299,8 @@ internal fun LauncherScreen(
         HomeScreen(
             settings,
             resets = resets,
-            allSettings = allSettings,
-            homeAppCard = homeAppCard,
+            onWallpaper = onWallpaper,
+            onOpenSettings = onOpenSettings,
             onSettings = onSettings,
             onAddApp = {
                 picking = true
@@ -485,8 +485,8 @@ internal fun LauncherScreen(
 private fun HomeScreen(
     settings: LauncherSettings,
     resets: Int,
-    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
-    homeAppCard: @Composable () -> Unit,
+    onWallpaper: () -> Unit,
+    onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
     onAddApp: () -> Unit,
     onAddPage: () -> Unit,
@@ -524,12 +524,17 @@ private fun HomeScreen(
                 Spacer(Modifier.height(16.dp))
             }
         }
+        // Composed once, a frame after the home screen, and kept: composing it on the long-press
+        // took a whole frame (~35 ms) and the sheet stuttered as it rose.
+        var sheetComposed by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { sheetComposed = true }
         // Last, so it sits over the grid and dock and takes their touches.
-        if (menu) {
+        if (sheetComposed || menu) {
             HomeSheet(
+                visible = menu,
                 onDismiss = { menu = false },
-                allSettings = allSettings,
-                homeAppCard = homeAppCard,
+                onWallpaper = onWallpaper,
+                onMoreSettings = onOpenSettings,
                 locked = settings.locked,
                 onLockedChange = { on -> onSettings { setLocked(on) } },
                 items = listOf(
@@ -547,68 +552,53 @@ private class MenuItem(val icon: ImageVector, val label: String, val enabled: Bo
 
 /**
  * The home screen's long-press menu: a sheet from the bottom edge, drawn here rather than M3's
- * ModalBottomSheet, whose stops can't be set. It opens far enough to show the layout lock, a row of
- * actions (add app, add or remove page, widgets) and the first settings categories; pulled up, it
- * follows the finger and the same list goes on with the rest of the settings. A category slides its
- * page in over the sheet ([allSettings]); back returns to the sheet. Drag it down, tap outside or
- * press Back to close it.
+ * ModalBottomSheet so it can stay composed while hidden. It shows the layout lock, a row of actions
+ * (add app, add or remove page, widgets), then Wallpaper and More settings. Drag it down, tap
+ * outside or press Back to close it.
  */
 @Composable
 private fun HomeSheet(
+    visible: Boolean,
     onDismiss: () -> Unit,
-    allSettings: @Composable (startPage: Page, onBack: () -> Unit) -> Unit,
-    homeAppCard: @Composable () -> Unit,
+    onWallpaper: () -> Unit,
+    onMoreSettings: () -> Unit,
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
     items: List<MenuItem>,
 ) {
     val colors = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
-    var page by remember { mutableStateOf<Page?>(null) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screen = constraints.maxHeight.toFloat()
-        // How far the sheet's top sits below its fully pulled-up place, in px; starts off screen.
+        // How far the sheet's top sits below its open place, in px; starts off screen.
         var offset by remember { mutableFloatStateOf(screen) }
         var sheetHeight by remember { mutableIntStateOf(0) }
-        // Bottom of the first categories in the list; opened, the sheet shows down to there and its bottom margin.
-        var headBottom by remember { mutableIntStateOf(0) }
         val density = LocalDensity.current
-        val margin = with(density) { 24.dp.toPx() } + WindowInsets.navigationBars.getBottom(density)
-        val open = (sheetHeight - headBottom - margin).coerceIn(0f, sheetHeight.toFloat())
         val hidden = sheetHeight.toFloat()
         var settling by remember { mutableStateOf<Job?>(null) }
         val settle = { velocity: Float ->
             settling?.cancel()
-            val target = when {
-                velocity > FlingSpeedPx -> if (offset < open - 1f) open else hidden
-                velocity < -FlingSpeedPx -> if (offset > open + 1f) open else 0f
-                else -> listOf(0f, open, hidden).minBy { abs(it - offset) }
-            }
+            val target = if (velocity > FlingSpeedPx || (velocity > -FlingSpeedPx && offset > hidden / 2)) hidden else 0f
             settling = scope.launch {
                 animate(offset, target, velocity, SheetSpring) { v, _ -> offset = v }
                 if (target == hidden) onDismiss()
             }
         }
         val close = { settle(FlingSpeedPx * 2) }
-        // The scroll connection below is made once; these keep it on the latest sizes.
-        val latestSettle by rememberUpdatedState(settle)
-        // Rises from the bottom edge once measured.
-        LaunchedEffect(sheetHeight > 0 && headBottom > 0) {
-            if (sheetHeight > 0 && headBottom > 0) {
-                offset = hidden
-                settling = launch { animate(offset, open, 0f, SheetSpring) { v, _ -> offset = v } }
+        val scroll = rememberScrollState()
+        // Rises from the bottom edge once shown and measured; hidden, it waits off screen, back at its top.
+        LaunchedEffect(visible, sheetHeight > 0) {
+            settling?.cancel()
+            offset = hidden.takeIf { it > 0f } ?: screen
+            if (!visible) {
+                scroll.scrollTo(0)
+            } else if (sheetHeight > 0) {
+                settling = launch { animate(offset, 0f, 0f, SheetSpring) { v, _ -> offset = v } }
             }
         }
-        // A category opens over the whole sheet, so it rises all the way first.
-        val openPage = { p: Page ->
-            page = p
-            settling?.cancel()
-            settling = scope.launch { animate(offset, 0f, 0f, SheetSpring) { v, _ -> offset = v } }
-        }
-        BackHandler(enabled = page == null) { close() }
-        // A category's page: back to the sheet (its own sub-pages go back first, registered later).
-        BackHandler(enabled = page != null) { page = null }
-        // Drags move the sheet first; once it is fully up, the list scrolls, and back down the same way.
+        BackHandler(enabled = visible) { close() }
+        val latestSettle by rememberUpdatedState(settle)
+        // The list takes every drag; what it can't scroll moves the sheet: down to close, then back up.
         val drag = remember {
             object : NestedScrollConnection {
                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -635,8 +625,8 @@ private fun HomeSheet(
             }
         }
 
-        // Scrim: darker as the sheet rises; a tap outside closes it.
-        Box(
+        // Scrim: darker as the sheet rises; a tap outside closes it. Only there while shown, so a hidden sheet takes no touches.
+        if (visible) Box(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = if (hidden > 0f) (1f - offset / hidden).coerceIn(0f, 1f) else 0f }
@@ -649,22 +639,16 @@ private fun HomeSheet(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                // Hidden, it is kept off screen; nothing in it should be read out.
+                .then(if (visible) Modifier else Modifier.clearAndSetSemantics {})
                 .heightIn(max = with(density) { screen.toDp() } - WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
                 .onSizeChanged { sheetHeight = it.height }
                 .graphicsLayer { translationY = offset }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(colors.surface)
-                // A list too short to scroll passes its drags on: these move the sheet.
-                .draggable(
-                    rememberDraggableState { dy ->
-                        settling?.cancel()
-                        offset = (offset + dy).coerceIn(0f, hidden)
-                    },
-                    Orientation.Vertical,
-                    onDragStopped = { velocity -> settle(velocity) },
-                )
                 .nestedScroll(drag)
-                .verticalScroll(rememberScrollState())
+                // Only scrolls where the screen is too short for it, as in landscape.
+                .verticalScroll(scroll)
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -680,11 +664,9 @@ private fun HomeSheet(
             Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.home_menu_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-                    Text(
-                        stringResource(if (locked) R.string.home_menu_locked else R.string.home_menu_pull),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.onSurfaceVariant,
-                    )
+                    if (locked) {
+                        Text(stringResource(R.string.home_menu_locked), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
                 }
                 // Filled while locked, so the state reads at a glance.
                 FilledIconToggleButton(checked = locked, onCheckedChange = onLockedChange) {
@@ -722,34 +704,26 @@ private fun HomeSheet(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            val categories = categoryTiles("") { openPage(it) }
-            SegmentedGroup(categories.take(4), Modifier.onGloballyPositioned { headBottom = (it.positionInParent().y + it.size.height).roundToInt() })
-            // The rest of the settings, below where the sheet first stops.
-            Spacer(Modifier.height(8.dp))
-            SegmentedGroup(categories.drop(4))
-            Spacer(Modifier.height(8.dp))
-            homeAppCard()
-        }
-        // A category's page, in the sheet's own frame: an opaque panel that slides in from the end
-        // over the sheet and back out, so the two never show through each other.
-        AnimatedContent(
-            page,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(with(density) { sheetHeight.toDp() })
-                .graphicsLayer { translationY = offset }
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
-            transitionSpec = {
-                (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it })
-                    .togetherWith(slideOutHorizontally(tween(300, easing = FastOutSlowInEasing)) { it })
-                    // The page is drawn over the sheet both ways; the frame keeps its size, so the page doesn't shrink as it leaves.
-                    .apply { targetContentZIndex = if (targetState != null) 1f else -1f }
-                    .using(null)
-            },
-            label = "sheet page",
-        ) { p ->
-            if (p != null) Box(Modifier.fillMaxSize().background(colors.surface)) { allSettings(p) { page = null } }
+            SegmentedGroup(
+                listOf(
+                    {
+                        GroupTile(
+                            badge = { ScallopBadge(Icons.Wallpaper) },
+                            title = stringResource(R.string.settings_wallpaper),
+                            subtitle = stringResource(R.string.settings_wallpaper_sub),
+                            onClick = { onDismiss(); onWallpaper() },
+                        )
+                    },
+                    {
+                        GroupTile(
+                            badge = { ScallopBadge(Icons.Settings) },
+                            title = stringResource(R.string.home_menu_more_settings),
+                            subtitle = stringResource(R.string.home_menu_more_settings_sub),
+                            onClick = { onDismiss(); onMoreSettings() },
+                        )
+                    },
+                ),
+            )
         }
     }
 }

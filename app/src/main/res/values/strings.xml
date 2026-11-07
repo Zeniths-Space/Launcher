@@ -55,7 +55,8 @@
     <string name="home_menu_add_app">Add app</string>
     <string name="home_menu_add_page">Add page</string>
     <string name="home_menu_remove_page">Remove page</string>
-    <string name="home_menu_pull">Pull up for all settings</string>
+    <string name="home_menu_more_settings">More settings</string>
+    <string name="home_menu_more_settings_sub">Dock, home screen, app drawer, gestures</string>
     <string name="home_menu_lock">Lock layout</string>
     <string name="home_menu_unlock">Unlock layout</string>
     <string name="home_menu_locked">Layout locked: apps can\'t be moved, added or removed</string>
@@ -67,10 +68,6 @@
     <string name="settings_layout">Layout</string>
     <string name="settings_hero_is_home">Your home app</string>
     <string name="settings_hero_set_home">Set as home app</string>
-    <string name="settings_home_is_default">Elara Launcher is your home app</string>
-    <string name="settings_home_not_default">Not your home app yet</string>
-    <string name="settings_home_change">Tap to choose a different home app</string>
-    <string name="settings_home_choose">Tap to make it the home app. You can switch back here any time.</string>
     <string name="settings_section_home">Home screen</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_appearance_sub">Wallpaper, pure black</string>

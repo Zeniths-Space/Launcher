@@ -61,7 +61,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.TopAppBarDefaults
@@ -172,15 +171,13 @@ internal fun SettingsScreen(
     onWallpaper: () -> Unit,
     onAccessibility: () -> Unit,
     onAppInfo: () -> Unit,
-    // Opened on a page from the home sheet: leaving that page goes back to the sheet, not to the list.
-    inSheet: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val save: (suspend () -> Unit) -> Unit = { block -> scope.launch { block() } }
     var page by rememberSaveable { mutableStateOf(startPage) }
-    val leave = { if (page == Page.Main || (inSheet && page == startPage)) onBack() else page = Page.Main }
-    BackHandler(enabled = page != Page.Main && !(inSheet && page == startPage)) { page = Page.Main }
+    val leave = { if (page == Page.Main) onBack() else page = Page.Main }
+    BackHandler(enabled = page != Page.Main) { page = Page.Main }
     // Material's shared-axis X: a sub-page slides in from the end with its own title, back slides it out.
     AnimatedContent(
         targetState = page,
@@ -214,7 +211,7 @@ internal fun SettingsScreen(
                 colors = barColors,
                 scrollBehavior = scroll,
                 // The home sheet already starts below the status bar; full screen, the bar makes room for it.
-                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
+                windowInsets = TopAppBarDefaults.windowInsets,
             )
             // Pinned above the list, so it stays in view while any slider is dragged.
             if (shown == Page.Drawer) DrawerPreview(repository, settings.hidden, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
@@ -536,49 +533,6 @@ private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen:
     GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
 }
 
-/** The first thing on the page: whether this is the home app, and the way to change it. */
-@Composable
-internal fun HomeAppCard(isDefault: Boolean, onChoose: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val (container, content) = if (isDefault) cs.secondaryContainer to cs.onSecondaryContainer else cs.surfaceContainerHigh to cs.onSurface
-    Surface(
-        onClick = onChoose,
-        shape = groupShape(0, 1),
-        color = container,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-    ) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(52.dp).background(if (isDefault) cs.secondary else ZenithColors.indicator, ScallopShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    if (isDefault) Icons.Done else Icons.Home,
-                    contentDescription = null,
-                    tint = if (isDefault) cs.onSecondary else ZenithColors.onIndicator,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(if (isDefault) R.string.settings_home_is_default else R.string.settings_home_not_default),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = content,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    stringResource(if (isDefault) R.string.settings_home_change else R.string.settings_home_choose),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = content.copy(alpha = 0.75f),
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Next, contentDescription = null, tint = content.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
 /* Grouped tiles, the same building blocks as Zenboard's settings. */
 
 /** Rounded segments stacked with small gaps (M3 Expressive grouped list). */
@@ -597,7 +551,7 @@ internal fun SegmentedGroup(segments: List<@Composable () -> Unit>, modifier: Mo
 }
 
 @Composable
-private fun GroupTile(
+internal fun GroupTile(
     badge: @Composable () -> Unit,
     title: String,
     subtitle: String,

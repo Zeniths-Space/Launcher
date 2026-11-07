@@ -1,8 +1,6 @@
 package app.zenith.launcher
 
 import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -67,26 +65,7 @@ class MainActivity : ComponentActivity() {
                         onDrawerOpenChange = { drawerOpen = it },
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                         onSettings = { edit -> lifecycleScope.launch { store.edit() } },
-                        // The same settings as the settings screen, in the home sheet pulled up. Built
-                        // each time it opens, so the home app and gesture checks are current.
-                        homeAppCard = { HomeAppCard(remember { isDefaultHome(this) }) { openSystem(Settings.ACTION_HOME_SETTINGS) } },
-                        allSettings = { startPage, onBack ->
-                            SettingsScreen(
-                                settings = settings,
-                                store = store,
-                                repository = repository,
-                                isDefaultHome = remember { isDefaultHome(this) },
-                                gesturesOn = remember { GestureService.isEnabled(this) },
-                                versionName = remember { packageManager.getPackageInfo(packageName, 0).versionName.orEmpty() },
-                                startPage = startPage,
-                                onBack = onBack,
-                                onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
-                                onWallpaper = rememberWallpaperPicker(),
-                                onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
-                                onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
-                                inSheet = true,
-                            )
-                        },
+                        onWallpaper = rememberWallpaperPicker(),
                         onGesture = ::onGesture,
                         onDockChange = { keys -> lifecycleScope.launch { store.setDock(keys) } },
                         onHomeChange = { pages -> lifecycleScope.launch { store.setHome(pages) } },
