@@ -825,7 +825,7 @@ private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLa
             apps.orEmpty().filter { it.key !in hidden }.take(columns * PreviewRows).chunked(columns).forEach { row ->
                 Row {
                     row.forEach { app ->
-                        val icon by produceState<ImageBitmap?>(null, app.key, repository.iconShape) { value = repository.icon(app, sizePx) }
+                        val icon by produceState<ImageBitmap?>(null, app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
                         AppTileContent(icon, app.label, showLabels, iconSize, Modifier.weight(1f))
                     }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }

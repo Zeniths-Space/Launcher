@@ -149,7 +149,7 @@ internal fun SettingsHero(
                 ) {
                     val sizePx = with(LocalDensity.current) { 16.dp.roundToPx() }
                     dock.forEach { app ->
-                        val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconShape) { value = repository.icon(app, sizePx) }
+                        val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
                         Box(Modifier.size(16.dp)) { icon?.let { Image(it, contentDescription = null) } }
                     }
                 }

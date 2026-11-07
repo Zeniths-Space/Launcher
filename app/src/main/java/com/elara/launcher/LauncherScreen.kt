@@ -1036,7 +1036,7 @@ private fun AppTile(
     onDragEnd: (DrawerDrag, placed: Boolean) -> Unit,
 ) {
     val sizePx = with(LocalDensity.current) { iconSize.roundToPx() }
-    val icon by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx, repository.iconShape) { value = repository.icon(app, sizePx) }
+    val icon by produceState(repository.cachedIcon(app, sizePx), app.key, sizePx, repository.iconEpoch) { value = repository.icon(app, sizePx) }
     // Read at tap time only: a state written on every layout would recompose each tile per frame
     // while the drawer moves.
     val iconCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }

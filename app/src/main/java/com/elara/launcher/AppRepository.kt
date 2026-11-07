@@ -2,12 +2,14 @@ package com.elara.launcher
 
 import android.app.Activity
 import android.app.ActivityOptions
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.net.Uri
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.Canvas
@@ -15,6 +17,7 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Size
@@ -37,6 +40,7 @@ import android.os.UserManager
 import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.ui.graphics.asImageBitmap
@@ -44,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /**
  * The launchable apps of every profile on the device, from LauncherApps (no package-query
@@ -67,15 +72,51 @@ class AppRepository(context: Context) {
     private val infos = HashMap<String, LauncherActivityInfo>()
     private val icons = HashMap<String, ImageBitmap>()
 
-    /** The outline icons are drawn in. Set from settings; a change draws every icon again. Callers key their icon state on it. */
+    /** The outline icons are drawn in. Set from settings; a change draws every icon again (see [iconEpoch]). */
     var iconShape by mutableStateOf(IconShape.System)
+        private set
+
+    /** Goes up whenever drawn icons go stale (a new shape, a new day for calendar icons). Callers key their icon state on it. */
+    var iconEpoch by mutableIntStateOf(0)
         private set
 
     fun useIconShape(shape: IconShape) {
         if (shape == iconShape) return
         synchronized(infos) { icons.clear() }
         iconShape = shape
+        iconEpoch++
     }
+
+    // Calendar apps can show today's date on their icon (Launcher3's convention: the launcher activity's
+    // meta-data "<package>.dynamic_icons" names an array of 31 icons, one per day of the month).
+    private var day = LocalDate.now().dayOfMonth
+    private val dynamicApps = HashSet<String>()
+
+    /** Draws calendar icons again if the date moved on. Called on date and time-zone changes, and on each return to the home screen. */
+    fun checkDate() {
+        val today = LocalDate.now().dayOfMonth
+        if (today == day) return
+        day = today
+        synchronized(infos) { icons.keys.removeAll { it.substringBeforeLast('@') in dynamicApps } }
+        iconEpoch++
+    }
+
+    private val dateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = checkDate()
+    }
+
+    private fun dynamicIcon(info: LauncherActivityInfo, key: String): Drawable? = runCatching {
+        val pkg = info.componentName.packageName
+        val meta = pm.getActivityInfo(info.componentName, PackageManager.GET_META_DATA).metaData
+        val arrayId = meta?.getInt("$pkg.dynamic_icons", 0) ?: 0
+        if (arrayId == 0) return null
+        val res = pm.getResourcesForApplication(info.applicationInfo)
+        val array = res.obtainTypedArray(arrayId)
+        val id = try { array.getResourceId(day - 1, 0) } finally { array.recycle() }
+        if (id == 0) return null
+        synchronized(infos) { dynamicApps.add(key) }
+        res.getDrawableForDensity(id, density, null)
+    }.getOrNull()
 
     /** Any package change reloads the list (cheap: one LauncherApps call per profile). */
     var onChanged: () -> Unit = {}
@@ -93,8 +134,20 @@ class AppRepository(context: Context) {
         onChanged()
     }
 
-    fun register() = launcherApps.registerCallback(callback, Handler(Looper.getMainLooper()))
-    fun unregister() = launcherApps.unregisterCallback(callback)
+    fun register() {
+        launcherApps.registerCallback(callback, Handler(Looper.getMainLooper()))
+        val dateChanges = IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        ContextCompat.registerReceiver(appContext, dateReceiver, dateChanges, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    fun unregister() {
+        launcherApps.unregisterCallback(callback)
+        appContext.unregisterReceiver(dateReceiver)
+    }
 
     suspend fun load(selfPackage: String) = withContext(Dispatchers.IO) {
         val found = HashMap<String, LauncherActivityInfo>()
@@ -127,7 +180,7 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val drawable = runCatching {
-            val icon = info.getIcon(density).inSystemShape()
+            val icon = (dynamicIcon(info, app.key) ?: info.getIcon(density)).inSystemShape()
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null

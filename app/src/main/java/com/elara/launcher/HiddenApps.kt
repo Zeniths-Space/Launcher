@@ -65,7 +65,7 @@ internal fun HiddenAppsSheet(apps: List<AppEntry>, repository: AppRepository, on
         val sizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).padding(bottom = 16.dp)) {
             items(apps, key = { it.key }) { app ->
-                val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconShape) { value = repository.icon(app, sizePx) }
+                val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
                 val unhide = stringResource(R.string.settings_unhide_app, app.label)
                 ListItem(
                     headlineContent = { Text(app.label) },

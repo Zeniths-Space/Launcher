@@ -140,6 +140,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         widgets.startListening()
+        repository.checkDate()
         if (stoppedAsleep) stoppedAsleep = false else entrances++
     }
 
