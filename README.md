@@ -1,7 +1,7 @@
 # Elara Launcher
 
 A private, offline Android home screen. Part of the Zenith's Space app collection.
-Application ID `app.zenith.launcher`.
+Application ID `com.elara.launcher`.
 
 ## Features
 
@@ -129,7 +129,7 @@ Requirements: JDK 17 and the Android SDK with platform 37.
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug builds use the application ID `app.zenith.launcher.dev` and show as "Elara Launcher Dev",
+Debug builds use the application ID `com.elara.launcher.dev` and show as "Elara Launcher Dev",
 so they install beside the release without a signature clash.
 
 ### Signed release build

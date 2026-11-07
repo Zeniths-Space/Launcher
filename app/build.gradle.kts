@@ -14,11 +14,11 @@ val signingProps = providers.gradleProperty("zenithLauncherSigning").orNull
     ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
-    namespace = "app.zenith.launcher"
+    namespace = "com.elara.launcher"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.zenith.launcher"
+        applicationId = "com.elara.launcher"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -37,7 +37,7 @@ android {
     }
 
     buildTypes {
-        // Dev builds install beside the release (app.zenith.launcher) instead of clashing with its signature.
+        // Dev builds install beside the release (com.elara.launcher) instead of clashing with its signature.
         debug {
             applicationIdSuffix = ".dev"
         }
