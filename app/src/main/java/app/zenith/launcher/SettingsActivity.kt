@@ -210,8 +210,6 @@ internal fun SettingsScreen(
                 navigationIcon = back,
                 colors = barColors,
                 scrollBehavior = scroll,
-                // The home sheet already starts below the status bar; full screen, the bar makes room for it.
-                windowInsets = TopAppBarDefaults.windowInsets,
             )
             // Pinned above the list, so it stays in view while any slider is dragged.
             if (shown == Page.Drawer) DrawerPreview(repository, settings.hidden, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
@@ -601,7 +599,8 @@ private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLa
             .fillMaxWidth()
             .height(PreviewHeight)
             .clipToBounds()
-            .background(Color.Black)
+            // On the pure black page, black would vanish into it: the cards' grey sets it apart.
+            .background(if (LocalPureBlack.current) PureBlackCard else Color.Black)
             .clearAndSetSemantics {}
             .padding(horizontal = sidePadding, vertical = 8.dp),
     ) {
