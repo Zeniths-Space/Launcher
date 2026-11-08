@@ -1,21 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pale blue-white diagonal gradient. -->
+<!-- Elara icon background: white to pale lavender, soft light from the top left. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="0"
-                android:startY="0"
-                android:endX="108"
-                android:endY="108"
-                android:startColor="#FFF8FAFF"
-                android:endColor="#FFDCE3F5" />
-        </aapt:attr>
-    </path>
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0H108V108H0z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="0" android:startY="0" android:endX="108" android:endY="108"><item android:offset="0" android:color="#FFFFFFFF" /><item android:offset="1" android:color="#FFE6DCFF" /></gradient></aapt:attr></path>
+    <path android:pathData="M0,0H108V108H0z"><aapt:attr name="android:fillColor"><gradient android:type="radial" android:centerX="28" android:centerY="22" android:gradientRadius="70"><item android:offset="0" android:color="#CCFFFFFF" /><item android:offset="1" android:color="#00FFFFFF" /></gradient></aapt:attr></path>
 </vector>

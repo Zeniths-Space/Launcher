@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elara: a crescent moon with a star in its curve. -->
+<!-- Elara: a glossy purple crescent moon and star with a soft shadow, drawn straight on the background (3D, One UI 8 style). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FF2A3350"
-        android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z" />
-    <!-- The star in the accent blue. -->
-    <path
-        android:fillColor="#FF4A6FD6"
-        android:pathData="M71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM79.5,50.5m-2,0a2,2 0 1,1 4,0a2,2 0 1,1 -4,0" />
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="0.6" android:translateY="3.6" android:scaleX="1" android:scaleY="1">
+    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#102B1766" />
+    </group>
+    <group android:translateX="0.4" android:translateY="2.4" android:scaleX="1" android:scaleY="1">
+    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#162B1766" />
+    </group>
+    <group android:translateX="0.2" android:translateY="1.2" android:scaleX="1" android:scaleY="1">
+    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#1E2B1766" />
+    </group>
+    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="30" android:startY="30" android:endX="78" android:endY="80"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="0.5" android:color="#FF7C4DFF" /><item android:offset="1" android:color="#FF5527D9" /></gradient></aapt:attr></path>
+    <group android:translateX="0" android:translateY="0" android:scaleX="1" android:scaleY="1">
+    <clip-path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z" />
+    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z"><aapt:attr name="android:fillColor"><gradient android:type="radial" android:centerX="36" android:centerY="42" android:gradientRadius="24"><item android:offset="0" android:color="#8CFFFFFF" /><item android:offset="1" android:color="#00FFFFFF" /></gradient></aapt:attr></path>
+    </group>
+    <path android:pathData="M71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="63" android:startY="30" android:endX="80" android:endY="53"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="1" android:color="#FF7C4DFF" /></gradient></aapt:attr></path>
 </vector>
