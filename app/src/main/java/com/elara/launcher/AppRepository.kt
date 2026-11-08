@@ -129,8 +129,12 @@ class AppRepository(context: Context) {
     }
 
     // Only the changed packages' icons are drawn again (an update may bring a new icon); the rest stay cached.
+    // That waits for [load]: until it runs, [infos] still points at the old APK, which an update has removed,
+    // and drawing from it gives Android's default icon.
+    private val changedPackages = HashSet<String>()
+
     private fun changed(vararg packageNames: String) {
-        synchronized(infos) { icons.keys.removeAll { key -> packageNames.any { key.startsWith("$it/") } } }
+        synchronized(infos) { changedPackages.addAll(packageNames) }
         onChanged()
     }
 
@@ -164,8 +168,14 @@ class AppRepository(context: Context) {
         synchronized(infos) {
             infos.clear()
             infos.putAll(found)
-            // Drop icons of apps that are gone. Cache keys are "<app key>@<size>".
+            // Drop icons of apps that are gone, and of changed ones. Cache keys are "<app key>@<size>".
             icons.keys.retainAll { it.substringBeforeLast('@') in found }
+            if (changedPackages.isNotEmpty()) {
+                icons.keys.removeAll { key -> changedPackages.any { key.startsWith("$it/") } }
+                changedPackages.clear()
+                // Icons on screen ask again: changed apps get their new icon, the rest their cached one.
+                iconEpoch++
+            }
         }
         _apps.value = sortApps(entries)
     }
