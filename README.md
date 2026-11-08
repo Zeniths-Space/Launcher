@@ -30,8 +30,9 @@ Application ID `com.elara.launcher`.
   broadcasts and on each return to the home screen, never by polling.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
-  Add to or Remove from Dock, Hide, and Uninstall (Android asks to confirm; not shown for apps that came
-  with the device). A locked layout hides the Home and Dock actions. The menu grows out of the
+  Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each
+  with its icon on a small purple cookie. Apps go into the dock by dragging. A locked layout hides
+  the Home action. The menu grows out of the
   app and shrinks back into it.
 - Rename, in every app's menu (drawer, home screen, dock, folders), gives the app a name of your own,
   used everywhere in the launcher, search and drawer order included; saving it empty gives back the

@@ -423,9 +423,6 @@ internal fun LauncherScreen(
                 rowGap = settings.drawerRowGap.dp,
                 sidePadding = settings.drawerPadding.dp,
                 keepPosition = settings.drawerKeepPosition,
-                dockKeys = dockKeys,
-                dockCapacity = settings.dockCapacity,
-                onDockChange = onDockChange,
                 homeKeys = homeKeys,
                 locked = settings.locked,
                 onPick = if (picking) ({ app ->
@@ -809,9 +806,6 @@ private fun AppDrawer(
     rowGap: Dp,
     sidePadding: Dp,
     keepPosition: Boolean,
-    dockKeys: List<String>,
-    dockCapacity: Int,
-    onDockChange: (List<String>) -> Unit,
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
@@ -948,11 +942,6 @@ private fun AppDrawer(
                         repository,
                         showLabels,
                         iconSize,
-                        inDock = app.key in dockKeys,
-                        dockFull = !DockSlots.hasRoom(dockKeys, dockCapacity),
-                        onDockToggle = {
-                            onDockChange(if (app.key in dockKeys) DockSlots.remove(dockKeys, app.key) else DockSlots.add(dockKeys, app.key, dockCapacity))
-                        },
                         onHome = app.key in homeKeys,
                         canEdit = !locked,
                         drawerOpen = drawerOpen,
@@ -1058,9 +1047,6 @@ private fun AppTile(
     repository: AppRepository,
     showLabels: Boolean,
     iconSize: Dp,
-    inDock: Boolean,
-    dockFull: Boolean,
-    onDockToggle: () -> Unit,
     onHome: Boolean,
     canEdit: Boolean,
     drawerOpen: Boolean,
@@ -1135,13 +1121,10 @@ private fun AppTile(
             menu,
             app,
             repository,
-            // Locked: the layout can't change, so no home or dock actions.
+            // Locked: the layout can't change, so no home action. The dock is arranged by dragging, not from here.
             buildList {
                 if (canEdit) {
                     add(MenuAction(if (onHome) Icons.RemoveHome else Icons.AddHome, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onClick = onHomeToggle))
-                }
-                if (canEdit && (inDock || !dockFull)) {
-                    add(MenuAction(Icons.DockBottom, stringResource(if (inDock) R.string.menu_remove_dock else R.string.menu_add_dock), onClick = onDockToggle))
                 }
                 // Out of the drawer and search; Settings > App drawer brings it back.
                 add(MenuAction(Icons.Hide, stringResource(R.string.menu_hide), onClick = onHide))

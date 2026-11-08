@@ -25,9 +25,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +67,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -163,28 +163,27 @@ internal fun MenuPopup(
 @Composable
 private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
+    val dark = LocalDark.current
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
-    val pureBlack = LocalPureBlack.current
     Column(
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
-            .padding(8.dp)
+            .padding(10.dp)
             // As wide as its widest line (title row or action), within these bounds.
             .widthIn(min = MenuMinWidth, max = MenuMaxWidth)
             .width(IntrinsicSize.Max)
-            .shadow(8.dp, shape)
+            .shadow(12.dp, shape)
             .clip(shape)
             // AMOLED black in dark mode; the edge keeps it apart from a black drawer, where a shadow can't show.
-            .background(if (pureBlack) Color.Black else cs.surfaceContainerHigh)
-            .then(if (pureBlack) Modifier.border(1.dp, PureBlackHeader, shape) else Modifier),
+            .background(if (dark) Color.Black else cs.surfaceContainerHigh)
+            .then(if (dark) Modifier.border(1.dp, Raised, shape) else Modifier)
+            .padding(8.dp),
     ) {
-        // The app's own section, a step lighter than the actions below it.
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(if (pureBlack) PureBlackHeader else cs.surfaceContainerHighest)
-                .padding(start = 16.dp, end = 4.dp, top = 16.dp, bottom = 16.dp),
+                .padding(start = 8.dp, end = 2.dp, top = 6.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Room kept while the icon loads, so the header doesn't jump; none for a menu without one.
@@ -192,54 +191,61 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
                 Box(Modifier.size(HeaderIconSize)) {
                     icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(HeaderIconSize)) }
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
                 color = cs.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             if (onAppInfo != null) {
-                IconButton(onClick = { run(onAppInfo) }) {
-                    Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (dark) Raised else RaisedLight)
+                        .clickable(role = Role.Button, onClickLabel = stringResource(R.string.app_info)) { run(onAppInfo) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.primary, modifier = Modifier.size(20.dp))
                 }
             } else {
-                Spacer(Modifier.height(48.dp))
+                Spacer(Modifier.height(40.dp))
             }
         }
-        if (actions.isNotEmpty()) {
-            HorizontalDivider(color = cs.outlineVariant)
-            Column(Modifier.padding(8.dp)) {
-                actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
-            }
-        }
+        actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
     }
 }
 
 @Composable
 private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
+    val tint = if (!action.danger) cs.primary else if (LocalDark.current) DangerDark else cs.error
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The label beside it names it.
-        Icon(action.icon, contentDescription = null, tint = if (action.danger) cs.error else cs.onSurface)
-        Spacer(Modifier.width(16.dp))
+        // A small cookie behind the icon, as in the Elara forms; the label beside it names it.
+        Box(Modifier.size(36.dp).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
+            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
+        }
+        Spacer(Modifier.width(14.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (action.danger) cs.error else cs.onSurface,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+            color = if (action.danger) tint else cs.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(end = 10.dp),
         )
     }
 }
@@ -274,16 +280,21 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
         },
         confirmButton = { TextButton(onClick = save) { Text(stringResource(R.string.rename_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.rename_cancel)) } },
-        containerColor = if (LocalPureBlack.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+        containerColor = if (LocalDark.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(28.dp),
     )
 }
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 180.dp
-private val MenuMaxWidth = 248.dp
+private val MenuMinWidth = 208.dp
+private val MenuMaxWidth = 264.dp
 
-/** The header on the black menu, and its edge. */
-private val PureBlackHeader = Color(0xFF1F1F1F)
-private val HeaderIconSize = 42.dp
+/** Raised parts on the black menu (its edge, the info button), from the Elara form colours. */
+private val Raised = Color(0xFF1F1F1F)
+private val RaisedLight = Color(0xFFE6E2EF)
+/** Red for removing actions on black. */
+private val DangerDark = Color(0xFFFF8A8A)
+/** The Elara "cookie": a circle with 8 soft lobes. */
+private val CookieShape = polarShape(lobes = 8, depth = 0.1f)
+private val HeaderIconSize = 40.dp

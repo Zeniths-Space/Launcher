@@ -7,7 +7,6 @@
     <string name="app_info">App info</string>
     <string name="menu_add_home">Add to Home</string>
     <string name="menu_remove_home">Remove from Home</string>
-    <string name="menu_add_dock">Add to Dock</string>
     <string name="menu_remove_dock">Remove from Dock</string>
     <string name="menu_uninstall">Uninstall</string>
     <string name="widget_resize">Resize</string>
