@@ -37,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 
 /*
  * Design language shared with the owner's Kontract app and Zenboard (M3 Expressive): Elara brand purple,
- * an optional AMOLED near-black surface ladder in dark mode, white cards on a tinted page in light mode,
+ * AMOLED black surfaces in dark mode, white cards on a tinted page in light mode,
  * slate ink, semibold type, springy motion.
  *
  * shortcut: plain MaterialTheme, because MaterialExpressiveTheme and MotionScheme.expressive() are
@@ -47,9 +47,9 @@ import androidx.compose.ui.text.font.FontWeight
 private val SlateInk = Color(0xFF0F172A)
 private val SlateMuted = Color(0xFF475569)
 
-/** Near-black dark surfaces, lowest to highest, so tonal cards lift off an AMOLED page. */
+/** AMOLED dark surfaces, lowest to highest: a true black page, neutral greys (Elara form spec: fields #141414, raised #1F1F1F). */
 private val DarkSurfaces = listOf(
-    Color(0xFF050607), Color(0xFF0A0C0E), Color(0xFF0F1215), Color(0xFF151A1E), Color(0xFF1D242A),
+    Color(0xFF000000), Color(0xFF0A0A0A), Color(0xFF141414), Color(0xFF1A1A1A), Color(0xFF1F1F1F),
 )
 
 /** Light layering: tinted page, white cards; anything nested in a card is a step darker. */
@@ -71,7 +71,7 @@ private fun ColorScheme.withLightSurfaces(): ColorScheme {
     )
 }
 
-/** Dark treatment: near-black ladder and light slate ink, keeping the scheme's accents. */
+/** Dark treatment: AMOLED ladder, white ink and muted grey, keeping the scheme's accents. */
 private fun ColorScheme.withDarkSurfaces(): ColorScheme {
     val s = DarkSurfaces
     return copy(
@@ -85,48 +85,52 @@ private fun ColorScheme.withDarkSurfaces(): ColorScheme {
         surfaceContainerHigh = s[3],
         surfaceContainerHighest = s[4],
         outlineVariant = lerp(outline, s[0], 0.4f),
-        onSurface = Color(0xFFF1F5F9),
-        onBackground = Color(0xFFF1F5F9),
-        onSurfaceVariant = Color(0xFFCBD5E1),
+        onSurface = Color.White,
+        onBackground = Color.White,
+        onSurfaceVariant = Color(0xFF9A9A9F),
     )
 }
 
-/** Elara brand purple (#7C4DFF) as M3 roles; secondary, tertiary and surfaces keep the purple-grey M3 baseline. */
+/** Elara brand purple as every accent role (primary, secondary, tertiary): #7C4DFF fills, #B69CFF text on dark, #2B1766 ink. */
 private val BrandLight = lightColorScheme(
     primary = Color(0xFF7C4DFF),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE9DDFF),
-    onPrimaryContainer = Color(0xFF23005C),
-    inversePrimary = Color(0xFFCFBCFF),
-    secondaryContainer = Color(0xFFE9DEF8),
-    onSecondaryContainer = Color(0xFF1F182B),
+    primaryContainer = Color(0xFFE6DCFF),
+    onPrimaryContainer = Color(0xFF2B1766),
+    inversePrimary = Color(0xFFB69CFF),
+    secondary = Color(0xFF7C4DFF),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE6DCFF),
+    onSecondaryContainer = Color(0xFF2B1766),
+    tertiary = Color(0xFF5527D9),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFB9A2FF),
+    onTertiaryContainer = Color(0xFF2B1766),
     surfaceTint = Color(0xFF7C4DFF),
 )
 
 private val BrandDark = darkColorScheme(
-    primary = Color(0xFFCFBCFF),
-    onPrimary = Color(0xFF33009C),
-    primaryContainer = Color(0xFF5A22D8),
-    onPrimaryContainer = Color(0xFFE9DDFF),
+    primary = Color(0xFFB69CFF),
+    onPrimary = Color(0xFF2B1766),
+    primaryContainer = Color(0xFF5527D9),
+    onPrimaryContainer = Color.White,
     inversePrimary = Color(0xFF7C4DFF),
-    secondaryContainer = Color(0xFF4B4358),
-    onSecondaryContainer = Color(0xFFE9DEF8),
-    surfaceTint = Color(0xFFCFBCFF),
+    secondary = Color(0xFFB69CFF),
+    onSecondary = Color(0xFF2B1766),
+    secondaryContainer = Color(0xFF7C4DFF),
+    onSecondaryContainer = Color.White,
+    tertiary = Color(0xFFB9A2FF),
+    onTertiary = Color(0xFF2B1766),
+    tertiaryContainer = Color(0xFF5527D9),
+    onTertiaryContainer = Color.White,
+    surfaceTint = Color(0xFFB69CFF),
 )
 
 /**
  * The Elara brand purple, light or dark.
- * Dark mode keeps the scheme's own surfaces unless [pureBlack] asks for the AMOLED ladder.
+ * Dark mode is always AMOLED black (the Elara standard).
  */
-private fun schemeFor(dark: Boolean, pureBlack: Boolean): ColorScheme {
-    return when {
-        dark -> {
-            val scheme = BrandDark
-            if (pureBlack) scheme.withDarkSurfaces() else scheme
-        }
-        else -> BrandLight.withLightSurfaces()
-    }
-}
+private fun schemeFor(dark: Boolean): ColorScheme = if (dark) BrandDark.withDarkSurfaces() else BrandLight.withLightSurfaces()
 
 /** System font (the user's choice); only weights are emphasized. */
 private val AppTypography = Typography().let { t ->
@@ -164,10 +168,10 @@ private fun Typography.withFont(font: FontFamily) = Typography(
 
 internal val LocalDark = staticCompositionLocalOf { false }
 
-/** Whether the pure black (AMOLED) surfaces are showing: dark mode with the setting on. */
+/** Whether the AMOLED black surfaces are showing: always in dark mode. */
 internal val LocalPureBlack = staticCompositionLocalOf { false }
 
-/** Settings cards on the pure black page: neutral grey. */
+/** Cards on the AMOLED page: neutral grey. */
 internal val PureBlackCard = Color(0xFF1A1A1A)
 
 object ZenithColors {
@@ -226,15 +230,14 @@ private const val PressedScale = 0.88f
 @Composable
 fun ZenithTheme(
     dark: Boolean = isSystemInDarkTheme(),
-    pureBlack: Boolean = false,
     /** [LauncherSettings.fontVersion]: 0 for the system font. */
     fontVersion: Long = 0,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val scheme = remember(dark, pureBlack) { schemeFor(dark, pureBlack) }
+    val scheme = remember(dark) { schemeFor(dark) }
     val typography = remember(fontVersion) { CustomFont.family(context, fontVersion)?.let(AppTypography::withFont) ?: AppTypography }
-    CompositionLocalProvider(LocalDark provides dark, LocalPureBlack provides (dark && pureBlack)) {
+    CompositionLocalProvider(LocalDark provides dark, LocalPureBlack provides dark) {
         MaterialTheme(colorScheme = scheme, typography = typography) {
             // Screens draw on plain backgrounds, not Surfaces; without this, bare Icons default to black.
             CompositionLocalProvider(LocalContentColor provides scheme.onSurface, content = content)

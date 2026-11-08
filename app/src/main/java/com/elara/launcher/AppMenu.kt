@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -174,7 +175,9 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
             .width(IntrinsicSize.Max)
             .shadow(8.dp, shape)
             .clip(shape)
-            .background(if (pureBlack) PureBlackCard else cs.surfaceContainerHigh),
+            // AMOLED black in dark mode; the edge keeps it apart from a black drawer, where a shadow can't show.
+            .background(if (pureBlack) Color.Black else cs.surfaceContainerHigh)
+            .then(if (pureBlack) Modifier.border(1.dp, PureBlackHeader, shape) else Modifier),
     ) {
         // The app's own section, a step lighter than the actions below it.
         Row(
@@ -271,7 +274,7 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
         },
         confirmButton = { TextButton(onClick = save) { Text(stringResource(R.string.rename_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.rename_cancel)) } },
-        containerColor = if (LocalPureBlack.current) PureBlackCard else MaterialTheme.colorScheme.surfaceContainerHigh,
+        containerColor = if (LocalPureBlack.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(28.dp),
     )
 }
@@ -281,6 +284,6 @@ private const val MaxNameLength = 40
 private val MenuMinWidth = 180.dp
 private val MenuMaxWidth = 248.dp
 
-/** The header on the pure black card: a step lighter than [PureBlackCard]. */
-private val PureBlackHeader = Color(0xFF262626)
+/** The header on the black menu, and its edge. */
+private val PureBlackHeader = Color(0xFF1F1F1F)
 private val HeaderIconSize = 42.dp

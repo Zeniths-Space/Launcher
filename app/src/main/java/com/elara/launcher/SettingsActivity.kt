@@ -117,7 +117,7 @@ class SettingsActivity : ComponentActivity() {
             val settings by store.settings.collectAsState(LauncherSettings())
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
             repository.useIconShape(settings.iconShape)
-            ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
+            ZenithTheme(fontVersion = settings.fontVersion) {
                 SettingsScreen(
                     settings = settings,
                     store = store,

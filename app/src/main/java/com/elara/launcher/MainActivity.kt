@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
                     GlassWallpaper.unload()
                 }
             }
-            ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
+            ZenithTheme(fontVersion = settings.fontVersion) {
                 CompositionLocalProvider(LocalRenameApp provides { renaming = it }) {
                     LauncherScreen(
                         repository = repository,
