@@ -323,6 +323,10 @@ internal fun SettingsScreen(
                             ),
                             Modifier.padding(top = 16.dp),
                         )
+                        if (settings.drawerBlur) {
+                            SectionHeader(stringResource(R.string.settings_blur_style))
+                            ChoiceGroup(BlurStyle.entries, settings.drawerBlurStyle, { it.label }) { save { store.setDrawerBlurStyle(it) } }
+                        }
                         SectionHeader(stringResource(R.string.settings_layout))
                         SegmentedGroup(
                             listOf(
@@ -424,11 +428,13 @@ internal fun SettingsScreen(
                         ChoiceGroup(
                             listOf(GestureAction.Notifications, GestureAction.QuickSettings, GestureAction.None),
                             settings.swipeDown,
+                            { it.label },
                         ) { save { store.setSwipeDown(it) } }
                         SectionHeader(stringResource(R.string.gesture_double_tap))
                         ChoiceGroup(
                             listOf(GestureAction.LockScreen, GestureAction.None).filter { it.available },
                             settings.doubleTap,
+                            { it.label },
                         ) { save { store.setDoubleTap(it) } }
                     }
                     Page.About -> AboutPage(versionName, onAppInfo, onOpenLink)
@@ -481,7 +487,7 @@ private fun GesturesCard(on: Boolean, onOpen: () -> Unit) {
 
 /** One choice of several, a row each, with a radio button; the whole row selects. */
 @Composable
-private fun ChoiceGroup(options: List<GestureAction>, selected: GestureAction, onSelect: (GestureAction) -> Unit) {
+private fun <T> ChoiceGroup(options: List<T>, selected: T, label: (T) -> Int, onSelect: (T) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.selectableGroup()) {
         SegmentedGroup(
@@ -494,7 +500,7 @@ private fun ChoiceGroup(options: List<GestureAction>, selected: GestureAction, o
                             .padding(horizontal = 20.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(stringResource(option.label), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
+                        Text(stringResource(label(option)), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
                         RadioButton(selected = option == selected, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = LocalAccent.current?.strong ?: cs.secondary))
                     }
                 }

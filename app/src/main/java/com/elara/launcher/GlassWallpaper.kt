@@ -6,8 +6,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
@@ -21,8 +19,29 @@ import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * The app drawer's frosted glass: a small, blurred, colour-boosted copy of the home wallpaper, kept in the app's
- * own storage and drawn behind the drawer. Android lets an app read the wallpaper only with all-files access, so
+ * How the drawer's backdrop is made from the wallpaper. Each is worked out once, when the wallpaper or the style
+ * changes, into one small still picture, so all cost the same to draw: one stretched bitmap while the drawer moves.
+ */
+enum class BlurStyle(val label: Int, val dim: Float, val sheen: Boolean) {
+    /** Even, heavy blur. */
+    Gaussian(R.string.blur_gaussian, 0.32f, false),
+    /** A light blur under a darker veil: the wallpaper stays recognisable. */
+    Background(R.string.blur_background, 0.45f, false),
+    /** Heavy blur, richer colours, light catching the top edge. */
+    Glass(R.string.blur_glass, 0.22f, true),
+    /** Nearly sharp in the middle, blurring towards the edges. */
+    Radial(R.string.blur_radial, 0.3f, false),
+    /** Nearly sharp at the top, blurring towards the bottom. */
+    Gradient(R.string.blur_gradient, 0.3f, false);
+
+    companion object {
+        fun parse(name: String?) = entries.firstOrNull { it.name == name } ?: Glass
+    }
+}
+
+/**
+ * The app drawer's blurred backdrop: a small copy of the home wallpaper, kept in the app's own storage, made into
+ * the chosen [BlurStyle] and drawn behind the drawer. Android lets an app read the wallpaper only with all-files access, so
  * the copy is made when Elara sets the wallpaper, or, once that access is allowed (asked once, from the drawer),
  * read from Android whenever the wallpaper changes.
  *
@@ -31,35 +50,63 @@ import kotlinx.coroutines.flow.MutableStateFlow
 object GlassWallpaper {
     /** The blurred wallpaper, null while there is none. */
     val image = MutableStateFlow<ImageBitmap?>(null)
+    /** The small, unblurred copy every style is made from; null while the blur is off or there is none. */
+    private var base: Bitmap? = null
+    /** The style [image] was made in. */
+    private var styledWith: BlurStyle? = null
+    /** The style wanted; set by [load]. */
+    @Volatile private var style = BlurStyle.Glass
     /** True when there is no copy, or the wallpaper has changed since it was made. */
     val stale = MutableStateFlow(false)
 
-    private const val FileName = "glass_wallpaper.png"
+    private const val FileName = "wallpaper_base.png"
+    /** Before blur styles, the copy was stored already blurred in glass style; still used until a new one is made. */
+    private const val OldFileName = "glass_wallpaper.png"
     private const val Prefs = "glass_wallpaper"
     private const val ColorsKey = "colors"
     private const val SavedAtKey = "saved_at"
     private const val AskedKey = "asked"
     /** Width of the stored copy in px; it is blurred anyway, so a small one is enough and cheap to draw. */
     private const val Width = 144
-    private const val BlurRadius = 6
-    /** Colours a little richer, as light through glass. */
-    private const val Saturation = 1.35f
     /** Right after Elara sets a wallpaper, Android may still report the old one's colours for a moment. */
     private const val SettleMs = 15_000L
 
     /**
-     * Reads the stored copy, if any, and checks it against the wallpaper ([width] x [height]: the screen). Called only
-     * while the blur is on; [unload] frees it when turned off. Call off the main thread.
+     * Reads the stored copy, if any, makes it into [style], and checks it against the wallpaper ([width] x [height]:
+     * the screen). Called only while the blur is on; [unload] frees it when turned off. Call off the main thread.
      */
-    fun load(context: Context, width: Int, height: Int) {
-        val file = File(context.filesDir, FileName)
-        if (image.value == null && file.exists()) image.value = BitmapFactory.decodeFile(file.path)?.asImageBitmap()
+    fun load(context: Context, width: Int, height: Int, style: BlurStyle) {
+        this.style = style
+        if (base == null) {
+            val file = File(context.filesDir, FileName).takeIf { it.exists() } ?: File(context.filesDir, OldFileName)
+            if (file.exists()) base = BitmapFactory.decodeFile(file.path)
+        }
+        // The old copy is blurred already, so styles that stay clear in places can't: remake it once, if Elara may read the wallpaper.
+        if (File(context.filesDir, OldFileName).exists() && hasAccess(context) && fromSystem(context, width, height, fingerprint(context))) return
+        restyle()
         check(context, width, height)
     }
 
-    /** Frees the copy in memory while the blur is off; the file stays for when it is turned on again. */
+    /** Makes [image] from [base] in [style], unless it already is. Some milliseconds on a 144 px copy. */
+    @Synchronized
+    private fun restyle() {
+        val source = base ?: return
+        if (styledWith == style && image.value != null) return
+        val w = source.width
+        val h = source.height
+        val pixels = IntArray(w * h)
+        source.getPixels(pixels, 0, w, 0, 0, w, h)
+        val out = Bitmap.createBitmap(styled(pixels, w, h, style), w, h, Bitmap.Config.ARGB_8888)
+        styledWith = style
+        image.value = out.asImageBitmap()
+    }
+
+    /** Frees the copies in memory while the blur is off; the file stays for when it is turned on again. */
+    @Synchronized
     fun unload() {
         image.value = null
+        base = null
+        styledWith = null
         stale.value = false
     }
 
@@ -83,16 +130,19 @@ object GlassWallpaper {
         val height = (Width.toLong() * source.height / source.width).toInt().coerceAtLeast(1)
         val small = Bitmap.createBitmap(Width, height, Bitmap.Config.ARGB_8888)
         val scale = Width.toFloat() / source.width
-        val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(Saturation) }) }
-        Canvas(small).drawBitmap(source, Rect(0, 0, source.width, source.height), Rect(0, 0, Width, height), paint)
+        Canvas(small).drawBitmap(source, Rect(0, 0, source.width, source.height), Rect(0, 0, Width, height), Paint(Paint.FILTER_BITMAP_FLAG))
         val pixels = IntArray(Width * height)
         small.getPixels(pixels, 0, Width, 0, 0, Width, height)
         clampRows(pixels, Width, height, (top * scale).toInt() + 1, (bottom * scale).toInt() - 1)
-        boxBlur(pixels, Width, height, BlurRadius)
         small.setPixels(pixels, 0, Width, 0, 0, Width, height)
         File(context.filesDir, FileName).outputStream().use { small.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(context.filesDir, OldFileName).delete()
         prefs(context).edit().putString(ColorsKey, colors).putLong(SavedAtKey, SystemClock.elapsedRealtime()).apply()
-        image.value = small.asImageBitmap()
+        synchronized(this) {
+            base = small
+            styledWith = null
+        }
+        restyle()
         stale.value = false
     }
 
@@ -178,6 +228,60 @@ object GlassWallpaper {
     }
 
     private fun prefs(context: Context) = context.getSharedPreferences(Prefs, Context.MODE_PRIVATE)
+}
+
+/** [pixels] (opaque, [width] x [height]) made into [style]; [pixels] is left as it was. */
+internal fun styled(pixels: IntArray, width: Int, height: Int, style: BlurStyle): IntArray {
+    val out = pixels.copyOf()
+    when (style) {
+        BlurStyle.Gaussian -> boxBlur(out, width, height, 6)
+        BlurStyle.Background -> boxBlur(out, width, height, 2)
+        BlurStyle.Glass -> {
+            // Colours a little richer, as light through glass.
+            saturate(out, 1.35f)
+            boxBlur(out, width, height, 6)
+        }
+        BlurStyle.Radial, BlurStyle.Gradient -> {
+            // Blends a light and a heavy blur: the light one where the picture stays clear.
+            val light = pixels.copyOf().also { boxBlur(it, width, height, 1) }
+            boxBlur(out, width, height, 10)
+            val cx = (width - 1) / 2f
+            val cy = (height - 1) / 2f
+            val reach = kotlin.math.sqrt(cx * cx + cy * cy).coerceAtLeast(1f)
+            for (y in 0 until height) for (x in 0 until width) {
+                val t = if (style == BlurStyle.Radial) {
+                    kotlin.math.hypot(x - cx, y - cy) / reach
+                } else {
+                    y / (height - 1).coerceAtLeast(1).toFloat()
+                }
+                val i = y * width + x
+                out[i] = mix(light[i], out[i], t.coerceIn(0f, 1f))
+            }
+        }
+    }
+    return out
+}
+
+/** [a] to [b] by [t] (0..1), opaque. */
+private fun mix(a: Int, b: Int, t: Float): Int {
+    fun ch(shift: Int): Int {
+        val x = (a shr shift) and 0xFF
+        return (x + (((b shr shift) and 0xFF) - x) * t).toInt()
+    }
+    return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+}
+
+/** Pushes colours away from their grey by [amount] (1 keeps them). */
+private fun saturate(pixels: IntArray, amount: Float) {
+    for (i in pixels.indices) {
+        val p = pixels[i]
+        val r = (p shr 16) and 0xFF
+        val g = (p shr 8) and 0xFF
+        val b = p and 0xFF
+        val grey = 0.213f * r + 0.715f * g + 0.072f * b
+        fun ch(c: Int) = (grey + (c - grey) * amount).toInt().coerceIn(0, 255)
+        pixels[i] = (0xFF shl 24) or (ch(r) shl 16) or (ch(g) shl 8) or ch(b)
+    }
 }
 
 /** Copies row [first] over the rows above it and row [last] over the rows below it. */

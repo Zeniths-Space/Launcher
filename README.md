@@ -39,8 +39,11 @@ Application ID `com.elara.launcher`.
 - Hide, in the drawer's app menu, takes an app out of the drawer and its search; a copy on the home
   screen or dock stays. The drawer's ⋮ button lists them, each with Unhide.
 - Back, home or pulling down from the top of the list closes the drawer.
-- Glass blur (App drawer settings, on by default): the drawer sits over a frosted, colour-rich blur of
-  the wallpaper with a light sheen, instead of the plain dim. Android lets an app read the wallpaper
+- Blur (App drawer settings, on by default): the drawer sits over a blur of the wallpaper instead of
+  the plain dim, in a chosen style: Gaussian (even, heavy), Background (light, under a darker veil),
+  Glass (the default: frosted, colour-rich, with a light sheen), Radial (clear in the middle, blurring
+  to the edges) or Gradient (clear at the top, blurring to the bottom). Each style is worked out once
+  per wallpaper or style change into one small picture, so all cost the same to draw. Android lets an app read the wallpaper
   only with all-files access, so a wallpaper set through Elara is blurred from its photo with no
   permission; for any other wallpaper the drawer asks once ("Tap to allow (All files access)"), and
   with access the blur follows every wallpaper change on its own. Refused, the drawer keeps the dim

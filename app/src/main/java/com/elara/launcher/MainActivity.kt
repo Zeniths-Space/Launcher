@@ -93,12 +93,12 @@ class MainActivity : ComponentActivity() {
             // All the blur's work (reading, checking, the image in memory) happens only while it is on.
             // Until the store is read, settings are defaults (blur on): wait, so a blur that is off never runs.
             val settingsRead by remember { store.settings.map { true } }.collectAsState(false)
-            LaunchedEffect(glassOn, settingsRead) {
+            LaunchedEffect(glassOn, settingsRead, settings.drawerBlurStyle) {
                 if (!settingsRead) return@LaunchedEffect
                 glassEnabled = glassOn
                 if (glassOn) {
                     val (width, height) = screenSize()
-                    withContext(Dispatchers.IO) { GlassWallpaper.load(this@MainActivity, width, height) }
+                    withContext(Dispatchers.IO) { GlassWallpaper.load(this@MainActivity, width, height, settings.drawerBlurStyle) }
                 } else {
                     GlassWallpaper.unload()
                 }
@@ -123,6 +123,7 @@ class MainActivity : ComponentActivity() {
                         widgetHost = widgets,
                         onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
                         glassImage = glassImage.takeIf { glassOn && !glassStale },
+                        glassStyle = settings.drawerBlurStyle,
                         onUpdateGlass = if (glassOn && glassStale && !glassAsked) ::askWallpaperAccess else null,
                     )
                 }

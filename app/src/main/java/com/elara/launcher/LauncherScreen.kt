@@ -142,8 +142,6 @@ private const val DragFraction = 0.5f
 private const val HomeFadeEnd = 0.3f
 private const val DrawerRise = 0.07f
 private const val WallpaperDim = 0.4f
-/** Over the blurred wallpaper the dim is lighter, so its colours glow through, as frosted glass. */
-private const val GlassDim = 0.22f
 /** Light caught by the glass: brightest at the top edge, fading down, a faint lift at the bottom. */
 private val GlassSheen = Brush.verticalGradient(
     0f to Color.White.copy(alpha = 0.16f),
@@ -193,6 +191,8 @@ internal fun LauncherScreen(
     onWidgetsChange: (List<HomeWidget>) -> Unit,
     /** The blurred wallpaper (see [GlassWallpaper]) to show behind the drawer as glass, or null for the plain dim. */
     glassImage: ImageBitmap? = null,
+    /** How [glassImage] was made: sets the dim over it and whether it catches light. */
+    glassStyle: BlurStyle = BlurStyle.Glass,
     /** Set when the glass blur needs a new picture of the wallpaper: the drawer offers it. */
     onUpdateGlass: (() -> Unit)? = null,
 ) {
@@ -232,7 +232,7 @@ internal fun LauncherScreen(
     val drawerShown by remember { derivedStateOf { motion.progress > 0f } }
     val dim = when {
         // Glass wins: pure black only blacks out the plain drawer, with the blur off.
-        glassImage != null -> GlassDim
+        glassImage != null -> glassStyle.dim
         settings.pureBlack && isSystemInDarkTheme() -> 1f
         else -> WallpaperDim
     }
@@ -305,7 +305,7 @@ internal fun LauncherScreen(
                     drawImage(glassImage, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), alpha = shown, filterQuality = FilterQuality.Low)
                 }
                 drawRect(Color.Black, alpha = dim * shown)
-                if (glassImage != null) drawRect(GlassSheen, alpha = shown)
+                if (glassImage != null && glassStyle.sheen) drawRect(GlassSheen, alpha = shown)
             }
             .draggable(
                 rememberDraggableState { dy ->
