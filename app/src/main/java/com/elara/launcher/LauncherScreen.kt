@@ -98,6 +98,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.border
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -138,6 +142,15 @@ private const val DragFraction = 0.5f
 private const val HomeFadeEnd = 0.3f
 private const val DrawerRise = 0.07f
 private const val WallpaperDim = 0.4f
+/** Over the blurred wallpaper the dim is lighter, so its colours glow through, as frosted glass. */
+private const val GlassDim = 0.22f
+/** Light caught by the glass: brightest at the top edge, fading down, a faint lift at the bottom. */
+private val GlassSheen = Brush.verticalGradient(
+    0f to Color.White.copy(alpha = 0.16f),
+    0.3f to Color.White.copy(alpha = 0.04f),
+    0.75f to Color.Transparent,
+    1f to Color.White.copy(alpha = 0.06f),
+)
 /** Release speeds above this (in drawer heights per second) open or close regardless of position. */
 private const val FlingSpeed = 1.5f
 /** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
@@ -178,6 +191,10 @@ internal fun LauncherScreen(
     onLayoutChange: (List<List<String>>, List<HomeFolder>) -> Unit,
     widgetHost: WidgetHost,
     onWidgetsChange: (List<HomeWidget>) -> Unit,
+    /** The blurred wallpaper (see [GlassWallpaper]) to show behind the drawer as glass, or null for the plain dim. */
+    glassImage: ImageBitmap? = null,
+    /** Set when the glass blur needs a new picture of the wallpaper: the drawer offers it. */
+    onUpdateGlass: (() -> Unit)? = null,
 ) {
     val loaded by repository.apps.collectAsState()
     // Every app under the name the user gave it, so the drawer, search, home and dock agree.
@@ -213,7 +230,11 @@ internal fun LauncherScreen(
     var height by remember { mutableIntStateOf(1) }
     val range = height * DragFraction
     val drawerShown by remember { derivedStateOf { motion.progress > 0f } }
-    val dim = if (settings.pureBlack && isSystemInDarkTheme()) 1f else WallpaperDim
+    val dim = when {
+        settings.pureBlack && isSystemInDarkTheme() -> 1f
+        glassImage != null -> GlassDim
+        else -> WallpaperDim
+    }
     var drawerDrag by remember { mutableStateOf<DrawerDrag?>(null) }
     // Read when an app from the drawer is let go: the screen, the home grid and the dock's slot finder.
     val rootAt = remember { arrayOfNulls<LayoutCoordinates>(1) }
@@ -274,7 +295,17 @@ internal fun LauncherScreen(
             .onSizeChanged { height = it.height.coerceAtLeast(1) }
             .onGloballyPositioned { rootAt[0] = it }
             // Dim drawn per frame, without recomposing.
-            .drawBehind { drawRect(Color.Black, alpha = dim * motion.progress) }
+            .drawBehind {
+                val shown = motion.progress
+                // Shut drawer: nothing to draw. Redrawn only when the drawer moves, never while it sits still.
+                if (shown == 0f) return@drawBehind
+                if (glassImage != null) {
+                    // Small and pre-blurred; stretched over the screen with smooth filtering.
+                    drawImage(glassImage, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), alpha = shown, filterQuality = FilterQuality.Low)
+                }
+                drawRect(Color.Black, alpha = dim * shown)
+                if (glassImage != null) drawRect(GlassSheen, alpha = shown)
+            }
             .draggable(
                 rememberDraggableState { dy ->
                     if (homePull.startedClosed && motion.progress == 0f && dy > 0f) homePull.distance += dy
@@ -415,6 +446,7 @@ internal fun LauncherScreen(
                 onRelease = settle,
                 isOpen = { motion.progress == 1f },
                 onOpenSettings = onOpenSettings,
+                onUpdateGlass = onUpdateGlass,
                 // Dragged out: the drawer goes, showing the home screen to drop onto.
                 onDragOut = { d ->
                     keyboard?.hide()
@@ -791,6 +823,7 @@ private fun AppDrawer(
     onRelease: (Float) -> Unit,
     isOpen: () -> Boolean,
     onOpenSettings: () -> Unit,
+    onUpdateGlass: (() -> Unit)?,
     onDragOut: (DrawerDrag) -> Unit,
     onDragEnd: (DrawerDrag, placed: Boolean) -> Unit,
     modifier: Modifier,
@@ -881,6 +914,7 @@ private fun AppDrawer(
                 }
             }
         }
+        if (onUpdateGlass != null && !searching && onPick == null) GlassPrompt(onUpdateGlass)
         if (onPick != null) {
             Text(
                 stringResource(R.string.drawer_pick),
@@ -1117,5 +1151,26 @@ private fun AppTile(
             onDismiss = { menu = false },
             icon = icon,
         )
+    }
+}
+
+/** A frosted pill under the drawer's title: the wallpaper changed, so the glass blur needs a new picture of it. */
+@Composable
+private fun GlassPrompt(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(24.dp)
+    Row(
+        Modifier
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.12f))
+            .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.BlurOn, contentDescription = null, tint = OnWallpaper)
+        Spacer(Modifier.width(12.dp))
+        Text(stringResource(R.string.glass_update), style = MaterialTheme.typography.bodyMedium, color = OnWallpaper)
     }
 }

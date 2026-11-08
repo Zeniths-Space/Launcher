@@ -315,6 +315,11 @@ internal fun SettingsScreen(
                                         save { store.setDrawerKeepPosition(it) }
                                     }
                                 },
+                                {
+                                    SwitchTile(Icons.BlurOn, stringResource(R.string.settings_drawer_blur), stringResource(R.string.settings_drawer_blur_sub), settings.drawerBlur) {
+                                        save { store.setDrawerBlur(it) }
+                                    }
+                                },
                             ),
                             Modifier.padding(top = 16.dp),
                         )

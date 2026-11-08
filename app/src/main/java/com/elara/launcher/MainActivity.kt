@@ -1,5 +1,16 @@
 package com.elara.launcher
 
+import android.provider.Settings
+import android.net.Uri
+import android.Manifest
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.result.contract.ActivityResultContracts
+import android.util.DisplayMetrics
+import android.os.Handler
+import android.os.Build
+import android.content.ActivityNotFoundException
+import android.app.WallpaperManager
 import android.content.Intent
 import android.os.Bundle
 import android.os.PowerManager
@@ -19,9 +30,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The home screen. One instance (singleTask); pressing home while it shows closes the drawer. */
 class MainActivity : ComponentActivity() {
@@ -40,6 +53,16 @@ class MainActivity : ComponentActivity() {
     private var stoppedAsleep = false
     private val drawer = DrawerMotion()
     private val widgets = WidgetHost(this)
+    // Whether the blur is on; while off, wallpaper changes are not looked at.
+    private var glassEnabled = false
+    // Whether the drawer already asked for wallpaper access (it asks once).
+    private var glassAsked by mutableStateOf(true)
+    // Below Android 11, reading the wallpaper takes the storage permission, asked in a dialog.
+    private val storageConsent = registerForActivityResult(ActivityResultContracts.RequestPermission()) { checkGlass() }
+    // The wallpaper changed (here or in another app): the glass copy may no longer match.
+    private val wallpaperListener = WallpaperManager.OnColorsChangedListener { _, which ->
+        if (which and WallpaperManager.FLAG_SYSTEM != 0) checkGlass()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +71,8 @@ class MainActivity : ComponentActivity() {
         repository.onChanged = { reload() }
         repository.register()
         reload(wait = 0)
+        glassAsked = GlassWallpaper.asked(this)
+        if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).addOnColorsChangedListener(wallpaperListener, Handler(mainLooper))
         // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.
         lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
         setContent {
@@ -63,6 +88,23 @@ class MainActivity : ComponentActivity() {
             // The app being renamed, from any app's menu.
             var renaming by remember { mutableStateOf<AppEntry?>(null) }
             val focus = LocalFocusManager.current
+            val glassImage by GlassWallpaper.image.collectAsState()
+            val glassStale by GlassWallpaper.stale.collectAsState()
+            // Pointless under pure black, which hides the wallpaper.
+            val glassOn = settings.drawerBlur && !(settings.pureBlack && isSystemInDarkTheme())
+            // All the blur's work (reading, checking, the image in memory) happens only while it is on.
+            // Until the store is read, settings are defaults (blur on): wait, so a blur that is off never runs.
+            val settingsRead by remember { store.settings.map { true } }.collectAsState(false)
+            LaunchedEffect(glassOn, settingsRead) {
+                if (!settingsRead) return@LaunchedEffect
+                glassEnabled = glassOn
+                if (glassOn) {
+                    val (width, height) = screenSize()
+                    withContext(Dispatchers.IO) { GlassWallpaper.load(this@MainActivity, width, height) }
+                } else {
+                    GlassWallpaper.unload()
+                }
+            }
             ZenithTheme(pureBlack = settings.pureBlack, fontVersion = settings.fontVersion) {
                 CompositionLocalProvider(LocalRenameApp provides { renaming = it }) {
                     LauncherScreen(
@@ -73,7 +115,7 @@ class MainActivity : ComponentActivity() {
                         resets = resets,
                         entrances = entrances,
                         onDrawerOpenChange = { drawerOpen = it },
-                        onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                        onOpenSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) },
                         onSettings = { edit -> lifecycleScope.launch { store.edit() } },
                         onWallpaper = rememberWallpaperPicker(),
                         onGesture = ::onGesture,
@@ -82,6 +124,8 @@ class MainActivity : ComponentActivity() {
                         onLayoutChange = { pages, folders -> lifecycleScope.launch { store.setHomeLayout(pages, folders) } },
                         widgetHost = widgets,
                         onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
+                        glassImage = glassImage.takeIf { glassOn && !glassStale },
+                        onUpdateGlass = if (glassOn && glassStale && !glassAsked) ::askWallpaperAccess else null,
                     )
                 }
                 renaming?.let { app ->
@@ -143,6 +187,8 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         widgets.startListening()
         repository.checkDate()
+        // Back from Android's access screen, say: only worth a look while the copy is missing or out of date.
+        if (GlassWallpaper.stale.value) checkGlass()
         if (stoppedAsleep) stoppedAsleep = false else entrances++
     }
 
@@ -164,8 +210,43 @@ class MainActivity : ComponentActivity() {
         resets++
     }
 
+    private fun checkGlass() {
+        if (!glassEnabled) return
+        val (width, height) = screenSize()
+        lifecycleScope.launch(Dispatchers.IO) { GlassWallpaper.check(this@MainActivity, width, height) }
+    }
+
+    /** Asks, once, for the access that lets Elara read the wallpaper for the glass blur. */
+    private fun askWallpaperAccess() {
+        GlassWallpaper.setAsked(this)
+        glassAsked = true
+        if (Build.VERSION.SDK_INT < 30) {
+            storageConsent.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            return
+        }
+        val app = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"))
+        try {
+            startActivity(app)
+        } catch (_: ActivityNotFoundException) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(this, R.string.settings_unavailable, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** The full screen size in px, which the wallpaper fills. */
+    private fun screenSize(): Pair<Int, Int> = if (Build.VERSION.SDK_INT >= 30) {
+        windowManager.maximumWindowMetrics.bounds.let { it.width() to it.height() }
+    } else {
+        @Suppress("DEPRECATION")
+        DisplayMetrics().also { windowManager.defaultDisplay.getRealMetrics(it) }.let { it.widthPixels to it.heightPixels }
+    }
+
     override fun onDestroy() {
         repository.unregister()
+        if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).removeOnColorsChangedListener(wallpaperListener)
         super.onDestroy()
     }
 }

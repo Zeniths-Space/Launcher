@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -100,6 +101,10 @@ class WallpaperActivity : ComponentActivity() {
             val ok = withContext(Dispatchers.IO) {
                 try {
                     WallpaperManager.getInstance(this@WallpaperActivity).setBitmap(photo, Rect(crop[0], crop[1], crop[2], crop[3]), true, which)
+                    // The drawer's glass blur, from the part of the photo the home screen shows.
+                    if (which and WallpaperManager.FLAG_SYSTEM != 0 && store.settings.first().drawerBlur) runCatching {
+                        GlassWallpaper.save(this@WallpaperActivity, android.graphics.Bitmap.createBitmap(photo, crop[0], crop[1], crop[2] - crop[0], crop[3] - crop[1]), colors = null)
+                    }
                     true
                 } catch (_: IOException) {
                     false

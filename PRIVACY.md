@@ -19,7 +19,14 @@
   widgets; once allowed, Elara draws what widgets send, like any home app, and keeps none of it.
 - **Wallpaper:** the photo you pick in Android's photo picker is shared only with the system's
   wallpaper screen (read access to that one photo). The launcher gets no access to your other
-  photos and keeps no copy.
+  photos and keeps no copy of it.
+- **Glass blur:** for the app drawer's blur, Elara keeps a small, heavily blurred copy of the home
+  wallpaper (144 px wide) in its private storage. It is made from the photo you set through Elara or,
+  if you allow it, from the wallpaper Android holds. Android grants that only through **All files
+  access** (`MANAGE_EXTERNAL_STORAGE`; storage read before Android 11), which would let an app read
+  every file on shared storage. Elara asks for it once, from the drawer, and uses it only to read the
+  wallpaper; it opens no other file, and has no internet permission to send anything anywhere.
+  Refusing it changes nothing else.
 - **Backups:** disabled (`allowBackup="false"`).
 
 Features that store data on the device (home screen layout, hidden apps) will be documented here

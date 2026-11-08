@@ -61,6 +61,8 @@ data class LauncherSettings(
     val drawerPadding: Int = 8,
     /** The app drawer opens where it was left instead of at the top. */
     val drawerKeepPosition: Boolean = false,
+    /** The wallpaper blurs behind the open drawer, as glass, where Android supports it. */
+    val drawerBlur: Boolean = true,
     /** Home screen and dock apps can't be moved, added or removed. */
     val locked: Boolean = false,
     /** The first-run setup was finished. True until the store is read, so it never flashes over a set-up home screen. */
@@ -114,6 +116,7 @@ class SettingsStore(context: Context) {
                 drawerRowGap = (p[DRAWER_ROW_GAP] ?: 12).coerceIn(DrawerSpacingRange),
                 drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerSpacingRange),
                 drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
+                drawerBlur = p[DRAWER_BLUR] ?: true,
                 locked = p[LOCKED] ?: false,
                 setupDone = p[SETUP_DONE] ?: false,
                 fontVersion = p[FONT_VERSION] ?: 0L,
@@ -165,6 +168,7 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerRowGap(dp: Int) = store.edit { it[DRAWER_ROW_GAP] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
+    suspend fun setDrawerBlur(on: Boolean) = set(DRAWER_BLUR, on)
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
     suspend fun setSetupDone() = set(SETUP_DONE, true)
     suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
@@ -219,6 +223,7 @@ class SettingsStore(context: Context) {
         val DRAWER_ROW_GAP = intPreferencesKey("drawer_row_gap")
         val DRAWER_PADDING = intPreferencesKey("drawer_padding")
         val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
+        val DRAWER_BLUR = booleanPreferencesKey("drawer_blur")
         val LOCKED = booleanPreferencesKey("locked")
         val SETUP_DONE = booleanPreferencesKey("setup_done")
         val FONT_VERSION = longPreferencesKey("font_version")

@@ -129,6 +129,9 @@
     <string name="settings_labels_sub">Names under the icons</string>
     <string name="settings_drawer_keep">Remember scroll position</string>
     <string name="settings_drawer_keep_sub">Opens where you left off instead of at the top</string>
+    <string name="settings_drawer_blur">Glass blur</string>
+    <string name="settings_drawer_blur_sub">Frosted glass behind the app drawer, made from your wallpaper</string>
+    <string name="glass_update">For the glass blur on any wallpaper, Elara needs to read it. Tap to allow (All files access).</string>
     <string name="settings_drawer_columns">Columns</string>
     <string name="settings_drawer_icon_size">Icon size</string>
     <string name="settings_drawer_row_gap">Row spacing</string>
