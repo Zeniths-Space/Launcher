@@ -4,7 +4,6 @@ import android.provider.Settings
 import android.net.Uri
 import android.Manifest
 import kotlinx.coroutines.Dispatchers
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.result.contract.ActivityResultContracts
 import android.util.DisplayMetrics
 import android.os.Handler
@@ -90,8 +89,7 @@ class MainActivity : ComponentActivity() {
             val focus = LocalFocusManager.current
             val glassImage by GlassWallpaper.image.collectAsState()
             val glassStale by GlassWallpaper.stale.collectAsState()
-            // Pointless under pure black, which hides the wallpaper.
-            val glassOn = settings.drawerBlur && !(settings.pureBlack && isSystemInDarkTheme())
+            val glassOn = settings.drawerBlur
             // All the blur's work (reading, checking, the image in memory) happens only while it is on.
             // Until the store is read, settings are defaults (blur on): wait, so a blur that is off never runs.
             val settingsRead by remember { store.settings.map { true } }.collectAsState(false)

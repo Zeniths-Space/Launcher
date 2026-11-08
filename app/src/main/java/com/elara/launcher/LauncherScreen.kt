@@ -231,8 +231,9 @@ internal fun LauncherScreen(
     val range = height * DragFraction
     val drawerShown by remember { derivedStateOf { motion.progress > 0f } }
     val dim = when {
-        settings.pureBlack && isSystemInDarkTheme() -> 1f
+        // Glass wins: pure black only blacks out the plain drawer, with the blur off.
         glassImage != null -> GlassDim
+        settings.pureBlack && isSystemInDarkTheme() -> 1f
         else -> WallpaperDim
     }
     var drawerDrag by remember { mutableStateOf<DrawerDrag?>(null) }
