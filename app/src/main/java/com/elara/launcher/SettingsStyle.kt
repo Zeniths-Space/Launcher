@@ -46,8 +46,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * A settings category's colour: [container] behind its badge and value pills, [content] on it, and
- * [strong] for its sliders, switches and section titles. Fixed hues, so the pages stay colourful
- * on a grey wallpaper too.
+ * [strong] for its sliders, switches and section titles. Always the brand purple.
  */
 internal class Accent(val container: Color, val content: Color, val strong: Color, val onStrong: Color, val shape: Shape = ScallopShape)
 
@@ -57,22 +56,10 @@ private class Hue(val pastel: Color, val deep: Color, val darkPastel: Color, val
         if (dark) Accent(darkPastel.copy(alpha = 0.32f), darkPastel, darkPastel, darkDeep, shape) else Accent(pastel, deep, deep, Color.White, shape)
 }
 
-private val Pink = Hue(Color(0xFFFFD9E2), Color(0xFF8E2451), Color(0xFFFFB0C8), Color(0xFF5E0B2C))
-private val Blue = Hue(Color(0xFFD6E3FF), Color(0xFF1B4C9C), Color(0xFFAAC7FF), Color(0xFF0A2F6B))
-private val Green = Hue(Color(0xFFC8F0C8), Color(0xFF1D5E2A), Color(0xFF9BD8A0), Color(0xFF003915))
-private val Orange = Hue(Color(0xFFFFDDB8), Color(0xFF8A4B00), Color(0xFFFFB86E), Color(0xFF4A2800))
-private val Purple = Hue(Color(0xFFEADDFF), Color(0xFF5B3D9E), Color(0xFFD0BCFF), Color(0xFF381E72))
-private val Teal = Hue(Color(0xFFC2EEE9), Color(0xFF00574F), Color(0xFF8BD6CD), Color(0xFF003732))
+/** Elara brand purple: every settings page shares it; pages differ by badge shape only. */
+private val Purple = Hue(Color(0xFFE6DCFF), Color(0xFF7C4DFF), Color(0xFFB69CFF), Color(0xFF2B1766))
 
-private val Page.hue
-    get() = when (this) {
-        Page.Main, Page.Appearance -> Pink
-        Page.Dock -> Blue
-        Page.Home -> Green
-        Page.Drawer -> Orange
-        Page.Gestures -> Purple
-        Page.About -> Teal
-    }
+private val Page.hue get() = Purple
 
 internal val Page.accent: Accent
     @Composable @ReadOnlyComposable get() = hue.accent(LocalDark.current, shape)
