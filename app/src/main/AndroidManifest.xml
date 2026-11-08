@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
         LauncherApps lists and starts apps without QUERY_ALL_PACKAGES or INTERNET. Both
@@ -96,10 +97,12 @@
             android:exported="false"
             android:theme="@style/Theme.Launcher.Settings" />
 
-        <!-- Places a picked photo as the wallpaper; opened from the wallpaper setting only. -->
+        <!-- Places a picked photo as the wallpaper; opened from the wallpaper setting only, and only on
+             Android 9+ (rememberWallpaperPicker checks), so the API 28 class is never reached below that. -->
         <activity
             android:name=".WallpaperActivity"
             android:exported="false"
+            tools:targetApi="28"
             android:theme="@style/Theme.Launcher.Settings" />
     </application>
 </manifest>
