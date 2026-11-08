@@ -10,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -167,7 +169,9 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(8.dp)
-            .width(MenuWidth)
+            // As wide as its widest line (title row or action), within these bounds.
+            .widthIn(min = MenuMinWidth, max = MenuMaxWidth)
+            .width(IntrinsicSize.Max)
             .shadow(8.dp, shape)
             .clip(shape)
             .background(if (pureBlack) PureBlackCard else cs.surfaceContainerHigh),
@@ -274,7 +278,8 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuWidth = 248.dp
+private val MenuMinWidth = 180.dp
+private val MenuMaxWidth = 248.dp
 
 /** The header on the pure black card: a step lighter than [PureBlackCard]. */
 private val PureBlackHeader = Color(0xFF262626)
