@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -164,6 +165,8 @@ private class HomePull {
     var startedClosed = false
 }
 private val HomeLift = 16.dp
+/** Icon scale while its menu is open; the press shrink (0.88) brings it near 1 while still held. */
+private const val MenuLift = 1.2f
 private const val HomeSink = 0.06f
 private const val HomeEnterScale = 0.9f
 private val HomeEnterSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
@@ -1090,6 +1093,8 @@ private fun AppTile(
     val tileIcon by rememberUpdatedState(icon)
     val haptics = LocalHapticFeedback.current
     val slop = LocalViewConfiguration.current.touchSlop
+    // The icon whose menu is open pops up and stays raised, so it's clear which app the menu is for.
+    val lift by animateFloatAsState(if (menu) MenuLift else 1f, Motion.bouncy(), label = "lift")
     Box {
         AppTileContent(
             icon,
@@ -1097,10 +1102,10 @@ private fun AppTile(
             showLabels,
             iconSize,
             Modifier
-                .clip(RoundedCornerShape(16.dp))
                 .onGloballyPositioned { tileCoords[0] = it }
                 // A release after a long-press opens nothing: that press was for the menu or a drag.
-                .clickable { if (!menu) onOpen(app, bounds()) }
+                // No ripple: the press scale is the feedback.
+                .clickable(interactionSource = null, indication = null) { if (!menu) onOpen(app, bounds()) }
                 .semantics { onLongClick { menu = true; true } }
                 .pointerInput(app.key) {
                     var travelled = Offset.Zero
@@ -1128,7 +1133,12 @@ private fun AppTile(
                     )
                 }
                 .pressScale(),
-            iconModifier = Modifier.onGloballyPositioned { iconCoords[0] = it },
+            iconModifier = Modifier
+                .onGloballyPositioned { iconCoords[0] = it }
+                .graphicsLayer {
+                    scaleX = lift
+                    scaleY = lift
+                },
         )
         AppMenu(
             menu,
