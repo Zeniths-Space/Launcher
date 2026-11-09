@@ -5,19 +5,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.Dp
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -207,11 +199,6 @@ internal fun SettingsScreen(
     ) { shown ->
         // Each page's own title bar, beside the back button, so the title slides with its page.
         val scroll = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-        // What the drawer sliders show while dragging, before the stored values catch up.
-        var columns by remember(settings.drawerColumns) { mutableIntStateOf(settings.drawerColumns) }
-        var iconSize by remember(settings.drawerIconSize) { mutableIntStateOf(settings.drawerIconSize) }
-        var rowGap by remember(settings.drawerRowGap) { mutableIntStateOf(settings.drawerRowGap) }
-        var sidePadding by remember(settings.drawerPadding) { mutableIntStateOf(settings.drawerPadding) }
             Column(Modifier.fillMaxSize().background(cs.surface).nestedScroll(scroll.nestedScrollConnection)) {
             val title = @Composable { Text(stringResource(shown.title)) }
             val back = @Composable {
@@ -226,8 +213,6 @@ internal fun SettingsScreen(
                 colors = barColors,
                 scrollBehavior = scroll,
             )
-            // Pinned above the list, so it stays in view while any slider is dragged.
-            if (shown == Page.Drawer) DrawerPreview(repository, settings.hidden, settings.showLabels, columns, iconSize.dp, rowGap.dp, sidePadding.dp)
             CompositionLocalProvider(LocalAccent provides shown.accent) {
             Column(
                 Modifier
@@ -303,55 +288,56 @@ internal fun SettingsScreen(
                     )
                     }
                     Page.Drawer -> {
+                        SectionHeader(stringResource(R.string.settings_look))
                         SegmentedGroup(
-                            listOf(
-                                {
+                            buildList {
+                                add {
                                     SwitchTile(Icons.Label, stringResource(R.string.settings_labels), stringResource(R.string.settings_labels_sub), settings.showLabels) {
                                         save { store.setShowLabels(it) }
                                     }
-                                },
+                                }
+                                add {
+                                    SwitchTile(Icons.BlurOn, stringResource(R.string.settings_drawer_blur), stringResource(R.string.settings_drawer_blur_sub), settings.drawerBlur) {
+                                        save { store.setDrawerBlur(it) }
+                                    }
+                                }
+                                if (settings.drawerBlur) add { BlurStyleTile(settings.drawerBlurStyle) { style -> save { store.setDrawerBlurStyle(style) } } }
+                            },
+                        )
+                        SectionHeader(stringResource(R.string.settings_behaviour))
+                        SegmentedGroup(
+                            listOf(
                                 {
                                     SwitchTile(Icons.History, stringResource(R.string.settings_drawer_keep), stringResource(R.string.settings_drawer_keep_sub), settings.drawerKeepPosition) {
                                         save { store.setDrawerKeepPosition(it) }
                                     }
                                 },
-                                {
-                                    SwitchTile(Icons.BlurOn, stringResource(R.string.settings_drawer_blur), stringResource(R.string.settings_drawer_blur_sub), settings.drawerBlur) {
-                                        save { store.setDrawerBlur(it) }
-                                    }
-                                },
                             ),
-                            Modifier.padding(top = 16.dp),
                         )
-                        if (settings.drawerBlur) {
-                            SectionHeader(stringResource(R.string.settings_blur_style))
-                            ChoiceGroup(BlurStyle.entries, settings.drawerBlurStyle, { it.label }) { save { store.setDrawerBlurStyle(it) } }
-                        }
                         SectionHeader(stringResource(R.string.settings_layout))
                         SegmentedGroup(
                             listOf(
                                 {
-                                    SliderTile(Icons.Columns, stringResource(R.string.settings_drawer_columns), null, settings.drawerColumns, DrawerColumnRange, onLive = { columns = it }) {
+                                    SliderTile(Icons.Columns, stringResource(R.string.settings_drawer_columns), null, settings.drawerColumns, DrawerColumnRange) {
                                         save { store.setDrawerColumns(it) }
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_drawer_icon_size), null, settings.drawerIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp, onLive = { iconSize = it }) {
+                                    SliderTile(Icons.IconSize, stringResource(R.string.settings_drawer_icon_size), null, settings.drawerIconSize, DockIconRange, step = 4, format = R.string.settings_value_dp) {
                                         save { store.setDrawerIconSize(it) }
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp, onLive = { rowGap = it }) {
+                                    SliderTile(Icons.Rows, stringResource(R.string.settings_drawer_row_gap), null, settings.drawerRowGap, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
                                         save { store.setDrawerRowGap(it) }
                                     }
                                 },
                                 {
-                                    SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp, onLive = { sidePadding = it }) {
+                                    SliderTile(Icons.SidePadding, stringResource(R.string.settings_drawer_padding), null, settings.drawerPadding, DrawerSpacingRange, step = 4, format = R.string.settings_value_dp) {
                                         save { store.setDrawerPadding(it) }
                                     }
                                 },
                             ),
-                            Modifier.padding(top = 16.dp),
                         )
                     }
                     Page.Dock -> {
@@ -813,41 +799,36 @@ internal fun GroupTile(
     }
 }
 
-/** The first drawer rows, drawn like the drawer at the screen's full width, so columns and side padding look as they will. */
+/** How the wallpaper blurs behind the drawer: a tile showing the style, opening a sheet to choose another. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DrawerPreview(repository: AppRepository, hidden: Set<String>, showLabels: Boolean, columns: Int, iconSize: Dp, rowGap: Dp, sidePadding: Dp) {
-    val context = LocalContext.current
-    val apps by repository.apps.collectAsState()
-    // Opened from the launcher the list is already there; on its own, settings loads it once.
-    LaunchedEffect(repository) { if (repository.apps.value == null) repository.load(context.packageName) }
-    // One size for every slider position: the image scales, so dragging doesn't redraw icons.
-    val sizePx = with(LocalDensity.current) { DockIconRange.last.dp.roundToPx() }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(PreviewHeight)
-            .clipToBounds()
-            // On the pure black page, black would vanish into it: the cards' grey sets it apart.
-            .background(if (LocalPureBlack.current) PureBlackCard else Color.Black)
-            .clearAndSetSemantics {}
-            .padding(horizontal = sidePadding, vertical = 8.dp),
+private fun BlurStyleTile(style: BlurStyle, onSelect: (BlurStyle) -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    GroupTile(
+        badge = { ScallopBadge(Icons.Palette) },
+        title = stringResource(R.string.settings_blur_style),
+        subtitle = stringResource(style.label),
+        onClick = { choosing = true },
+    )
+    if (!choosing) return
+    ModalBottomSheet(
+        onDismissRequest = { choosing = false },
+        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
     ) {
-        Column(Modifier.wrapContentHeight(Alignment.Top, unbounded = true), verticalArrangement = Arrangement.spacedBy(rowGap)) {
-            apps.orEmpty().filter { it.key !in hidden }.take(columns * PreviewRows).chunked(columns).forEach { row ->
-                Row {
-                    row.forEach { app ->
-                        val icon by produceState<ImageBitmap?>(null, app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
-                        AppTileContent(icon, app.label, showLabels, iconSize, Modifier.weight(1f))
-                    }
-                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
-                }
+        Text(
+            stringResource(R.string.settings_blur_style),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            ChoiceGroup(BlurStyle.entries, style, { it.label }) {
+                choosing = false
+                onSelect(it)
             }
         }
     }
 }
-
-private val PreviewHeight = 200.dp
-private const val PreviewRows = 3
 
 /** A tile whose whole row toggles a switch (one touch target, announced as a switch). */
 @Composable
@@ -880,7 +861,6 @@ private fun SliderTile(
     range: IntRange,
     step: Int = 1,
     format: Int? = null,
-    onLive: (Int) -> Unit = {},
     onChange: (Int) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -912,10 +892,7 @@ private fun SliderTile(
         }
         Slider(
             value = shown,
-            onValueChange = {
-                shown = it
-                onLive(it.roundToInt())
-            },
+            onValueChange = { shown = it },
             onValueChangeFinished = { if (shown.roundToInt() != value) onChange(shown.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = (range.last - range.first) / step - 1,

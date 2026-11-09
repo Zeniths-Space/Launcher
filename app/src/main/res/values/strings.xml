@@ -64,6 +64,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_unavailable">Not available on this device</string>
     <string name="settings_layout">Layout</string>
+    <string name="settings_look">Look</string>
+    <string name="settings_behaviour">Behaviour</string>
     <string name="settings_hero_is_home">Your home app</string>
     <string name="settings_hero_set_home">Set as home app</string>
     <string name="settings_section_home">Home screen</string>
