@@ -85,6 +85,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -105,6 +106,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -130,6 +132,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /*
@@ -359,6 +362,8 @@ internal fun LauncherScreen(
                 .graphicsLayer {
                     val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
                     alpha = 1f - gone
+                    // Alpha per draw instead of a full-screen offscreen layer each frame (too slow at 60 Hz).
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
                     translationY = -gone * HomeLift.toPx()
                     // Sinks back a little as the drawer rises over it.
                     val scale = enter.value * (1f - gone * HomeSink)
@@ -461,6 +466,7 @@ internal fun LauncherScreen(
                     .graphicsLayer {
                         val shown = ((motion.progress - HomeFadeEnd) / (1f - HomeFadeEnd)).coerceIn(0f, 1f)
                         alpha = shown
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
                         // Off screen while closed, so it takes no touches meant for the home screen.
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
@@ -826,6 +832,8 @@ private fun AppDrawer(
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
+    val openNow by rememberUpdatedState(drawerOpen)
+    val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
     LaunchedEffect(drawerOpen) { if (!drawerOpen) showHidden = false }
     if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
@@ -944,7 +952,7 @@ private fun AppDrawer(
                         iconSize,
                         onHome = app.key in homeKeys,
                         canEdit = !locked,
-                        drawerOpen = drawerOpen,
+                        isDrawerOpen = isDrawerOpen,
                         onHomeToggle = { onHomeToggle(app) },
                         onHide = { onHide(app) },
                         onOpen = open,
@@ -1049,7 +1057,8 @@ private fun AppTile(
     iconSize: Dp,
     onHome: Boolean,
     canEdit: Boolean,
-    drawerOpen: Boolean,
+    /** Read by an open menu only: a plain flag would recompose every tile as the drawer opens or shuts. */
+    isDrawerOpen: () -> Boolean,
     onHomeToggle: () -> Unit,
     onHide: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
@@ -1068,7 +1077,10 @@ private fun AppTile(
     }
     var menu by remember { mutableStateOf(false) }
     // The drawer stays composed when shut; its menu must not outlive it.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) menu = false }
+    if (menu) LaunchedEffect(Unit) {
+        snapshotFlow(isDrawerOpen).first { !it }
+        menu = false
+    }
     val tileCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     // The gesture below is set up once per app; these keep it on the latest values.
     val editable by rememberUpdatedState(canEdit)
