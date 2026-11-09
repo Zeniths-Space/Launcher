@@ -2,14 +2,12 @@ package com.elara.launcher
 
 import android.app.Activity
 import android.app.ActivityOptions
-import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.net.Uri
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.Canvas
@@ -40,7 +38,6 @@ import android.os.UserManager
 import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.graphics.createBitmap
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.ui.graphics.asImageBitmap
@@ -48,8 +45,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.LocalTime
 
 /**
  * The launchable apps of every profile on the device, from LauncherApps (no package-query
@@ -77,7 +72,7 @@ class AppRepository(context: Context) {
     var iconShape by mutableStateOf(IconShape.System)
         private set
 
-    /** Goes up whenever drawn icons go stale (a new shape, a new day for calendar icons). Callers key their icon state on it. */
+    /** Goes up whenever drawn icons go stale (a new shape, an updated app). Callers key their icon state on it. */
     var iconEpoch by mutableIntStateOf(0)
         private set
 
@@ -87,81 +82,6 @@ class AppRepository(context: Context) {
         iconShape = shape
         iconEpoch++
     }
-
-    // Calendar apps can show today's date on their icon (Launcher3's convention: the launcher activity's
-    // meta-data "<package>.dynamic_icons" names an array of 31 icons, one per day of the month).
-    private var day = LocalDate.now().dayOfMonth
-    private val dynamicApps = HashSet<String>()
-
-    /** Draws calendar icons again if the date moved on. Called on date and time-zone changes, and on each return to the home screen. */
-    fun checkDate() {
-        val today = LocalDate.now().dayOfMonth
-        if (today == day) return
-        day = today
-        synchronized(infos) { icons.keys.removeAll { it.substringBeforeLast('@') in dynamicApps } }
-        iconEpoch++
-    }
-
-    private val dateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = checkDate()
-    }
-
-    private fun dynamicIcon(info: LauncherActivityInfo, key: String): Drawable? = runCatching {
-        val pkg = info.componentName.packageName
-        val meta = pm.getActivityInfo(info.componentName, PackageManager.GET_META_DATA).metaData
-        val arrayId = meta?.getInt("$pkg.dynamic_icons", 0) ?: 0
-        if (arrayId == 0) return null
-        val res = pm.getResourcesForApplication(info.applicationInfo)
-        val array = res.obtainTypedArray(arrayId)
-        val id = try { array.getResourceId(day - 1, 0) } finally { array.recycle() }
-        if (id == 0) return null
-        synchronized(infos) { dynamicApps.add(key) }
-        res.getDrawableForDensity(id, density, null)
-    }.getOrNull()
-
-    // Clock apps can show the time on their icon: the launcher activity's meta-data "com.elara.launcher.clock.face",
-    // ".hour" and ".minute" name the face and each hand (pointing at 12, on the icon's 108-unit grid), which are
-    // turned to the time. Elara Clock does this; any app may.
-    private var clockMinute = -1
-    private val clockApps = HashSet<String>()
-
-    /**
-     * Draws clock icons again if the minute moved on. Called each minute while the home screen is started
-     * (never in the background), and on each return to it.
-     */
-    fun tickClock() {
-        val now = LocalTime.now()
-        val minute = now.hour * 60 + now.minute
-        if (minute == clockMinute) return
-        clockMinute = minute
-        val any = synchronized(infos) {
-            icons.keys.removeAll { it.substringBeforeLast('@') in clockApps }
-            clockApps.isNotEmpty()
-        }
-        if (any) iconEpoch++
-    }
-
-    /** True once a clock app's icon has been drawn: only then is a minute tick worth anything. */
-    val hasClockIcons get() = synchronized(infos) { clockApps.isNotEmpty() }
-
-    private fun clockIcon(info: LauncherActivityInfo, key: String): Drawable? = runCatching {
-        val meta = pm.getActivityInfo(info.componentName, PackageManager.GET_META_DATA).metaData ?: return null
-        val face = meta.getInt("com.elara.launcher.clock.face", 0)
-        val hour = meta.getInt("com.elara.launcher.clock.hour", 0)
-        val minute = meta.getInt("com.elara.launcher.clock.minute", 0)
-        if (face == 0 || hour == 0 || minute == 0) return null
-        val base = info.getIcon(density) as? AdaptiveIconDrawable ?: return null
-        val res = pm.getResourcesForApplication(info.applicationInfo)
-        fun drawable(id: Int) = res.getDrawableForDensity(id, density, null)?.mutate()
-        val now = LocalTime.now()
-        val hands = ClockHandsDrawable(
-            drawable(face) ?: return null, drawable(hour) ?: return null, drawable(minute) ?: return null,
-            hourDegrees = (now.hour % 12 + now.minute / 60f) * 30f,
-            minuteDegrees = now.minute * 6f,
-        )
-        synchronized(infos) { clockApps.add(key) }
-        AdaptiveIconDrawable(base.background, hands)
-    }.getOrNull()
 
     /** Any package change reloads the list (cheap: one LauncherApps call per profile). */
     var onChanged: () -> Unit = {}
@@ -185,17 +105,10 @@ class AppRepository(context: Context) {
 
     fun register() {
         launcherApps.registerCallback(callback, Handler(Looper.getMainLooper()))
-        val dateChanges = IntentFilter().apply {
-            addAction(Intent.ACTION_DATE_CHANGED)
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-        }
-        ContextCompat.registerReceiver(appContext, dateReceiver, dateChanges, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     fun unregister() {
         launcherApps.unregisterCallback(callback)
-        appContext.unregisterReceiver(dateReceiver)
     }
 
     suspend fun load(selfPackage: String) = withContext(Dispatchers.IO) {
@@ -235,7 +148,8 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val drawable = runCatching {
-            val icon = (clockIcon(info, app.key) ?: dynamicIcon(info, app.key) ?: info.getIcon(density)).inSystemShape()
+            // Icons are drawn as the app ships them; calendar dates and clock hands on icons are not shown (owner's choice, 2026-11-09).
+            val icon = info.getIcon(density).inSystemShape()
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null

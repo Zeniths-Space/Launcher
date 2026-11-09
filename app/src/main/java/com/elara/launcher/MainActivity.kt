@@ -27,9 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Job
@@ -74,15 +72,6 @@ class MainActivity : ComponentActivity() {
         reload(wait = 0)
         glassAsked = GlassWallpaper.asked(this)
         if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).addOnColorsChangedListener(wallpaperListener, Handler(mainLooper))
-        // Live clock icons: their hands move on at each new minute, only while the home screen is started.
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                while (true) {
-                    delay(60_000 - System.currentTimeMillis() % 60_000)
-                    if (repository.hasClockIcons) repository.tickClock()
-                }
-            }
-        }
         // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.
         lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
         setContent {
@@ -196,8 +185,6 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         widgets.startListening()
-        repository.checkDate()
-        repository.tickClock()
         // Back from Android's access screen, say: only worth a look while the copy is missing or out of date.
         if (GlassWallpaper.stale.value) checkGlass()
         if (stoppedAsleep) stoppedAsleep = false else entrances++

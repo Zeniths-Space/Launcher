@@ -25,13 +25,6 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
-- Calendar icons show today's date, for apps that offer it (Elara Calendar, Google Calendar: Launcher3's
-  `<package>.dynamic_icons` meta-data). Redrawn on Android's date, time and time-zone change
-  broadcasts and on each return to the home screen, never by polling.
-- Clock icons show the time, for apps that offer it (Elara Clock: meta-data
-  `com.elara.launcher.clock.face`, `.hour` and `.minute` naming the face and each hand, pointing at
-  12). The hands turn at each new minute, only while the home screen is started; hour and minute
-  only, no second hand.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
   Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each
