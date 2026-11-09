@@ -98,7 +98,7 @@ object GlassWallpaper {
         source.getPixels(pixels, 0, w, 0, 0, w, h)
         val out = Bitmap.createBitmap(styled(pixels, w, h, style), w, h, Bitmap.Config.ARGB_8888)
         styledWith = style
-        image.value = out.asImageBitmap()
+        image.value = out.toHardware().asImageBitmap()
     }
 
     /** Frees the copies in memory while the blur is off; the file stays for when it is turned on again. */

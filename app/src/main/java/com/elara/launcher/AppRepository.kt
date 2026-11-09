@@ -298,7 +298,12 @@ internal fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
     val bitmap = createBitmap(sizePx, sizePx)
     setBounds(0, 0, sizePx, sizePx)
     draw(Canvas(bitmap))
-    return bitmap.asImageBitmap()
+    // Kept on the GPU: no upload stall the first time the drawer or a page shows it.
+    return bitmap.toHardware().asImageBitmap()
 }
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
+
+/** A GPU-resident copy, drawn without an upload; the original if the copy can't be made. */
+internal fun android.graphics.Bitmap.toHardware(): android.graphics.Bitmap =
+    copy(android.graphics.Bitmap.Config.HARDWARE, false)?.also { recycle() } ?: this
