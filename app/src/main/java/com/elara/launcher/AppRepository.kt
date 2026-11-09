@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * The launchable apps of every profile on the device, from LauncherApps (no package-query
@@ -116,6 +117,50 @@ class AppRepository(context: Context) {
         if (id == 0) return null
         synchronized(infos) { dynamicApps.add(key) }
         res.getDrawableForDensity(id, density, null)
+    }.getOrNull()
+
+    // Clock apps can show the time on their icon: the launcher activity's meta-data "com.elara.launcher.clock.face",
+    // ".hour" and ".minute" name the face and each hand (pointing at 12, on the icon's 108-unit grid), which are
+    // turned to the time. Elara Clock does this; any app may.
+    private var clockMinute = -1
+    private val clockApps = HashSet<String>()
+
+    /**
+     * Draws clock icons again if the minute moved on. Called each minute while the home screen is started
+     * (never in the background), and on each return to it.
+     */
+    fun tickClock() {
+        val now = LocalTime.now()
+        val minute = now.hour * 60 + now.minute
+        if (minute == clockMinute) return
+        clockMinute = minute
+        val any = synchronized(infos) {
+            icons.keys.removeAll { it.substringBeforeLast('@') in clockApps }
+            clockApps.isNotEmpty()
+        }
+        if (any) iconEpoch++
+    }
+
+    /** True once a clock app's icon has been drawn: only then is a minute tick worth anything. */
+    val hasClockIcons get() = synchronized(infos) { clockApps.isNotEmpty() }
+
+    private fun clockIcon(info: LauncherActivityInfo, key: String): Drawable? = runCatching {
+        val meta = pm.getActivityInfo(info.componentName, PackageManager.GET_META_DATA).metaData ?: return null
+        val face = meta.getInt("com.elara.launcher.clock.face", 0)
+        val hour = meta.getInt("com.elara.launcher.clock.hour", 0)
+        val minute = meta.getInt("com.elara.launcher.clock.minute", 0)
+        if (face == 0 || hour == 0 || minute == 0) return null
+        val base = info.getIcon(density) as? AdaptiveIconDrawable ?: return null
+        val res = pm.getResourcesForApplication(info.applicationInfo)
+        fun drawable(id: Int) = res.getDrawableForDensity(id, density, null)?.mutate()
+        val now = LocalTime.now()
+        val hands = ClockHandsDrawable(
+            drawable(face) ?: return null, drawable(hour) ?: return null, drawable(minute) ?: return null,
+            hourDegrees = (now.hour % 12 + now.minute / 60f) * 30f,
+            minuteDegrees = now.minute * 6f,
+        )
+        synchronized(infos) { clockApps.add(key) }
+        AdaptiveIconDrawable(base.background, hands)
     }.getOrNull()
 
     /** Any package change reloads the list (cheap: one LauncherApps call per profile). */
@@ -190,7 +235,7 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val drawable = runCatching {
-            val icon = (dynamicIcon(info, app.key) ?: info.getIcon(density)).inSystemShape()
+            val icon = (clockIcon(info, app.key) ?: dynamicIcon(info, app.key) ?: info.getIcon(density)).inSystemShape()
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null
