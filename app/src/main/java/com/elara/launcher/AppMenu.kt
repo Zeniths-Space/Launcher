@@ -1,5 +1,17 @@
 package com.elara.launcher
 
+import android.os.Build
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.platform.LocalView
+import kotlin.math.roundToInt
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
@@ -118,6 +130,9 @@ internal fun MenuPopup(
     state.targetState = expanded
     if (!state.currentState && !state.targetState) return
     val density = LocalDensity.current
+    // The launcher's own window (full screen), which the drawer's blurred wallpaper is stretched over.
+    val screen = LocalView.current.rootView.let { IntSize(it.width, it.height) }
+    val glass by GlassWallpaper.image.collectAsState()
     val margin = with(density) { 8.dp.roundToPx() }
     val top = WindowInsets.statusBars.getTop(density) + margin
     // Where the app is, as a point in the menu; set when the menu is placed, read when it's drawn.
@@ -149,6 +164,8 @@ internal fun MenuPopup(
             actions,
             onDismiss,
             onAppInfo = onInfo,
+            glass = glass,
+            screen = screen,
             modifier = Modifier.graphicsLayer {
                 alpha = shown.coerceIn(0f, 1f)
                 val scale = 0.8f + 0.2f * shown
@@ -161,9 +178,12 @@ internal fun MenuPopup(
 }
 
 @Composable
-private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, modifier: Modifier) {
+private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val dark = LocalDark.current
+    // Where the card is on screen, so it shows the part of the wallpaper that is behind it.
+    var onScreen by remember { mutableStateOf(Offset.Zero) }
+    val blurPx = with(LocalDensity.current) { MenuBlur.toPx() }
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
     Column(
@@ -175,8 +195,32 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
             .width(IntrinsicSize.Max)
             .shadow(12.dp, shape)
             .clip(shape)
-            // AMOLED black in dark mode; the edge keeps it apart from a black drawer, where a shadow can't show.
-            .background(if (dark) Color.Black else cs.surfaceContainerHigh)
+            .onGloballyPositioned { onScreen = it.positionOnScreen() }
+            // Frosted glass: the blurred wallpaper behind the card, blurred more, under a tint for the text.
+            // Android can't blur across windows on every phone (not on One UI), so the menu draws it itself.
+            // Without the glass copy (blur off in settings), AMOLED black; the edge keeps it apart from a black drawer.
+            .then(
+                if (glass == null || screen.width == 0) Modifier.background(if (dark) Color.Black else cs.surfaceContainerHigh)
+                else Modifier.drawWithCache {
+                    val layer = obtainGraphicsLayer()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) layer.renderEffect = BlurEffect(blurPx, blurPx, TileMode.Clamp)
+                    onDrawBehind {
+                        val sx = glass.width.toFloat() / screen.width
+                        val sy = glass.height.toFloat() / screen.height
+                        layer.record {
+                            drawImage(
+                                glass,
+                                srcOffset = IntOffset((onScreen.x * sx).roundToInt(), (onScreen.y * sy).roundToInt()),
+                                srcSize = IntSize((size.width * sx).roundToInt().coerceAtLeast(1), (size.height * sy).roundToInt().coerceAtLeast(1)),
+                                dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                                filterQuality = FilterQuality.Low,
+                            )
+                        }
+                        drawLayer(layer)
+                        drawRect(if (dark) Color.Black.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.55f))
+                    }
+                },
+            )
             .then(if (dark) Modifier.border(1.dp, Raised, shape) else Modifier)
             .padding(8.dp),
     ) {
@@ -287,8 +331,10 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 208.dp
-private val MenuMaxWidth = 264.dp
+private val MenuMinWidth = 224.dp
+private val MenuMaxWidth = 288.dp
+/** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
+private val MenuBlur = 16.dp
 
 /** Raised parts on the black menu (its edge, the info button), from the Elara form colours. */
 private val Raised = Color(0xFF1F1F1F)
