@@ -792,7 +792,8 @@ class DrawerMotion {
         if (speed == null && job?.isActive != true && progress == to) return
         job?.cancel()
         target = to
-        job = scope.launch { animate(progress, to, speed ?: 0f, DrawerSpring) { v, _ -> progress = v } }
+        // A fling past an end overshoots it; outside 0..1 a negative alpha wraps to opaque, flashing the blur over home.
+        job = scope.launch { animate(progress, to, speed ?: 0f, DrawerSpring) { v, _ -> progress = v.coerceIn(0f, 1f) } }
     }
 }
 
