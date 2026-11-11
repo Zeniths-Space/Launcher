@@ -760,7 +760,17 @@ private fun BackupPage(store: SettingsStore) {
                         val ok = withContext(Dispatchers.IO) {
                             // A backup is small; anything over 1 MB isn't one.
                             val text = runCatching {
-                                context.contentResolver.openInputStream(uri)!!.use { String(it.readNBytes(1_000_000)) }
+                                context.contentResolver.openInputStream(uri)!!.use { input ->
+                                    // readNBytes needs API 33; this is the same for older phones.
+                                    val buf = ByteArray(1_000_000)
+                                    var n = 0
+                                    while (n < buf.size) {
+                                        val read = input.read(buf, n, buf.size - n)
+                                        if (read < 0) break
+                                        n += read
+                                    }
+                                    String(buf, 0, n)
+                                }
                             }.getOrNull()
                             text != null && store.restore(text)
                         }
