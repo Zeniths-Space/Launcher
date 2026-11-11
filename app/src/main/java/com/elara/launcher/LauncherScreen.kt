@@ -875,6 +875,13 @@ private fun AppDrawer(
     val topContact = remember(contacts, shown) { ContactSearch.top(contacts, shown.orEmpty(), query) }
     val moreContacts = remember(contacts, topContact) { contacts.filter { it != topContact } }
     val offerContacts = lookContacts && !contactsAllowed
+    // Read once per search, not per letter; only the home app gets them.
+    val allShortcuts by produceState(emptyList<AppShortcut>(), searching, apps) {
+        value = if (searching && apps != null) repository.shortcuts(apps) else emptyList()
+    }
+    val shortcuts = remember(allShortcuts, query, answer) {
+        if (answer == null && query.trim().length >= 2) searchByLabel(allShortcuts, query) { it.label }.take(5) else emptyList()
+    }
     val grid = rememberLazyGridState()
     val keyboard = LocalSoftwareKeyboardController.current
     // At the top of the list, a pull down moves the drawer instead; once it moves, it takes the
@@ -934,6 +941,7 @@ private fun AppDrawer(
                             answer != null -> copyAnswer(context, answer.plain)
                             topContact != null -> ContactSearch.dial(context, topContact)
                             else -> shown?.firstOrNull()?.let { open(it, null) }
+                                ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -970,7 +978,7 @@ private fun AppDrawer(
             )
         }
         if (searching && answer != null) MathAnswerCard(answer, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
-        val people = topContact != null || moreContacts.isNotEmpty()
+        val people = topContact != null || moreContacts.isNotEmpty() || shortcuts.isNotEmpty()
         // Above the grid, so they don't take the drawer's row spacing.
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
@@ -1009,7 +1017,13 @@ private fun AppDrawer(
                         onDragEnd = onDragEnd,
                     )
                 }
-                // One item, label and list together, so only one row gap comes before it.
+                // One item each, label and list together, so only one row gap comes before it.
+                if (shortcuts.isNotEmpty()) item(key = "shortcuts", span = { GridItemSpan(maxLineSpan) }) {
+                    Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ResultLabel(stringResource(R.string.results_shortcuts))
+                        ShortcutList(shortcuts, repository, onStart = { keyboard?.hide() })
+                    }
+                }
                 if (moreContacts.isNotEmpty()) item(key = "contacts", span = { GridItemSpan(maxLineSpan) }) {
                     Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         ResultLabel(stringResource(R.string.results_contacts))

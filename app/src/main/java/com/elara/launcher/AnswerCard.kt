@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -37,10 +38,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -252,6 +257,39 @@ internal fun ContactsOffer(onAllow: () -> Unit, onDismiss: () -> Unit, modifier:
         TextButton(onClick = onAllow) { Text(stringResource(R.string.contacts_allow), color = AnswerAccentText, fontWeight = FontWeight.Medium) }
         IconButton(onClick = onDismiss) {
             Icon(Icons.Close, contentDescription = stringResource(R.string.contacts_offer_dismiss), tint = AnswerMuted, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Apps' shortcuts found by the search, in one rounded group: the shortcut's icon, its name and its app's. */
+@Composable
+internal fun ShortcutList(shortcuts: List<AppShortcut>, repository: AppRepository, onStart: () -> Unit, modifier: Modifier = Modifier) {
+    val iconPx = with(LocalDensity.current) { 40.dp.roundToPx() }
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(OnWallpaper.copy(alpha = 0.08f))) {
+        shortcuts.forEachIndexed { i, s ->
+            if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = OnWallpaper.copy(alpha = 0.08f))
+            val icon by produceState<ImageBitmap?>(null, s.key, iconPx) { value = repository.shortcutIcon(s, iconPx) }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onStart()
+                        repository.startShortcut(s, null)
+                    }
+                    .height(64.dp)
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(40.dp).background(AnswerAccent.copy(alpha = 0.30f), CircleShape), contentAlignment = Alignment.Center) {
+                    icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(40.dp)) }
+                        ?: Icon(Icons.Add, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(20.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(s.label, color = OnWallpaper, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(s.appLabel, color = AnswerMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
     }
 }

@@ -37,6 +37,11 @@ Application ID `com.elara.launcher`.
   Go and Call open the dialer with the number ready (no call permission); tap a contact to open
   it in your contacts app. Refusing access turns the setting off; a contact's details never
   leave Android's contacts.
+- App shortcuts in search: after two letters, the actions apps offer in their long-press menu
+  ("New private tab", "New conversation") show under the apps, up to five, with each shortcut's
+  icon and its app's name; tap one to run it (Go does, when no app matches). Read once each time
+  the search opens. Android lets only the home app read them, so they show while Elara is the home
+  app; hidden apps' shortcuts stay out.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
   Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each

@@ -9,6 +9,7 @@ import android.content.pm.LauncherActivityInfo
 import android.net.Uri
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.pm.ShortcutInfo
 import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -51,6 +52,11 @@ import kotlinx.coroutines.withContext
  * permission needed). Refreshed only when Android reports a package change; never polled.
  * Icons are drawn once per app and size, on demand, and kept in memory.
  */
+/** An app's shortcut ("New event" in Calendar), as found for the drawer search. */
+class AppShortcut(val label: String, val appLabel: String, val info: ShortcutInfo) {
+    val key: String get() = "${info.`package`}/${info.id}#${info.userHandle.hashCode()}"
+}
+
 class AppRepository(context: Context) {
     private val appContext = context.applicationContext
     // The window apps are launched from; the repository lives no longer than its activity.
@@ -155,6 +161,37 @@ class AppRepository(context: Context) {
         }.getOrNull() ?: return@withContext null
         // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
         drawable.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
+    }
+
+    /**
+     * Every app's shortcuts (the actions its long-press menu offers), under the app's name in [apps].
+     * Empty unless this is the home app, which alone may read them. Blocking work, off the main thread.
+     */
+    suspend fun shortcuts(apps: List<AppEntry>): List<AppShortcut> = withContext(Dispatchers.IO) {
+        if (runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false) != true) return@withContext emptyList()
+        val names = apps.associate { "${it.packageName}#${it.userSerial}" to it.label }
+        val query = LauncherApps.ShortcutQuery().setQueryFlags(
+            LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC,
+        )
+        userManager.userProfiles.flatMap { user ->
+            val serial = userManager.getSerialNumberForUser(user)
+            // A paused work profile refuses: it just has none to show.
+            runCatching { launcherApps.getShortcuts(query, user) }.getOrNull().orEmpty().mapNotNull { info ->
+                val app = names["${info.`package`}#$serial"] ?: return@mapNotNull null
+                val label = info.shortLabel?.toString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                AppShortcut(label, app, info).takeIf { info.isEnabled }
+            }
+        }
+    }
+
+    /** A shortcut's own icon, drawn off the main thread; null if it has none. */
+    suspend fun shortcutIcon(shortcut: AppShortcut, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+        runCatching { launcherApps.getShortcutIconDrawable(shortcut.info, density) }.getOrNull()?.toImageBitmap(sizePx)
+    }
+
+    /** Runs [shortcut]; nothing happens if its app took it away meanwhile. */
+    fun startShortcut(shortcut: AppShortcut, bounds: Rect?) {
+        runCatching { launcherApps.startShortcut(shortcut.info, bounds, null) }
     }
 
     /** Apps that came with the device can't be uninstalled, only disabled from App info. */

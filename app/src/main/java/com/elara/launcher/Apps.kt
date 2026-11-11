@@ -21,17 +21,21 @@ fun sortApps(apps: List<AppEntry>, locale: Locale = Locale.getDefault()): List<A
  * Apps matching [query], best first: label starts with it, then a word in the label starts with it,
  * then the label contains it anywhere; alphabetical within each. Case and accents are ignored.
  */
-fun searchApps(apps: List<AppEntry>, query: String): List<AppEntry> {
+fun searchApps(apps: List<AppEntry>, query: String): List<AppEntry> =
+    if (query.isBlank()) apps else searchByLabel(apps, query) { it.label }
+
+/** [items] whose [label] matches [query]: start of the name, then start of a word, then anywhere. */
+fun <T> searchByLabel(items: List<T>, query: String, label: (T) -> String): List<T> {
     val q = fold(query.trim())
-    if (q.isEmpty()) return apps
-    return apps.mapNotNull { app ->
-        val label = fold(app.label)
+    if (q.isEmpty()) return emptyList()
+    return items.mapNotNull { item ->
+        val name = fold(label(item))
         when {
-            label.startsWith(q) -> 0
-            label.split(' ', '-', '.', '_').any { it.startsWith(q) } -> 1
-            q in label -> 2
+            name.startsWith(q) -> 0
+            name.split(' ', '-', '.', '_').any { it.startsWith(q) } -> 1
+            q in name -> 2
             else -> null
-        }?.let { it to app }
+        }?.let { it to item }
     }.sortedBy { it.first }.map { it.second }
 }
 
