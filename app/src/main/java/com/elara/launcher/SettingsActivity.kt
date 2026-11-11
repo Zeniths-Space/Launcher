@@ -112,6 +112,7 @@ class SettingsActivity : ComponentActivity() {
             val settings by store.settings.collectAsState(LauncherSettings())
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
             repository.useIconShape(settings.iconShape)
+            repository.useIconPack(settings.iconPack)
             ZenithTheme(fontVersion = settings.fontVersion) {
                 SettingsScreen(
                     settings = settings,
@@ -244,6 +245,7 @@ internal fun SettingsScreen(
                                 )
                             },
                             { IconShapeTile(settings, store) },
+                            { IconPackTile(settings, store) },
                             { FontTile(settings, store) },
                             {
                                 SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {
@@ -678,6 +680,79 @@ private const val WebsiteUrl = "https://aashutoshkc.com.np/"
 @Composable
 private fun CategoryTile(icon: ImageVector, page: Page, summary: String, onOpen: (Page) -> Unit) {
     GroupTile(badge = { AccentBadge(icon, page.accent, page.shape, size = 48) }, title = stringResource(page.title), subtitle = summary, onClick = { onOpen(page) })
+}
+
+/** The icon pack: a tile naming it, opening a sheet of the installed packs and the apps' own icons. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun IconPackTile(settings: LauncherSettings, store: SettingsStore) {
+    val scope = rememberCoroutineScope()
+    val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    // Read when settings open and each time the sheet does, so a pack installed meanwhile shows.
+    val packs = remember(choosing) { IconPacks.installed(context.packageManager) }
+    val none = stringResource(R.string.icon_pack_none)
+    GroupTile(
+        badge = { ScallopBadge(Icons.Widgets) },
+        title = stringResource(R.string.settings_icon_pack),
+        subtitle = packs.firstOrNull { it.packageName == settings.iconPack }?.label ?: none,
+        onClick = { choosing = true },
+    )
+    if (!choosing) return
+    ModalBottomSheet(
+        onDismissRequest = { choosing = false },
+        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
+    ) {
+        Text(
+            stringResource(R.string.settings_icon_pack),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        val accent = LocalAccent.current
+        val iconPx = with(LocalDensity.current) { 40.dp.roundToPx() }
+        Column(Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 24.dp)) {
+            (listOf(IconPackInfo("", none)) + packs).forEach { pack ->
+                val selected = pack.packageName == settings.iconPack
+                val icon = remember(pack.packageName) {
+                    runCatching { context.packageManager.getApplicationIcon(pack.packageName).toBitmap(iconPx, iconPx).asImageBitmap() }.getOrNull()
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .selectable(selected = selected, role = Role.RadioButton) {
+                            scope.launch { store.setIconPack(pack.packageName) }
+                            choosing = false
+                        }
+                        .background(if (selected) (accent?.container ?: cs.secondaryContainer) else Color.Transparent)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                        if (icon != null && pack.packageName.isNotEmpty()) Image(icon, contentDescription = null, modifier = Modifier.size(40.dp))
+                        else Icon(Icons.Apps, contentDescription = null, tint = accent?.strong ?: cs.primary)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        pack.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (selected) (accent?.content ?: cs.onSecondaryContainer) else cs.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (selected) Icon(Icons.Done, contentDescription = null, tint = accent?.content ?: cs.primary)
+                }
+            }
+            if (packs.isEmpty()) {
+                Text(
+                    stringResource(R.string.icon_pack_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cs.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
+        }
+    }
 }
 
 /** The outline of every app icon: a sheet of shapes, each previewed with a real app's icon. */

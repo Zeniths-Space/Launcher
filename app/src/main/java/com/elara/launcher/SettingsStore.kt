@@ -80,6 +80,8 @@ data class LauncherSettings(
     val fontName: String = "",
     /** The outline every app icon is drawn in. */
     val iconShape: IconShape = IconShape.System,
+    /** The icon pack's package, or "" for the apps' own icons. */
+    val iconPack: String = "",
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -132,6 +134,7 @@ class SettingsStore(context: Context) {
                 fontVersion = p[FONT_VERSION] ?: 0L,
                 fontName = p[FONT_NAME].orEmpty(),
                 iconShape = IconShape.parse(p[ICON_SHAPE]),
+                iconPack = p[ICON_PACK].orEmpty(),
             )
         }
 
@@ -185,6 +188,7 @@ class SettingsStore(context: Context) {
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
     suspend fun setSetupDone() = set(SETUP_DONE, true)
     suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
+    suspend fun setIconPack(packageName: String) = store.edit { it[ICON_PACK] = packageName }
     /** A new custom font was copied in as [name]; null goes back to the system font. */
     suspend fun setFont(name: String?) = store.edit {
         if (name == null) {
@@ -269,12 +273,13 @@ class SettingsStore(context: Context) {
         val FONT_VERSION = longPreferencesKey("font_version")
         val FONT_NAME = stringPreferencesKey("font_name")
         val ICON_SHAPE = stringPreferencesKey("icon_shape")
+        val ICON_PACK = stringPreferencesKey("icon_pack")
 
         // Keys a backup holds, by type. Not widgets (their ids belong to this install), the font (a file) or first-run state.
         val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_BLUR, LOCKED)
         val BackedInt: List<Preferences.Key<Int>> = listOf(DOCK_COLUMNS, DOCK_ROWS, DOCK_ICON_SIZE, DOCK_ROW_GAP, DOCK_COLUMN_GAP, HOME_COLUMNS, HOME_ROWS, HOME_ICON_SIZE, DRAWER_COLUMNS, DRAWER_ICON_SIZE, DRAWER_ROW_GAP, DRAWER_PADDING)
         val BackedLong: List<Preferences.Key<Long>> = emptyList()
-        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE)
+        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK)
         val BackedUp: List<Preferences.Key<*>> = BackedBoolean + BackedInt + BackedLong + BackedString
     }
 }

@@ -38,6 +38,10 @@ import android.os.UserHandle
 import android.os.UserManager
 import android.window.SplashScreen
 import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import androidx.core.graphics.drawable.toDrawable
@@ -82,6 +86,20 @@ class AppRepository(context: Context) {
     var iconEpoch by mutableIntStateOf(0)
         private set
 
+    /** The icon pack in use, loading or loaded; null for the apps' own icons. Icons wait for it, so none is drawn twice. */
+    private var iconPack: Deferred<IconPack?>? = null
+    private var iconPackName = ""
+    private val packScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Uses the icon pack [packageName] ("" for none), loading it off the main thread; every icon is drawn again. */
+    fun useIconPack(packageName: String, reload: Boolean = false) {
+        if (packageName == iconPackName && !reload) return
+        iconPackName = packageName
+        iconPack = if (packageName.isEmpty()) null else packScope.async { IconPacks.load(appContext, packageName) }
+        synchronized(infos) { icons.clear() }
+        iconEpoch++
+    }
+
     fun useIconShape(shape: IconShape) {
         if (shape == iconShape) return
         synchronized(infos) { icons.clear() }
@@ -105,6 +123,8 @@ class AppRepository(context: Context) {
     private val changedPackages = HashSet<String>()
 
     private fun changed(vararg packageNames: String) {
+        // The icon pack itself updated or went away: read it again (gone, it gives no icons).
+        if (iconPackName.isNotEmpty() && iconPackName in packageNames) useIconPack(iconPackName, reload = true)
         synchronized(infos) { changedPackages.addAll(packageNames) }
         onChanged()
     }
@@ -153,14 +173,18 @@ class AppRepository(context: Context) {
         synchronized(infos) { icons[cacheKey] }?.let { return@withContext it }
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
+        val pack = iconPack
+        val packIcon = pack?.await()?.icon(info.componentName, density)
         val drawable = runCatching {
+            // A pack's icon is drawn as the pack made it, unless it's adaptive, which takes the shape like the rest.
+            if (packIcon != null && packIcon !is AdaptiveIconDrawable) return@runCatching pm.getUserBadgedIcon(packIcon, info.user)
             // Icons are drawn as the app ships them; calendar dates and clock hands on icons are not shown (owner's choice, 2026-11-09).
-            val icon = info.getIcon(density).inSystemShape()
+            val icon = (packIcon ?: info.getIcon(density)).inSystemShape()
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null
         // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
-        drawable.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
+        drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack) synchronized(infos) { icons[cacheKey] = it } }
     }
 
     /**

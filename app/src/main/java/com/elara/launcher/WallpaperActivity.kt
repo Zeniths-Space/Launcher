@@ -90,6 +90,7 @@ class WallpaperActivity : ComponentActivity() {
             val settings by store.settings.collectAsState(LauncherSettings())
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
             repository.useIconShape(settings.iconShape)
+            repository.useIconPack(settings.iconPack)
             ZenithTheme(fontVersion = settings.fontVersion) {
                 WallpaperScreen(uri, settings, repository, onBack = ::finish, onApply = ::apply)
             }

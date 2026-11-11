@@ -192,6 +192,9 @@
     <string name="settings_pure_black_sub">Black app drawer in dark mode, when blur is off</string>
     <string name="settings_section_about">About</string>
     <string name="settings_section_backup">Backup</string>
+    <string name="settings_icon_pack">Icon pack</string>
+    <string name="icon_pack_none">App icons</string>
+    <string name="icon_pack_empty">No icon packs installed. Install one made for Nova, ADW or similar launchers; apps it has no icon for keep their own.</string>
     <string name="settings_backup_sub">Save your layout to a file, or restore it</string>
     <string name="settings_version">Version %1$s</string>
     <string name="about_tagline">A home screen that stays on your phone: open source, offline, with no ads or tracking.</string>

@@ -33,6 +33,12 @@
         <intent>
             <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
         </intent>
+        <!-- Icon packs, in the formats other launchers read. -->
+        <intent><action android:name="org.adw.launcher.THEMES" /></intent>
+        <intent><action android:name="com.novalauncher.THEME" /></intent>
+        <intent><action android:name="com.teslacoilsw.launcher.THEME" /></intent>
+        <intent><action android:name="com.gau.go.launcherex.theme" /></intent>
+        <intent><action android:name="com.anddoes.launcher.THEME" /></intent>
         <!-- Apps that offer widgets, for the widget picker. -->
         <intent>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

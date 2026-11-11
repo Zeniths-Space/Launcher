@@ -22,5 +22,5 @@
 
 ## Later
 - [x] Widgets (AppWidgetHost): picker, place, move, resize, remove
-- [ ] Icon packs
+- [x] Icon packs
 - [x] Backup and restore of the layout
