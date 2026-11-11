@@ -40,9 +40,9 @@ internal object Backup {
         }.toMap()
     }
 
-    private fun escape(s: String) = s.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+    fun escape(s: String) = s.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
 
-    private fun unescape(s: String) = buildString {
+    fun unescape(s: String) = buildString {
         var i = 0
         while (i < s.length) {
             val c = s[i]

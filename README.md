@@ -128,6 +128,17 @@ Application ID `com.elara.launcher`.
   no other way for a third-party launcher to lock the screen. It asks for no events and cannot
   read your screen. On Android 13+ a sideloaded app's switch may be greyed out until App info >
   ⋮ > Allow restricted settings.
+- Spaces (Settings > Spaces): home setups to switch between, such as Work or Night, each with
+  its own home pages (widgets too), dock and hidden apps; grid, icons and other settings are shared.
+  New space (an Elara form sheet) takes a name, an icon, a start (a copy of the current space
+  without its widgets, or empty pages with the current dock and hidden apps) and a schedule: days
+  and a from–to time, which may run past midnight. The first space (Personal, the home as it was)
+  is on whenever no other's schedule is. With two or more, the long-press home sheet shows them as
+  pills: tap one to switch, held until the next schedule change. Switch by schedule (on by
+  default) is checked each time you go home and with one timer to the next change while the home
+  screen is up: no alarms, nothing in the background. Show the space's name puts it at the top of
+  the home screen for a moment when it changes. Deleting the active space goes back to the
+  default; its widgets are freed on the next start. Backups keep the spaces, without widget ids.
 - Backup (Settings > Backup): Back up layout saves the home screen, dock, folders, app names, hidden
   apps and settings as a readable text file wherever you choose, through Android's file picker (no
   storage permission). Restore layout asks first, then replaces them with the file's. Widgets (their

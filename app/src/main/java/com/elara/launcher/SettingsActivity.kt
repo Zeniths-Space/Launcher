@@ -121,7 +121,11 @@ class SettingsActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     gesturesOn = gesturesOn,
                     versionName = versionName,
-                    startPage = if (intent.getStringExtra(EXTRA_PAGE) == PAGE_GESTURES) Page.Gestures else Page.Main,
+                    startPage = when (intent.getStringExtra(EXTRA_PAGE)) {
+                        PAGE_GESTURES -> Page.Gestures
+                        PAGE_SPACES -> Page.Spaces
+                        else -> Page.Main
+                    },
                     onBack = ::finish,
                     onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
                     onWallpaper = rememberWallpaperPicker(),
@@ -141,9 +145,10 @@ class SettingsActivity : ComponentActivity() {
     }
 
     companion object {
-        /** Opens settings on a page: [PAGE_GESTURES]. */
+        /** Opens settings on a page: [PAGE_GESTURES] or [PAGE_SPACES]. */
         const val EXTRA_PAGE = "page"
         const val PAGE_GESTURES = "gestures"
+        const val PAGE_SPACES = "spaces"
     }
 }
 
@@ -164,7 +169,7 @@ fun isDefaultHome(context: Context): Boolean {
 }
 
 /** The settings pages: a list of categories, each opening its own page. */
-internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, Backup, About }
+internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, Spaces, Backup, About }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -433,6 +438,7 @@ internal fun SettingsScreen(
                             { it.label },
                         ) { save { store.setDoubleTap(it) } }
                     }
+                    Page.Spaces -> SpacesPage(settings, store)
                     Page.Backup -> BackupPage(store)
                     Page.About -> AboutPage(versionName, onAppInfo, onOpenLink)
                 }
@@ -451,6 +457,7 @@ private val Page.title
         Page.Home -> R.string.settings_section_home
         Page.Drawer -> R.string.settings_section_drawer
         Page.Gestures -> R.string.settings_section_gestures
+        Page.Spaces -> R.string.settings_section_spaces
         Page.Backup -> R.string.settings_section_backup
         Page.About -> R.string.settings_section_about
     }
@@ -532,6 +539,7 @@ internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@C
     { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub), onOpen) },
     { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub), onOpen) },
     { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub), onOpen) },
+    { CategoryTile(Icons.Work, Page.Spaces, stringResource(R.string.settings_spaces_sub), onOpen) },
     { CategoryTile(Icons.Upload, Page.Backup, stringResource(R.string.settings_backup_sub), onOpen) },
     { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName), onOpen) },
 )
@@ -601,6 +609,101 @@ private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (S
             },
         ),
     )
+}
+
+/**
+ * The spaces: each with its icon, name and schedule (the live one marked), a button for a new one,
+ * and the switches for the schedule and the name shown on a change. Tap one to change it.
+ */
+@Composable
+private fun SpacesPage(settings: LauncherSettings, store: SettingsStore) {
+    val cs = MaterialTheme.colorScheme
+    val scope = rememberCoroutineScope()
+    var editing by remember { mutableStateOf<Space?>(null) }
+    var adding by remember { mutableStateOf(false) }
+    val defaultName = stringResource(R.string.space_default_name)
+    val dayNames = listOf(R.string.day_sun, R.string.day_mon, R.string.day_tue, R.string.day_wed, R.string.day_thu, R.string.day_fri, R.string.day_sat).map { stringResource(it) }
+    val everyDay = stringResource(R.string.space_every_day)
+    val weekdays = stringResource(R.string.space_weekdays)
+    val weekends = stringResource(R.string.space_weekends)
+    val rest = stringResource(R.string.space_rest_of_time)
+    val unscheduled = stringResource(R.string.space_by_hand)
+    // Before the first space exists, the home as it is shows as the default one.
+    val spaces = settings.spaces.ifEmpty { listOf(Space(1, defaultName)) }
+    val active = settings.activeSpace.takeIf { id -> spaces.any { it.id == id } } ?: spaces.first().id
+    Text(
+        stringResource(R.string.spaces_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = cs.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+    )
+    SectionHeader(stringResource(R.string.spaces_yours))
+    SegmentedGroup(
+        spaces.mapIndexed { i, space ->
+            @Composable {
+                GroupTile(
+                    badge = { ScallopBadge(space.icon.vector()) },
+                    title = space.name,
+                    subtitle = if (i == 0) rest else Spaces.describe(space, dayNames, everyDay, weekdays, weekends) ?: unscheduled,
+                    onClick = { editing = space },
+                    trailing = if (space.id == active) ({
+                        Text(
+                            stringResource(R.string.space_now),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF7C4DFF)).padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }) else null,
+                )
+            }
+        } + listOf<@Composable () -> Unit>({
+            GroupTile(
+                badge = { ScallopBadge(Icons.Add) },
+                title = stringResource(R.string.space_new),
+                subtitle = stringResource(R.string.space_new_sub),
+                onClick = { adding = true },
+            )
+        }),
+    )
+    SectionHeader(stringResource(R.string.spaces_switching))
+    SegmentedGroup(
+        listOf(
+            {
+                SwitchTile(Icons.Clock, stringResource(R.string.spaces_by_schedule), stringResource(R.string.spaces_by_schedule_sub), settings.spacesBySchedule) {
+                    scope.launch { store.setSpacesBySchedule(it) }
+                }
+            },
+            {
+                SwitchTile(Icons.Label, stringResource(R.string.spaces_show_name), stringResource(R.string.spaces_show_name_sub), settings.spacesShowName) {
+                    scope.launch { store.setSpacesShowName(it) }
+                }
+            },
+        ),
+    )
+    if (adding) {
+        SpaceSheet(
+            editing = null,
+            isDefault = false,
+            onSave = { space, copy -> scope.launch { store.addSpace(space, copy, defaultName) } },
+            onDelete = null,
+            onClose = { adding = false },
+        )
+    }
+    editing?.let { space ->
+        val isDefault = space.id == spaces.first().id
+        SpaceSheet(
+            editing = space,
+            isDefault = isDefault,
+            onSave = { changed, _ ->
+                scope.launch {
+                    // Renaming the default before any other space exists makes the list, with just it.
+                    if (settings.spaces.isEmpty()) store.addFirstSpace(changed) else store.updateSpace(changed)
+                }
+            },
+            onDelete = if (isDefault) null else ({ scope.launch { store.deleteSpace(space.id) } }),
+            onClose = { editing = null },
+        )
+    }
 }
 
 /**

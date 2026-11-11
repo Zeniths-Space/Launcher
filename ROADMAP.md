@@ -21,6 +21,7 @@
 - [x] Gestures (double-tap to lock, swipe down for notifications)
 
 ## Later
+- [x] Spaces: home setups switched by hand or schedule
 - [x] Widgets (AppWidgetHost): picker, place, move, resize, remove
 - [x] Icon packs
 - [x] Backup and restore of the layout

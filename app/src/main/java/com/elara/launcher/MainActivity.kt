@@ -1,5 +1,9 @@
 package com.elara.launcher
 
+import java.time.LocalDateTime
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import android.provider.Settings
 import android.net.Uri
 import android.Manifest
@@ -73,7 +77,11 @@ class MainActivity : ComponentActivity() {
         glassAsked = GlassWallpaper.asked(this)
         if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).addOnColorsChangedListener(wallpaperListener, Handler(mainLooper))
         // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.
-        lifecycleScope.launch { widgets.forgetAllBut(store.settings.first().widgets.mapTo(HashSet()) { it.id }) }
+        lifecycleScope.launch {
+            // Waiting spaces' widgets too: they come back when their space does.
+            val s = store.settings.first()
+            widgets.forgetAllBut(s.widgets.mapTo(HashSet()) { it.id } + s.spaces.flatMap { sp -> HomeWidgets.parse(sp.layout.widgets).map { it.id } })
+        }
         setContent {
             val settings by store.settings.collectAsState(LauncherSettings())
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
@@ -84,6 +92,22 @@ class MainActivity : ComponentActivity() {
             val apps by repository.apps.collectAsState()
             LaunchedEffect(apps != null) {
                 apps?.let { list -> store.seedDock(repository.defaultDock(list, this@MainActivity).map { it.key }) }
+            }
+            // Spaces by schedule: checked on each visit home (entrances), then one wait for the next
+            // change while the home screen is started. No alarms, nothing in the background.
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
+            LaunchedEffect(settings.spaces, settings.activeSpace, settings.spacesBySchedule, settings.spaceManualUntil, entrances) {
+                if (!settings.spacesBySchedule || settings.spaces.none { it.scheduled }) return@LaunchedEffect
+                lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (true) {
+                        if (store.applySchedule(LocalDateTime.now(), System.currentTimeMillis())) return@repeatOnLifecycle
+                        val nowMs = System.currentTimeMillis()
+                        val next = withContext(Dispatchers.Default) { Spaces.holdUntil(settings.spaces) }
+                            .let { if (settings.spaceManualUntil > nowMs) minOf(it, settings.spaceManualUntil) else it }
+                        if (next == Long.MAX_VALUE) return@repeatOnLifecycle
+                        delay((next - nowMs).coerceAtLeast(1_000))
+                    }
+                }
             }
             // The app being renamed, from any app's menu.
             var renaming by remember { mutableStateOf<AppEntry?>(null) }
@@ -123,6 +147,15 @@ class MainActivity : ComponentActivity() {
                         onLayoutChange = { pages, folders -> lifecycleScope.launch { store.setHomeLayout(pages, folders) } },
                         widgetHost = widgets,
                         onWidgetsChange = { list -> lifecycleScope.launch { store.setWidgets(list) } },
+                        onSwitchSpace = { id ->
+                            lifecycleScope.launch {
+                                val until = withContext(Dispatchers.Default) { Spaces.holdUntil(settings.spaces) }
+                                store.switchSpace(id, manualUntil = until)
+                            }
+                        },
+                        onNewSpace = {
+                            startActivity(Intent(this@MainActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, SettingsActivity.PAGE_SPACES))
+                        },
                         glassImage = glassImage.takeIf { glassOn && !glassStale },
                         glassStyle = settings.drawerBlurStyle,
                         onUpdateGlass = if (glassOn && glassStale && !glassAsked) ::askWallpaperAccess else null,

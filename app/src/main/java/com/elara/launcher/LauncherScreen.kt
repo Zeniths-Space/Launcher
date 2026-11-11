@@ -1,5 +1,11 @@
 package com.elara.launcher
 
+import kotlinx.coroutines.delay
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.FlowRow
 import android.appwidget.AppWidgetProviderInfo
 import android.graphics.Rect
 import androidx.activity.compose.BackHandler
@@ -201,6 +207,8 @@ internal fun LauncherScreen(
     onLayoutChange: (List<List<String>>, List<HomeFolder>) -> Unit,
     widgetHost: WidgetHost,
     onWidgetsChange: (List<HomeWidget>) -> Unit,
+    onSwitchSpace: (Long) -> Unit,
+    onNewSpace: () -> Unit,
     /** The blurred wallpaper (see [GlassWallpaper]) to show behind the drawer as glass, or null for the plain dim. */
     glassImage: ImageBitmap? = null,
     /** How [glassImage] was made: sets the dim over it and whether it catches light. */
@@ -366,6 +374,8 @@ internal fun LauncherScreen(
             }) else null,
             onAddWidget = { pickingWidget = true },
             onDoubleTap = { onGesture(settings.doubleTap) },
+            onSwitchSpace = onSwitchSpace,
+            onNewSpace = onNewSpace,
             modifier = Modifier
                 .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
@@ -484,6 +494,7 @@ internal fun LauncherScreen(
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
+        SpaceBanner(settings, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 16.dp))
         // The app dragged from the drawer, under the finger.
         drawerDrag?.let { d ->
             val size = settings.homeIconSize.dp
@@ -541,6 +552,8 @@ private fun HomeScreen(
     onRemovePage: (() -> Unit)?,
     onAddWidget: () -> Unit,
     onDoubleTap: () -> Unit,
+    onSwitchSpace: (Long) -> Unit,
+    onNewSpace: () -> Unit,
     modifier: Modifier,
     grid: @Composable (onLongPressEmpty: (Offset) -> Unit, modifier: Modifier) -> Unit,
     dock: @Composable () -> Unit,
@@ -576,6 +589,9 @@ private fun HomeScreen(
                 onMoreSettings = onOpenSettings,
                 locked = settings.locked,
                 onLockedChange = { on -> onSettings { setLocked(on) } },
+                settings = settings,
+                onSwitchSpace = onSwitchSpace,
+                onNewSpace = onNewSpace,
                 items = listOf(
                     MenuItem(Icons.Add, stringResource(R.string.home_menu_add_app), enabled = !settings.locked, onClick = onAddApp),
                     MenuItem(Icons.AddPage, stringResource(R.string.home_menu_add_page), enabled = !settings.locked, onClick = onAddPage),
@@ -604,6 +620,9 @@ private fun HomeSheet(
     locked: Boolean,
     onLockedChange: (Boolean) -> Unit,
     items: List<MenuItem>,
+    settings: LauncherSettings,
+    onSwitchSpace: (Long) -> Unit,
+    onNewSpace: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -684,8 +703,10 @@ private fun HomeSheet(
                 .onSizeChanged { sheetHeight = it.height }
                 .graphicsLayer {
                     translationY = offset
-                    // Parked, it isn't drawn: the home screen shrinks as the drawer comes and goes, which pulled its top edge into view.
-                    alpha = if (!visible && offset >= hidden) 0f else 1f
+                    // Parked, it isn't drawn: the home screen shrinks as the drawer comes and goes, which pulled its top edge
+                    // into view, and a parked sheet that grows (a Space row appearing) would rise above the edge. Closing
+                    // animates while still visible, so this only hides it once it's away.
+                    alpha = if (visible) 1f else 0f
                 }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(colors.surface)
@@ -719,6 +740,7 @@ private fun HomeSheet(
                     )
                 }
             }
+            if (settings.spaces.size >= 2) SpaceRow(settings, onSwitchSpace = onSwitchSpace, onNew = { onDismiss(); onNewSpace() })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items.forEach { item ->
                     Column(
@@ -767,6 +789,105 @@ private fun HomeSheet(
                     },
                 ),
             )
+        }
+    }
+}
+
+/**
+ * The spaces as pills, the live one filled, and "+" for a new one (in settings); under them, what
+ * the schedule does next, or that a hand-picked space is being held.
+ */
+@Composable
+private fun SpaceRow(settings: LauncherSettings, onSwitchSpace: (Long) -> Unit, onNew: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val dark = LocalDark.current
+    val field = if (dark) Color(0xFF141414) else Color(0xFFF2F0F7)
+    val brand = Color(0xFF7C4DFF)
+    val held = stringResource(R.string.space_held)
+    val nextFormat = stringResource(R.string.space_next_switch)
+    // Worked out when the spaces change, not on every frame.
+    val line = remember(settings.spaces, settings.activeSpace, settings.spacesBySchedule, settings.spaceManualUntil) {
+        when {
+            !settings.spacesBySchedule || settings.spaces.none { it.scheduled } -> null
+            settings.spaceManualUntil > System.currentTimeMillis() -> held
+            else -> java.time.LocalDateTime.now().let { now ->
+                Spaces.nextChange(settings.spaces, now)?.let { at ->
+                    Spaces.scheduled(settings.spaces, at)?.let { nextFormat.format(it.name, Spaces.time(at.hour * 60 + at.minute)) }
+                }
+            }
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(R.string.space_switch_label),
+            style = MaterialTheme.typography.titleSmall,
+            color = if (dark) Color(0xFFB69CFF) else brand,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            settings.spaces.forEach { space ->
+                val on = space.id == settings.activeSpace
+                Row(
+                    Modifier
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(if (on) brand else field)
+                        .selectable(selected = on, role = Role.RadioButton) { if (!on) onSwitchSpace(space.id) }
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(space.icon.vector(), contentDescription = null, tint = if (on) Color.White else if (dark) Color(0xFFB69CFF) else brand, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(space.name, style = MaterialTheme.typography.labelLarge, color = if (on) Color.White else colors.onSurface)
+                }
+            }
+            Box(
+                Modifier.size(44.dp).clip(CircleShape).background(field).clickable(role = Role.Button, onClick = onNew),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Add, contentDescription = stringResource(R.string.space_new), tint = if (dark) Color(0xFFB69CFF) else brand) }
+        }
+        line?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp)) }
+    }
+}
+
+/** The live space's name, briefly, at the top of the home screen when it changes (if [show]). */
+@Composable
+private fun SpaceBanner(settings: LauncherSettings, modifier: Modifier) {
+    var shown by remember { mutableStateOf<Space?>(null) }
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(settings.activeSpace) {
+        // Not for the space the launcher starts in.
+        if (first) { first = false; return@LaunchedEffect }
+        if (!settings.spacesShowName) return@LaunchedEffect
+        shown = settings.spaces.firstOrNull { it.id == settings.activeSpace } ?: return@LaunchedEffect
+        delay(2_500)
+        shown = null
+    }
+    val alpha by animateFloatAsState(if (shown != null) 1f else 0f, tween(220), label = "space banner")
+    var last by remember { mutableStateOf<Space?>(null) }
+    shown?.let { last = it }
+    val space = last ?: return
+    if (alpha == 0f) return
+    val until = stringResource(R.string.space_until, Spaces.time(space.to)).takeIf { space.scheduled && Spaces.covers(space, java.time.LocalDateTime.now()) }
+    Row(
+        modifier
+            .graphicsLayer { this.alpha = alpha }
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
+            .height(44.dp)
+            .padding(start = 8.dp, end = 18.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(28.dp).background(Color(0xFF7C4DFF).copy(alpha = 0.35f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(space.icon.vector(), contentDescription = null, tint = Color(0xFFB69CFF), modifier = Modifier.size(16.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(space.name, style = MaterialTheme.typography.titleSmall, color = Color.White)
+        until?.let {
+            Spacer(Modifier.width(8.dp))
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFC9C9CF))
         }
     }
 }

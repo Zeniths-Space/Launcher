@@ -2,6 +2,7 @@ package com.elara.launcher
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -82,6 +83,14 @@ data class LauncherSettings(
     val iconShape: IconShape = IconShape.System,
     /** The icon pack's package, or "" for the apps' own icons. */
     val iconPack: String = "",
+    /** Home setups to switch between; empty until the user makes one. The first is the default. */
+    val spaces: List<Space> = emptyList(),
+    /** The id of the space whose layout is the live home, dock and hidden apps. */
+    val activeSpace: Long = 0,
+    val spacesBySchedule: Boolean = true,
+    val spacesShowName: Boolean = true,
+    /** A space picked by hand stays until this time (epoch ms), when the schedule takes over again. */
+    val spaceManualUntil: Long = 0,
 ) {
     val dockCapacity: Int get() = dockColumns * dockRows
     val homeCapacity: Int get() = homeColumns * homeRows
@@ -135,6 +144,11 @@ class SettingsStore(context: Context) {
                 fontName = p[FONT_NAME].orEmpty(),
                 iconShape = IconShape.parse(p[ICON_SHAPE]),
                 iconPack = p[ICON_PACK].orEmpty(),
+                spaces = Spaces.parse(p[SPACES]),
+                activeSpace = p[ACTIVE_SPACE] ?: 0,
+                spacesBySchedule = p[SPACES_SCHEDULE] ?: true,
+                spacesShowName = p[SPACES_SHOW_NAME] ?: true,
+                spaceManualUntil = p[SPACE_MANUAL_UNTIL] ?: 0,
             )
         }
 
@@ -189,6 +203,108 @@ class SettingsStore(context: Context) {
     suspend fun setSetupDone() = set(SETUP_DONE, true)
     suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
     suspend fun setIconPack(packageName: String) = store.edit { it[ICON_PACK] = packageName }
+    suspend fun setSpacesBySchedule(on: Boolean) = store.edit { it[SPACES_SCHEDULE] = on; it.remove(SPACE_MANUAL_UNTIL) }
+    suspend fun setSpacesShowName(on: Boolean) = set(SPACES_SHOW_NAME, on)
+
+    private fun MutablePreferences.liveLayout() = SpaceLayout(
+        home = this[HOME].orEmpty(),
+        folders = this[HOME_FOLDERS].orEmpty(),
+        widgets = this[HOME_WIDGETS].orEmpty(),
+        dock = this[DOCK].orEmpty(),
+        hidden = this[HIDDEN_APPS].orEmpty(),
+    )
+
+    private fun MutablePreferences.putLive(layout: SpaceLayout) {
+        this[HOME] = layout.home
+        this[HOME_FOLDERS] = layout.folders
+        this[HOME_WIDGETS] = layout.widgets
+        this[DOCK] = layout.dock
+        this[HIDDEN_APPS] = layout.hidden
+    }
+
+    /**
+     * Adds a space. The first one also makes the current home the default space, [defaultName].
+     * [copy] starts it as a copy of the active space's pages; otherwise with empty pages. Either way
+     * it keeps the dock and hidden apps, and no widgets: a widget belongs to one page only.
+     */
+    suspend fun addSpace(space: Space, copy: Boolean, defaultName: String) = store.edit { p ->
+        var spaces = Spaces.parse(p[SPACES])
+        if (spaces.isEmpty()) {
+            spaces = listOf(Space(1, defaultName, SpaceIcon.Home))
+            p[ACTIVE_SPACE] = 1
+        }
+        val live = p.liveLayout()
+        val layout = if (copy) live.copy(widgets = "") else SpaceLayout(dock = live.dock, hidden = live.hidden)
+        val id = (spaces.maxOf { it.id }) + 1
+        p[SPACES] = Spaces.format(spaces + space.copy(id = id, layout = layout))
+    }
+
+    /** Saves the default space alone (renamed before any other exists), making the current home it. */
+    suspend fun addFirstSpace(space: Space) = store.edit { p ->
+        if (Spaces.parse(p[SPACES]).isNotEmpty()) return@edit
+        p[SPACES] = Spaces.format(listOf(space.copy(id = 1, days = 0, layout = SpaceLayout())))
+        p[ACTIVE_SPACE] = 1
+    }
+
+    /** Changes a space's name, icon or schedule; its layout stays. */
+    suspend fun updateSpace(space: Space) = store.edit { p ->
+        val spaces = Spaces.parse(p[SPACES])
+        p[SPACES] = Spaces.format(spaces.map { if (it.id == space.id) space.copy(layout = it.layout) else it })
+    }
+
+    /**
+     * Removes a space (never the default). Removing the active one switches to the default first. With
+     * only the default left, spaces end and its layout simply stays the home. Its widgets are freed on
+     * the next start ([AppWidgets.forgetAllBut]).
+     */
+    suspend fun deleteSpace(id: Long) = store.edit { p ->
+        val spaces = Spaces.parse(p[SPACES])
+        if (spaces.firstOrNull()?.id == id || spaces.none { it.id == id }) return@edit
+        if (p[ACTIVE_SPACE] == id) switchIn(p, spaces, spaces.first().id)
+        val left = Spaces.parse(p[SPACES]).filter { it.id != id }
+        if (left.size <= 1) {
+            p.remove(SPACES)
+            p.remove(ACTIVE_SPACE)
+            p.remove(SPACE_MANUAL_UNTIL)
+        } else {
+            p[SPACES] = Spaces.format(left)
+        }
+    }
+
+    /**
+     * Makes [id] the live space in one write: the active space's home, dock and hidden apps are kept
+     * in it, and [id]'s come out. [manualUntil] (epoch ms) holds a hand-picked space until then; 0 for
+     * a switch the schedule made.
+     */
+    suspend fun switchSpace(id: Long, manualUntil: Long) = store.edit { p ->
+        val spaces = Spaces.parse(p[SPACES])
+        if (spaces.none { it.id == id }) return@edit
+        switchIn(p, spaces, id)
+        if (manualUntil > 0) p[SPACE_MANUAL_UNTIL] = manualUntil else p.remove(SPACE_MANUAL_UNTIL)
+    }
+
+    private fun switchIn(p: MutablePreferences, spaces: List<Space>, id: Long) {
+        val active = p[ACTIVE_SPACE] ?: spaces.first().id
+        if (active == id) return
+        val live = p.liveLayout()
+        val target = spaces.first { it.id == id }
+        p.putLive(target.layout)
+        p[SPACES] = Spaces.format(spaces.map { if (it.id == active) it.copy(layout = live) else if (it.id == id) it.copy(layout = SpaceLayout()) else it })
+        p[ACTIVE_SPACE] = id
+    }
+
+    /**
+     * Switches to the space the schedule wants at [now], unless the schedule is off, a hand-picked
+     * space is still being held, or it already is the live one. Returns whether it switched.
+     */
+    suspend fun applySchedule(now: java.time.LocalDateTime, nowMs: Long): Boolean {
+        val s = settings.first()
+        if (!s.spacesBySchedule || s.spaces.size < 2 || s.spaces.none { it.scheduled } || nowMs < s.spaceManualUntil) return false
+        val want = Spaces.scheduled(s.spaces, now) ?: return false
+        if (want.id == s.activeSpace) return false
+        switchSpace(want.id, manualUntil = 0)
+        return true
+    }
     /** A new custom font was copied in as [name]; null goes back to the system font. */
     suspend fun setFont(name: String?) = store.edit {
         if (name == null) {
@@ -215,7 +331,10 @@ class SettingsStore(context: Context) {
     suspend fun backup(): String {
         val names = BackedUp.mapTo(HashSet()) { it.name }
         val prefs = store.data.first().asMap()
-        return Backup.encode(prefs.entries.filter { it.key.name in names }.associate { it.key.name to it.value })
+        val values = prefs.entries.filter { it.key.name in names }.associate { it.key.name to it.value }.toMutableMap()
+        // Widget ids belong to this install, so waiting spaces go without theirs, as the live home does.
+        (values[SPACES.name] as? String)?.let { values[SPACES.name] = Spaces.format(Spaces.parse(it).map { s -> s.copy(layout = s.layout.copy(widgets = "")) }) }
+        return Backup.encode(values)
     }
 
     /**
@@ -274,12 +393,17 @@ class SettingsStore(context: Context) {
         val FONT_NAME = stringPreferencesKey("font_name")
         val ICON_SHAPE = stringPreferencesKey("icon_shape")
         val ICON_PACK = stringPreferencesKey("icon_pack")
+        val SPACES = stringPreferencesKey("spaces")
+        val ACTIVE_SPACE = longPreferencesKey("active_space")
+        val SPACES_SCHEDULE = booleanPreferencesKey("spaces_schedule")
+        val SPACES_SHOW_NAME = booleanPreferencesKey("spaces_show_name")
+        val SPACE_MANUAL_UNTIL = longPreferencesKey("space_manual_until")
 
         // Keys a backup holds, by type. Not widgets (their ids belong to this install), the font (a file) or first-run state.
-        val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_BLUR, LOCKED)
+        val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_BLUR, LOCKED, SPACES_SCHEDULE, SPACES_SHOW_NAME)
         val BackedInt: List<Preferences.Key<Int>> = listOf(DOCK_COLUMNS, DOCK_ROWS, DOCK_ICON_SIZE, DOCK_ROW_GAP, DOCK_COLUMN_GAP, HOME_COLUMNS, HOME_ROWS, HOME_ICON_SIZE, DRAWER_COLUMNS, DRAWER_ICON_SIZE, DRAWER_ROW_GAP, DRAWER_PADDING)
-        val BackedLong: List<Preferences.Key<Long>> = emptyList()
-        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK)
+        val BackedLong: List<Preferences.Key<Long>> = listOf(ACTIVE_SPACE)
+        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK, SPACES)
         val BackedUp: List<Preferences.Key<*>> = BackedBoolean + BackedInt + BackedLong + BackedString
     }
 }
