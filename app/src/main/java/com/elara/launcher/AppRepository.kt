@@ -179,7 +179,7 @@ class AppRepository(context: Context) {
             // A pack's icon is drawn as the pack made it, unless it's adaptive, which takes the shape like the rest.
             if (packIcon != null && packIcon !is AdaptiveIconDrawable) return@runCatching pm.getUserBadgedIcon(packIcon, info.user)
             // Icons are drawn as the app ships them; calendar dates and clock hands on icons are not shown (owner's choice, 2026-11-09).
-            val icon = (packIcon ?: info.getIcon(density)).inSystemShape()
+            val icon = (packIcon ?: info.getIcon(density)).inSystemShape(appContext.resources)
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null
@@ -306,12 +306,37 @@ class AppRepository(context: Context) {
 
 /**
  * Legacy (non-adaptive) icons are drawn as they are, square or shapeless, next to adaptive icons in
- * the system shape. Like Launcher3, place them on white inside an adaptive icon so Android masks
- * them to the same shape: scaled to 70% of the visible area, the layer being 1.5 times that area.
+ * the system shape, so they go inside an adaptive icon that Android masks to the same shape. One
+ * that already fills a square (a full-bleed tile, as many older apps ship) is cropped to its tile and
+ * fills the shape, as One UI does. Any other is placed on white like Launcher3: scaled to 70% of the
+ * visible area, the layer being 1.5 times that area.
  */
-private fun Drawable.inSystemShape(): AdaptiveIconDrawable =
-    if (this is AdaptiveIconDrawable) this
-    else AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
+private fun Drawable.inSystemShape(res: android.content.res.Resources): AdaptiveIconDrawable {
+    if (this is AdaptiveIconDrawable) return this
+    fullBleedTile(res)?.let { return AdaptiveIconDrawable(InsetDrawable(it, FullBleedInset), android.graphics.Color.TRANSPARENT.toDrawable()) }
+    return AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
+}
+
+/** This icon cropped to its tile, if it is a full-bleed square tile ([IconTiles.tileBox]); else null. */
+private fun Drawable.fullBleedTile(res: android.content.res.Resources): Drawable? {
+    val n = IconTiles.SampleSize
+    val sample = createBitmap(n, n)
+    setBounds(0, 0, n, n)
+    draw(Canvas(sample))
+    val pixels = IntArray(n * n)
+    sample.getPixels(pixels, 0, n, 0, 0, n, n)
+    sample.recycle()
+    val box = IconTiles.tileBox(pixels, n) ?: return null
+    // Drawn again, larger, with the tile filling the bitmap, so it stays sharp at the home screen's size.
+    val out = 256
+    val w = box[2] - box[0]
+    val h = box[3] - box[1]
+    val tile = createBitmap(out, out)
+    setBounds(-box[0] * out / w, -box[1] * out / h, (n - box[0]) * out / w, (n - box[1]) * out / h)
+    draw(Canvas(tile))
+    setBounds(0, 0, n, n)
+    return tile.toDrawable(res)
+}
 
 /**
  * The adaptive icon's two layers inside [shape] instead of the system mask. Layers are 1.5 times the
@@ -343,6 +368,9 @@ internal fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
 }
 
 private const val ShortcutGlyphInset = 0.2f
+
+// The tile a little past the visible area (2/3 of the layer), so its own rounded corners are cut away.
+private const val FullBleedInset = (1f - 1.06f / 1.5f) / 2
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
 

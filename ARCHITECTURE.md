@@ -36,9 +36,10 @@ No other ecosystem app is needed.
   between the home activity's onStart and onStop.
 - **Icons on demand.** Each tile asks for its icon at its pixel size; the repository draws it off
   the main thread once and keeps it in memory until the app changes or leaves.
-  Legacy (non-adaptive) icons are wrapped, as Launcher3 does, at 70% on white inside an
-  `AdaptiveIconDrawable`, so every icon gets the system icon shape; the work badge goes on after
-  (`getUserBadgedIcon`).
+  Legacy (non-adaptive) icons go inside an `AdaptiveIconDrawable`, so every icon gets the system
+  icon shape. One that is already a full-bleed square tile (`IconTiles.tileBox`: nearly square, at
+  least 80% of the icon, 90% opaque) is cropped to its tile and fills the shape, as One UI does; any
+  other sits at 70% on white, as in Launcher3. The work badge goes on after (`getUserBadgedIcon`).
 - **Drawer motion follows the finger.** `DrawerMotion` holds one progress value (0 home, 1 open).
   Drags set it directly; a release starts a critically damped spring (stiffness 400) with the
   fling's speed. Every visual (home fade, drawer rise and fade, wallpaper dim) is read from it in
