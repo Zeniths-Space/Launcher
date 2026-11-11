@@ -8,8 +8,8 @@
 - [x] Live updates on package install, removal and change
 
 ## Next
-- [ ] Favourites dock on the home screen
-- [ ] Home screen pages with app icons, drag to arrange
+- [x] Favourites dock on the home screen
+- [x] Home screen pages with app icons, drag to arrange
 - [x] Folders (home screen; dock later)
 - [x] App shortcuts (long-press menu, and in search)
 - [x] Hidden apps
@@ -17,10 +17,10 @@
 - [x] Custom font (TTF/OTF) for all the launcher's text
 - [x] First-run setup: welcome, home app, wallpaper, gestures
 - [x] Settings screen: home app status, wallpaper, app names, pure black
-- [ ] More settings: grid size, icon size
-- [ ] Gestures (double-tap to lock, swipe down for notifications)
+- [x] More settings: grid size, icon size
+- [x] Gestures (double-tap to lock, swipe down for notifications)
 
 ## Later
 - [x] Widgets (AppWidgetHost): picker, place, move, resize, remove
 - [ ] Icon packs
-- [ ] Backup and restore of the layout
+- [x] Backup and restore of the layout

@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -206,6 +207,30 @@ class SettingsStore(context: Context) {
         store.edit { it[key] = on }
     }
 
+    /** Everything a layout backup holds ([Backup]): the home screen, dock, folders, names, hidden apps and settings. */
+    suspend fun backup(): String {
+        val names = BackedUp.mapTo(HashSet()) { it.name }
+        val prefs = store.data.first().asMap()
+        return Backup.encode(prefs.entries.filter { it.key.name in names }.associate { it.key.name to it.value })
+    }
+
+    /**
+     * Replaces the layout and settings with a [backup]'s; widgets, the custom font and first-run
+     * state stay as they are. False when the text isn't a backup (nothing changes then).
+     */
+    suspend fun restore(backup: String): Boolean {
+        val values = Backup.decode(backup) ?: return false
+        store.edit { prefs ->
+            BackedUp.forEach { prefs.remove(it) }
+            // Only a value of the key's own type; anything else in the file is ignored.
+            BackedBoolean.forEach { k -> (values[k.name] as? Boolean)?.let { prefs[k] = it } }
+            BackedInt.forEach { k -> (values[k.name] as? Int)?.let { prefs[k] = it } }
+            BackedLong.forEach { k -> (values[k.name] as? Long)?.let { prefs[k] = it } }
+            BackedString.forEach { k -> (values[k.name] as? String)?.let { prefs[k] = it } }
+        }
+        return true
+    }
+
     private companion object {
         val SHOW_LABELS = booleanPreferencesKey("show_labels")
         val PURE_BLACK = booleanPreferencesKey("pure_black")
@@ -244,6 +269,13 @@ class SettingsStore(context: Context) {
         val FONT_VERSION = longPreferencesKey("font_version")
         val FONT_NAME = stringPreferencesKey("font_name")
         val ICON_SHAPE = stringPreferencesKey("icon_shape")
+
+        // Keys a backup holds, by type. Not widgets (their ids belong to this install), the font (a file) or first-run state.
+        val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_BLUR, LOCKED)
+        val BackedInt: List<Preferences.Key<Int>> = listOf(DOCK_COLUMNS, DOCK_ROWS, DOCK_ICON_SIZE, DOCK_ROW_GAP, DOCK_COLUMN_GAP, HOME_COLUMNS, HOME_ROWS, HOME_ICON_SIZE, DRAWER_COLUMNS, DRAWER_ICON_SIZE, DRAWER_ROW_GAP, DRAWER_PADDING)
+        val BackedLong: List<Preferences.Key<Long>> = emptyList()
+        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE)
+        val BackedUp: List<Preferences.Key<*>> = BackedBoolean + BackedInt + BackedLong + BackedString
     }
 }
 

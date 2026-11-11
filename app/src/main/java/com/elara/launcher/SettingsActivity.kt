@@ -1,5 +1,8 @@
 package com.elara.launcher
 
+import androidx.compose.material3.AlertDialog
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -428,7 +431,7 @@ internal fun SettingsScreen(
                             { it.label },
                         ) { save { store.setDoubleTap(it) } }
                     }
-                    Page.About -> AboutPage(versionName, onAppInfo, onOpenLink)
+                    Page.About -> AboutPage(versionName, onAppInfo, onOpenLink, store)
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -530,7 +533,7 @@ internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@C
 
 /** The app with its icon and version, what it does and doesn't do, then who made it and where to find them. */
 @Composable
-private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (String) -> Unit) {
+private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (String) -> Unit, store: SettingsStore) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val iconPx = with(LocalDensity.current) { 88.dp.roundToPx() }
@@ -569,6 +572,7 @@ private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (S
             { GroupTile(badge = { ScallopBadge(Icons.Info) }, title = stringResource(R.string.about_app_info), subtitle = stringResource(R.string.about_app_info_sub), onClick = onAppInfo) },
         ),
     )
+    BackupSection(store)
     SectionHeader(stringResource(R.string.about_section_developer))
     SegmentedGroup(
         listOf(
@@ -593,6 +597,75 @@ private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (S
             },
         ),
     )
+}
+
+/**
+ * Back up the layout and settings to a file the user picks (Android's file picker: no storage
+ * permission), or restore them from one after asking. The file stays wherever they put it.
+ */
+@Composable
+private fun BackupSection(store: SettingsStore) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var restoreFrom by remember { mutableStateOf<android.net.Uri?>(null) }
+    val toast = { id: Int -> Toast.makeText(context, id, Toast.LENGTH_SHORT).show() }
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.backup().toByteArray()) } }.isSuccess
+            }
+            toast(if (ok) R.string.backup_saved else R.string.backup_failed)
+        }
+    }
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> restoreFrom = uri }
+    SectionHeader(stringResource(R.string.backup_section))
+    SegmentedGroup(
+        listOf(
+            {
+                GroupTile(
+                    badge = { ScallopBadge(Icons.Upload) },
+                    title = stringResource(R.string.backup_save),
+                    subtitle = stringResource(R.string.backup_save_sub),
+                    onClick = { save.launch("Elara Launcher backup ${java.time.LocalDate.now()}.txt") },
+                )
+            },
+            {
+                GroupTile(
+                    badge = { ScallopBadge(Icons.Download) },
+                    title = stringResource(R.string.backup_restore),
+                    subtitle = stringResource(R.string.backup_restore_sub),
+                    onClick = { open.launch(arrayOf("text/plain", "application/octet-stream")) },
+                )
+            },
+        ),
+    )
+    restoreFrom?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { restoreFrom = null },
+            icon = { Icon(Icons.Download, contentDescription = null) },
+            title = { Text(stringResource(R.string.backup_restore_title)) },
+            text = { Text(stringResource(R.string.backup_restore_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoreFrom = null
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) {
+                            // A backup is small; anything over 1 MB isn't one.
+                            val text = runCatching {
+                                context.contentResolver.openInputStream(uri)!!.use { String(it.readNBytes(1_000_000)) }
+                            }.getOrNull()
+                            text != null && store.restore(text)
+                        }
+                        toast(if (ok) R.string.backup_restored else R.string.backup_not_backup)
+                    }
+                }) { Text(stringResource(R.string.backup_restore_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { restoreFrom = null }) { Text(stringResource(R.string.rename_cancel)) } },
+            containerColor = if (LocalDark.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(28.dp),
+        )
+    }
 }
 
 private const val SourceUrl = "https://github.com/Zeniths-Space/Launcher"
