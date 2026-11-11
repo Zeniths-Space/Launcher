@@ -115,7 +115,7 @@ internal fun AppMenu(
         expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss,
         top = if (shortcuts.isEmpty()) null else ({ run ->
             shortcuts.forEach { s -> ShortcutButton(s, repository) { run { repository.startShortcut(s, null) } } }
-            HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 3.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }),
     )
 }
@@ -123,19 +123,20 @@ internal fun AppMenu(
 /** One of an app's shortcuts in its menu: the shortcut's own icon and name. */
 @Composable
 private fun ShortcutButton(shortcut: AppShortcut, repository: AppRepository, onClick: () -> Unit) {
-    val px = with(LocalDensity.current) { 36.dp.roundToPx() }
+    val px = with(LocalDensity.current) { RowIconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, shortcut.key, px) { value = repository.shortcutIcon(shortcut, px) }
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = RowHeight)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(36.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
-            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(36.dp)) }
+        // A light badge: shortcut icons are drawn for light launchers, and many are bare black glyphs.
+        Box(Modifier.size(RowIconSize).clip(CookieShape).background(ShortcutBadge), contentAlignment = Alignment.Center) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(RowIconSize)) }
         }
         Spacer(Modifier.width(14.dp))
         Text(
@@ -268,7 +269,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 2.dp, top = 6.dp, bottom = 8.dp),
+                .padding(start = 8.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Room kept while the icon loads, so the header doesn't jump; none for a menu without one.
@@ -314,15 +315,15 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = RowHeight)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // A small cookie behind the icon, as in the Elara forms; the label beside it names it.
-        Box(Modifier.size(36.dp).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
-            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
+        Box(Modifier.size(RowIconSize).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
+            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
         }
         Spacer(Modifier.width(14.dp))
         Text(
@@ -373,8 +374,11 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 224.dp
-private val MenuMaxWidth = 288.dp
+private val MenuMinWidth = 264.dp
+private val MenuMaxWidth = 304.dp
+/** Compact rows, so a menu with shortcuts stays short. */
+private val RowHeight = 44.dp
+private val RowIconSize = 32.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 
@@ -383,6 +387,8 @@ private val Raised = Color(0xFF1F1F1F)
 private val RaisedLight = Color(0xFFE6E2EF)
 /** Red for removing actions on black. */
 private val DangerDark = Color(0xFFFF8A8A)
+/** Behind shortcut icons, which apps draw for light backgrounds. */
+private val ShortcutBadge = Color(0xFFEDE7FA)
 /** The Elara "cookie": a circle with 8 soft lobes. */
 private val CookieShape = polarShape(lobes = 8, depth = 0.1f)
 private val HeaderIconSize = 40.dp
