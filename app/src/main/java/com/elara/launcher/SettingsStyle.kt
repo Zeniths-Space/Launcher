@@ -72,6 +72,7 @@ internal val Page.shape: Shape
         Page.Home -> polarShape(lobes = 4, depth = 0.22f, rotation = Math.PI / 4)
         Page.Drawer -> polarShape(lobes = 5, depth = 0.16f, rotation = -Math.PI / 2)
         Page.Gestures -> polarShape(lobes = 12, depth = 0.10f)
+        Page.Backup -> polarShape(lobes = 6, depth = 0.14f)
         Page.About -> CircleShape
     }
 

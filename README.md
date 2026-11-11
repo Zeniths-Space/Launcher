@@ -128,7 +128,7 @@ Application ID `com.elara.launcher`.
   no other way for a third-party launcher to lock the screen. It asks for no events and cannot
   read your screen. On Android 13+ a sideloaded app's switch may be greyed out until App info >
   ⋮ > Allow restricted settings.
-- Backup (Settings > About): Back up layout saves the home screen, dock, folders, app names, hidden
+- Backup (Settings > Backup): Back up layout saves the home screen, dock, folders, app names, hidden
   apps and settings as a readable text file wherever you choose, through Android's file picker (no
   storage permission). Restore layout asks first, then replaces them with the file's. Widgets (their
   ids belong to this install), the custom font and first-run state are not in it; apps in a backup

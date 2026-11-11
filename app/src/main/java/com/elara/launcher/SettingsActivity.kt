@@ -163,7 +163,7 @@ fun isDefaultHome(context: Context): Boolean {
 }
 
 /** The settings pages: a list of categories, each opening its own page. */
-internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, About }
+internal enum class Page { Main, Appearance, Dock, Home, Drawer, Gestures, Backup, About }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -431,7 +431,8 @@ internal fun SettingsScreen(
                             { it.label },
                         ) { save { store.setDoubleTap(it) } }
                     }
-                    Page.About -> AboutPage(versionName, onAppInfo, onOpenLink, store)
+                    Page.Backup -> BackupPage(store)
+                    Page.About -> AboutPage(versionName, onAppInfo, onOpenLink)
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -448,6 +449,7 @@ private val Page.title
         Page.Home -> R.string.settings_section_home
         Page.Drawer -> R.string.settings_section_drawer
         Page.Gestures -> R.string.settings_section_gestures
+        Page.Backup -> R.string.settings_section_backup
         Page.About -> R.string.settings_section_about
     }
 
@@ -528,12 +530,13 @@ internal fun categoryTiles(versionName: String, onOpen: (Page) -> Unit): List<@C
     { CategoryTile(Icons.Home, Page.Home, stringResource(R.string.settings_home_sub), onOpen) },
     { CategoryTile(Icons.Apps, Page.Drawer, stringResource(R.string.settings_drawer_sub), onOpen) },
     { CategoryTile(Icons.Gesture, Page.Gestures, stringResource(R.string.settings_gestures_sub), onOpen) },
+    { CategoryTile(Icons.Upload, Page.Backup, stringResource(R.string.settings_backup_sub), onOpen) },
     { CategoryTile(Icons.Info, Page.About, stringResource(R.string.settings_version, versionName), onOpen) },
 )
 
 /** The app with its icon and version, what it does and doesn't do, then who made it and where to find them. */
 @Composable
-private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (String) -> Unit, store: SettingsStore) {
+private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (String) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val iconPx = with(LocalDensity.current) { 88.dp.roundToPx() }
@@ -572,7 +575,6 @@ private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (S
             { GroupTile(badge = { ScallopBadge(Icons.Info) }, title = stringResource(R.string.about_app_info), subtitle = stringResource(R.string.about_app_info_sub), onClick = onAppInfo) },
         ),
     )
-    BackupSection(store)
     SectionHeader(stringResource(R.string.about_section_developer))
     SegmentedGroup(
         listOf(
@@ -604,7 +606,7 @@ private fun AboutPage(versionName: String, onAppInfo: () -> Unit, onOpenLink: (S
  * permission), or restore them from one after asking. The file stays wherever they put it.
  */
 @Composable
-private fun BackupSection(store: SettingsStore) {
+private fun BackupPage(store: SettingsStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var restoreFrom by remember { mutableStateOf<android.net.Uri?>(null) }
