@@ -740,7 +740,7 @@ private fun HomeSheet(
                     )
                 }
             }
-            if (settings.spaces.size >= 2) SpaceRow(settings, onSwitchSpace = onSwitchSpace, onNew = { onDismiss(); onNewSpace() })
+            if (settings.spaces.size >= 2) SpaceRow(settings, visible, onSwitchSpace = onSwitchSpace, onNew = { onDismiss(); onNewSpace() })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items.forEach { item ->
                     Column(
@@ -798,15 +798,16 @@ private fun HomeSheet(
  * the schedule does next, or that a hand-picked space is being held.
  */
 @Composable
-private fun SpaceRow(settings: LauncherSettings, onSwitchSpace: (Long) -> Unit, onNew: () -> Unit) {
+private fun SpaceRow(settings: LauncherSettings, visible: Boolean, onSwitchSpace: (Long) -> Unit, onNew: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val dark = LocalDark.current
     val field = if (dark) Color(0xFF141414) else Color(0xFFF2F0F7)
     val brand = Color(0xFF7C4DFF)
     val held = stringResource(R.string.space_held)
     val nextFormat = stringResource(R.string.space_next_switch)
-    // Worked out when the spaces change, not on every frame.
-    val line = remember(settings.spaces, settings.activeSpace, settings.spacesBySchedule, settings.spaceManualUntil) {
+    // Worked out when the sheet opens or the spaces change, not on every frame: the sheet stays
+    // composed while hidden, so the time must be read again each time it shows.
+    val line = remember(visible, settings.spaces, settings.activeSpace, settings.spacesBySchedule, settings.spaceManualUntil) {
         when {
             !settings.spacesBySchedule || settings.spaces.none { it.scheduled } -> null
             settings.spaceManualUntil > System.currentTimeMillis() -> held
