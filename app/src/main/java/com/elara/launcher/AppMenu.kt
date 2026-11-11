@@ -1,5 +1,7 @@
 package com.elara.launcher
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.HorizontalDivider
 import android.os.Build
 import androidx.compose.runtime.collectAsState
@@ -114,38 +116,39 @@ internal fun AppMenu(
     MenuPopup(
         expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss,
         top = if (shortcuts.isEmpty()) null else ({ run ->
-            shortcuts.forEach { s -> ShortcutButton(s, repository) { run { repository.startShortcut(s, null) } } }
-            HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 3.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            // Side by side, up to four: the actions below stay a list, so the menu stays short.
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                shortcuts.forEach { s -> ShortcutTile(s, repository, Modifier.weight(1f)) { run { repository.startShortcut(s, null) } } }
+            }
+            HorizontalDivider(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 3.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }),
     )
 }
 
-/** One of an app's shortcuts in its menu: the shortcut's own icon and name. */
+/** One of an app's shortcuts in its menu: the shortcut's own icon, its name under it. */
 @Composable
-private fun ShortcutButton(shortcut: AppShortcut, repository: AppRepository, onClick: () -> Unit) {
-    val px = with(LocalDensity.current) { RowIconSize.roundToPx() }
+private fun ShortcutTile(shortcut: AppShortcut, repository: AppRepository, modifier: Modifier, onClick: () -> Unit) {
+    val px = with(LocalDensity.current) { ShortcutIconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, shortcut.key, px) { value = repository.shortcutIcon(shortcut, px) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = RowHeight)
-            .clip(RoundedCornerShape(20.dp))
+    Column(
+        modifier
+            .clip(RoundedCornerShape(18.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 2.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // A light badge: shortcut icons are drawn for light launchers, and many are bare black glyphs.
-        Box(Modifier.size(RowIconSize).clip(CookieShape).background(ShortcutBadge), contentAlignment = Alignment.Center) {
-            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(RowIconSize)) }
+        Box(Modifier.size(ShortcutIconSize).clip(CookieShape).background(ShortcutBadge), contentAlignment = Alignment.Center) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(ShortcutIconSize)) }
         }
-        Spacer(Modifier.width(14.dp))
         Text(
             shortcut.label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium, lineHeight = 16.sp),
             color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(end = 10.dp),
         )
     }
 }
@@ -379,6 +382,7 @@ private val MenuMaxWidth = 320.dp
 /** Rows sized for easy reading and tapping. */
 private val RowHeight = 50.dp
 private val RowIconSize = 38.dp
+private val ShortcutIconSize = 46.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 
