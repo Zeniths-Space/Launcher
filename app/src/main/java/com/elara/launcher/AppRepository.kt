@@ -226,7 +226,11 @@ class AppRepository(context: Context) {
 
     /** A shortcut's own icon, drawn off the main thread; null if it has none. */
     suspend fun shortcutIcon(shortcut: AppShortcut, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
-        runCatching { launcherApps.getShortcutIconDrawable(shortcut.info, density) }.getOrNull()?.toImageBitmap(sizePx)
+        val d = runCatching { launcherApps.getShortcutIconDrawable(shortcut.info, density) }.getOrNull() ?: return@withContext null
+        if (d is android.graphics.drawable.AdaptiveIconDrawable) return@withContext d.toImageBitmap(sizePx)
+        // A plain icon (often a bare glyph, black or white) gets a margin, to sit on the menu's light badge.
+        val inset = (sizePx * ShortcutGlyphInset).toInt()
+        android.graphics.drawable.InsetDrawable(d, inset).toImageBitmap(sizePx)
     }
 
     /** Runs [shortcut]; nothing happens if its app took it away meanwhile. */
@@ -337,6 +341,8 @@ internal fun Drawable.toImageBitmap(sizePx: Int): ImageBitmap {
     // Kept on the GPU: no upload stall the first time the drawer or a page shows it.
     return bitmap.toHardware().asImageBitmap()
 }
+
+private const val ShortcutGlyphInset = 0.2f
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
 

@@ -372,7 +372,11 @@ internal fun ShortcutList(shortcuts: List<AppShortcut>, repository: AppRepositor
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Box(Modifier.size(40.dp).background(AnswerAccent.copy(alpha = 0.30f), CircleShape), contentAlignment = Alignment.Center) {
+                // Loaded icons sit on a light badge: many are bare black glyphs made for light launchers.
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(if (icon != null) Color(0xFFEDE7FA) else AnswerAccent.copy(alpha = 0.30f)),
+                    contentAlignment = Alignment.Center,
+                ) {
                     icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(40.dp)) }
                         ?: Icon(Icons.Add, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(20.dp))
                 }
