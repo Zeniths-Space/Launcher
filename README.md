@@ -228,4 +228,5 @@ Use the same key as your local release builds, or phones with the app installed 
 
 ## License
 
-Not yet selected. It will be chosen before the first public release.
+Apache License 2.0; see [LICENSE](LICENSE). Third-party data and its licences are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
