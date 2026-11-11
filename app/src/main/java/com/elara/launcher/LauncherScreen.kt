@@ -672,7 +672,11 @@ private fun HomeSheet(
                 .then(if (visible) Modifier else Modifier.clearAndSetSemantics {})
                 .heightIn(max = with(density) { screen.toDp() } - WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
                 .onSizeChanged { sheetHeight = it.height }
-                .graphicsLayer { translationY = offset }
+                .graphicsLayer {
+                    translationY = offset
+                    // Parked, it isn't drawn: the home screen shrinks as the drawer comes and goes, which pulled its top edge into view.
+                    alpha = if (!visible && offset >= hidden) 0f else 1f
+                }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(colors.surface)
                 .nestedScroll(drag)
