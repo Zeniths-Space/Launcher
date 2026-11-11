@@ -12,16 +12,29 @@ import java.util.Locale
  * as a calculator reads them ("4500 + 12%" adds 12% of 4500; "12% of 4500" is 540). Decimal
  * arithmetic, so 0.1 + 0.2 is 0.3.
  */
-internal data class MathAnswer(
-    /** The result, formatted for display, for example "540" or "3,960.5". */
+internal data class Answer(
+    /** The result, formatted for display, for example "540", "3.107 mi" or "25 Kartik 2083". */
     val value: String,
-    /** The same number without grouping, as copied. */
+    /** What Copy and Go put on the clipboard. */
     val plain: String,
-    /** The sum as read, tidied ("12% of 4,500"). */
+    /** The question as read, tidied ("12% of 4,500", "5 kilometres"). */
     val expression: String,
-    /** For "a% of b": b less and plus a%, as (label, value). */
+    /** More results under the card, as (label, value): "4,500 − 12%" or "Feet". */
     val also: List<Pair<String, String>> = emptyList(),
+    val kind: AnswerKind = AnswerKind.Maths,
+    /** The query that asks the same the other way round ("5 mi in km"), for the swap button. */
+    val swap: String? = null,
+    /** A currency conversion: the rate it used (or needs), which the user sets. */
+    val rate: CurrencyRate? = null,
 )
+
+/** What an answer is about: its card's label and icon. */
+internal enum class AnswerKind { Maths, Length, Mass, Temperature, Volume, Speed, Area, Date, Currency }
+
+/** The answer to a search, trying sums, then units, dates and currencies; null for anything else. */
+internal fun answerFor(query: String, rates: CurrencyRates, locale: Locale = Locale.getDefault()): Answer? =
+    MathSearch.answer(query, locale) ?: UnitSearch.answer(query, locale) ?: DateSearch.answer(query, locale = locale)
+        ?: CurrencySearch.answer(query, rates, locale)
 
 internal object MathSearch {
     private val Ctx = MathContext(34, RoundingMode.HALF_EVEN)
@@ -29,14 +42,14 @@ internal object MathSearch {
     private val PercentOf = Regex("""^\s*([0-9.,]+)\s*%\s*of\s*([0-9.,]+)\s*$""", RegexOption.IGNORE_CASE)
 
     /** The answer, or null when the query is not a sum (a plain number or a word is not). */
-    fun answer(query: String, locale: Locale = Locale.getDefault()): MathAnswer? {
+    fun answer(query: String, locale: Locale = Locale.getDefault()): Answer? {
         PercentOf.matchEntire(query)?.let { m ->
             val pct = number(m.groupValues[1]) ?: return null
             val base = number(m.groupValues[2]) ?: return null
             val part = base.multiply(pct, Ctx).divide(Hundred, Ctx)
             val p = format(pct, locale)
             val b = format(base, locale)
-            return MathAnswer(
+            return Answer(
                 format(part, locale), plain(part), "$p% of $b",
                 also = listOf(
                     "$b − $p%" to format(base.subtract(part, Ctx), locale),
@@ -54,7 +67,7 @@ internal object MathSearch {
         } catch (_: IllegalArgumentException) {
             return null
         }
-        return MathAnswer(format(result, locale), plain(result), pretty(query))
+        return Answer(format(result, locale), plain(result), pretty(query))
     }
 
     private sealed interface Tok {

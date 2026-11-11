@@ -438,6 +438,8 @@ internal fun LauncherScreen(
                 sidePadding = settings.drawerPadding.dp,
                 keepPosition = settings.drawerKeepPosition,
                 contactsOn = settings.drawerContacts,
+                currencyRates = settings.currencyRates,
+                onCurrencyRates = { stored -> onSettings { setCurrencyRates(stored) } },
                 onContactsOff = { onSettings { setDrawerContacts(false) } },
                 homeKeys = homeKeys,
                 locked = settings.locked,
@@ -830,6 +832,8 @@ private fun AppDrawer(
     keepPosition: Boolean,
     contactsOn: Boolean,
     onContactsOff: () -> Unit,
+    currencyRates: String,
+    onCurrencyRates: (String) -> Unit,
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
@@ -858,8 +862,10 @@ private fun AppDrawer(
     val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
-    val answer = remember(query) { MathSearch.answer(query) }
     val context = LocalContext.current
+    val home = remember { homeCurrency(context) }
+    val rates = remember(home, currencyRates) { CurrencyRates.parse(home, currencyRates) }
+    val answer = remember(query, rates) { answerFor(query, rates) }
     var contactsAllowed by remember { mutableStateOf(ContactSearch.allowed(context)) }
     // Checked again each time search opens: Android settings can take it away meanwhile.
     LaunchedEffect(searching) { if (searching) contactsAllowed = ContactSearch.allowed(context) }
@@ -938,7 +944,7 @@ private fun AppDrawer(
                     // A sum's answer is copied, a top contact called; otherwise the best match opens.
                     onGo = {
                         when {
-                            answer != null -> copyAnswer(context, answer.plain)
+                            answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
                             topContact != null -> ContactSearch.dial(context, topContact)
                             else -> shown?.firstOrNull()?.let { open(it, null) }
                                 ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
@@ -977,7 +983,12 @@ private fun AppDrawer(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
         }
-        if (searching && answer != null) MathAnswerCard(answer, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
+        if (searching && answer != null) AnswerCard(
+            answer,
+            onQuery = { query = it },
+            onSetRate = { r -> r.rate?.let { onCurrencyRates(CurrencyRates.format(rates.with(r.from, r.to, it))) } },
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
+        )
         val people = topContact != null || moreContacts.isNotEmpty() || shortcuts.isNotEmpty()
         // Above the grid, so they don't take the drawer's row spacing.
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))

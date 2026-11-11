@@ -38,6 +38,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -71,13 +80,33 @@ internal fun copyAnswer(context: Context, text: String) {
     }
 }
 
+private fun AnswerKind.icon() = when (this) {
+    AnswerKind.Maths -> Icons.Calculate
+    AnswerKind.Date -> Icons.Event
+    AnswerKind.Currency -> Icons.Money
+    else -> Icons.Ruler
+}
+
+private fun AnswerKind.label() = when (this) {
+    AnswerKind.Maths -> R.string.answer_label
+    AnswerKind.Length -> R.string.answer_length
+    AnswerKind.Mass -> R.string.answer_mass
+    AnswerKind.Temperature -> R.string.answer_temperature
+    AnswerKind.Volume -> R.string.answer_volume
+    AnswerKind.Speed -> R.string.answer_speed
+    AnswerKind.Area -> R.string.answer_area
+    AnswerKind.Date -> R.string.answer_date
+    AnswerKind.Currency -> R.string.answer_currency
+}
+
 /**
- * The answer to a sum typed into the drawer search: a glass card over the wallpaper with the
- * result, Copy, and Open in Calculator when a calculator app is installed; for "a% of b", the
- * amount less and plus that percent under it.
+ * The answer to a search (a sum, a unit, a date or an amount of money): a glass card over the
+ * wallpaper with the result and Copy, then a button for the kind: Open in Calculator for a sum,
+ * Swap for a conversion ([onQuery] gets the turned-round query). A currency without a rate asks for
+ * one ([onSetRate]); one the user set can be changed. Extra results go in a group under it.
  */
 @Composable
-internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
+internal fun AnswerCard(answer: Answer, onQuery: (String) -> Unit, onSetRate: (CurrencyRate) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     // Any calculator app (Elara's or another) that says it is one. Opened by name: such filters
     // often lack CATEGORY_DEFAULT, which an implicit start needs.
@@ -87,6 +116,9 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
             Intent(find).setClassName(it.packageName, it.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
+    val rate = answer.rate
+    var editing by remember(rate?.from, rate?.to) { mutableStateOf(false) }
+    val askRate = rate != null && (rate.rate == null || editing)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(
             Modifier
@@ -99,12 +131,19 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(32.dp).background(AnswerAccent.copy(alpha = 0.30f), CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Calculate, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(18.dp))
+                    Icon(answer.kind.icon(), contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.answer_label), color = AnswerAccentText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(answer.kind.label()), color = AnswerAccentText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.weight(1f))
-                Text(stringResource(R.string.answer_go_copies), color = AnswerMuted, fontSize = 12.sp)
+                if (!askRate) Text(stringResource(R.string.answer_go_copies), color = AnswerMuted, fontSize = 12.sp)
+            }
+            if (askRate) {
+                RateForm(rate!!, answer.expression, onSave = { value ->
+                    editing = false
+                    onSetRate(rate.copy(rate = value))
+                })
+                return@Column
             }
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                 // One line, shrinking for long results (1/3 has twelve 3s).
@@ -127,7 +166,8 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.answer_copy), fontSize = 15.sp)
                 }
-                if (calculator != null) {
+                val second = OnWallpaper.copy(alpha = 0.12f)
+                if (answer.kind == AnswerKind.Maths && calculator != null) {
                     Button(
                         onClick = {
                             try {
@@ -136,22 +176,31 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
                                 // Uninstalled since the card appeared: nothing to open.
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = OnWallpaper.copy(alpha = 0.12f), contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = second, contentColor = Color.White),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         modifier = Modifier.weight(1.2f).height(44.dp),
                     ) { Text(stringResource(R.string.answer_open_calculator), fontSize = 15.sp, maxLines = 1) }
                 }
+                if (rate != null && !rate.builtIn) {
+                    Button(
+                        onClick = { editing = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = second, contentColor = Color.White),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        modifier = Modifier.height(44.dp),
+                    ) { Text(stringResource(R.string.answer_change_rate), fontSize = 15.sp, maxLines = 1) }
+                }
+                answer.swap?.let { swap ->
+                    IconButton(
+                        onClick = { onQuery(swap) },
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = second, contentColor = Color.White),
+                        modifier = Modifier.size(width = 56.dp, height = 44.dp),
+                    ) { Icon(Icons.Swap, contentDescription = stringResource(R.string.answer_swap), modifier = Modifier.size(20.dp)) }
+                }
             }
         }
-        if (answer.also.isNotEmpty()) {
+        if (answer.also.isNotEmpty() && !askRate) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.answer_also),
-                    color = AnswerAccentText,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
+                ResultLabel(stringResource(R.string.answer_also))
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(OnWallpaper.copy(alpha = 0.08f))) {
                     answer.also.forEachIndexed { i, (label, value) ->
                         if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = OnWallpaper.copy(alpha = 0.08f))
@@ -167,6 +216,48 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** Asks for an exchange rate the launcher can't know offline: "1 USD = [ ] NPR", then Save. */
+@Composable
+private fun RateForm(rate: CurrencyRate, amount: String, onSave: (Double) -> Unit) {
+    var text by remember(rate.from, rate.to) { mutableStateOf(rate.rate?.let { CurrencySearch.money(it, java.util.Locale.ROOT, 4).replace(",", "") }.orEmpty()) }
+    val value = text.replace(",", "").toDoubleOrNull()?.takeIf { it > 0 && it.isFinite() }
+    Text(
+        stringResource(if (rate.rate == null) R.string.answer_rate_needed else R.string.answer_rate_change, amount, rate.to),
+        color = AnswerMuted,
+        fontSize = 14.sp,
+    )
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(OnWallpaper.copy(alpha = 0.10f)).padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("1 ${rate.from} =", color = OnWallpaper, fontSize = 17.sp)
+        Spacer(Modifier.width(10.dp))
+        val label = stringResource(R.string.answer_rate_field, rate.from, rate.to)
+        BasicTextField(
+            value = text,
+            onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(16) },
+            singleLine = true,
+            textStyle = TextStyle(color = OnWallpaper, fontSize = 17.sp, fontWeight = FontWeight.Medium),
+            cursorBrush = SolidColor(OnWallpaper),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { value?.let(onSave) }),
+            modifier = Modifier.weight(1f).semantics { contentDescription = label },
+        )
+        Text(rate.to, color = AnswerMuted, fontSize = 17.sp)
+    }
+    Button(
+        onClick = { value?.let(onSave) },
+        enabled = value != null,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = AnswerAccent,
+            contentColor = Color.White,
+            disabledContainerColor = OnWallpaper.copy(alpha = 0.10f),
+            disabledContentColor = AnswerMuted,
+        ),
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+    ) { Text(stringResource(R.string.answer_rate_save), fontSize = 15.sp) }
 }
 
 @Composable

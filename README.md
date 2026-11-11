@@ -30,6 +30,17 @@ Application ID `com.elara.launcher`.
   less and plus 12% under it). Decimal arithmetic, so 0.1 + 0.2 is 0.3; long results shrink to
   one line. Copy (or the Go key) puts the result on the clipboard; Open in Calculator shows when a
   calculator app is installed.
+- Units in search: "5 km in mi", "100 f to c", or "5 km" alone for the usual other unit, with
+  more units under the card and a swap button. Length, weight, temperature, volume, speed and
+  area, with Nepal's tola and land units (ropani, aana, bigha, kattha).
+- Dates in search, AD and BS (Nepali calendar): "today" (or aaja), "tomorrow" (bholi),
+  "yesterday" (hijo), "in 10 days", "2 weeks ago", "25 dec 2026" or "2026-12-25" give the BS date
+  (also in Devanagari); "25 kartik 2083" or "2083-07-25" give the AD date. A four-digit year from
+  2070 is read as BS. The BS table is Elara Calendar's (from NepDate, MIT).
+- Money in search: "100 usd", "$50", "5000 rs in inr". Converts to the currency of the country the
+  phone is in (from the mobile network) unless another is named. The launcher stays offline, so it
+  asks once for each rate ("1 USD = ___ NPR"), keeps it on the phone and uses it both ways; Change
+  rate updates it. INR to NPR uses the fixed 1.6 rate.
 - Contacts in search (Settings > App drawer, on by default): after two letters the search shows
   a "Search contacts too" row; Allow asks Android for contacts access (read only), the cross turns
   the feature off. Once allowed, matching contacts show: the best one on a card above the apps

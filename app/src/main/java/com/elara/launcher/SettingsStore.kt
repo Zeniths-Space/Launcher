@@ -63,6 +63,8 @@ data class LauncherSettings(
     val drawerKeepPosition: Boolean = false,
     /** Drawer search also finds contacts (once Android allows it). */
     val drawerContacts: Boolean = true,
+    /** Exchange rates the user set for search, as [CurrencyRates.format] writes them. */
+    val currencyRates: String = "",
     /** The wallpaper blurs behind the open drawer, as glass, where Android supports it. */
     val drawerBlur: Boolean = true,
     /** How the wallpaper blurs behind the drawer. */
@@ -121,6 +123,7 @@ class SettingsStore(context: Context) {
                 drawerPadding = (p[DRAWER_PADDING] ?: 8).coerceIn(DrawerSpacingRange),
                 drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
                 drawerContacts = p[DRAWER_CONTACTS] ?: true,
+                currencyRates = p[CURRENCY_RATES].orEmpty(),
                 drawerBlur = p[DRAWER_BLUR] ?: true,
                 drawerBlurStyle = BlurStyle.parse(p[DRAWER_BLUR_STYLE]),
                 locked = p[LOCKED] ?: false,
@@ -175,6 +178,7 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerPadding(dp: Int) = store.edit { it[DRAWER_PADDING] = dp.coerceIn(DrawerSpacingRange) }
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setDrawerContacts(on: Boolean) = set(DRAWER_CONTACTS, on)
+    suspend fun setCurrencyRates(stored: String) = store.edit { it[CURRENCY_RATES] = stored }
     suspend fun setDrawerBlur(on: Boolean) = set(DRAWER_BLUR, on)
     suspend fun setDrawerBlurStyle(style: BlurStyle) = store.edit { it[DRAWER_BLUR_STYLE] = style.name }
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
@@ -232,6 +236,7 @@ class SettingsStore(context: Context) {
         val DRAWER_PADDING = intPreferencesKey("drawer_padding")
         val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
         val DRAWER_CONTACTS = booleanPreferencesKey("drawer_contacts")
+        val CURRENCY_RATES = stringPreferencesKey("currency_rates")
         val DRAWER_BLUR = booleanPreferencesKey("drawer_blur")
         val DRAWER_BLUR_STYLE = stringPreferencesKey("drawer_blur_style")
         val LOCKED = booleanPreferencesKey("locked")
