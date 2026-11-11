@@ -41,6 +41,11 @@ Application ID `com.elara.launcher`.
   phone is in (from the mobile network) unless another is named. The launcher stays offline, so it
   asks once for each rate ("1 USD = ___ NPR"), keeps it on the phone and uses it both ways; Change
   rate updates it. INR to NPR uses the fixed 1.6 rate.
+- Android settings in search: about 35 Settings pages by name or common word ("wifi", "hotspot",
+  "brightness", "dnd", "usb debugging"). The best match goes on a card (when no app name starts
+  with the query) and Go opens it; others are listed under the apps with the part of Settings
+  they're in. Android has no way for apps to search Settings, so it's a fixed list of pages with a
+  public way in; pages the phone lacks are left out.
 - Contacts in search (Settings > App drawer, on by default): after two letters the search shows
   a "Search contacts too" row; Allow asks Android for contacts access (read only), the cross turns
   the feature off. Once allowed, matching contacts show: the best one on a card above the apps

@@ -384,3 +384,53 @@ internal fun ShortcutList(shortcuts: List<AppShortcut>, repository: AppRepositor
         }
     }
 }
+
+/** The best Settings page on the glass card: tap (or Go) opens it. */
+@Composable
+internal fun SettingCard(page: SettingsPage, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(OnWallpaper.copy(alpha = 0.10f))
+            .border(BorderStroke(1.dp, OnWallpaper.copy(alpha = 0.10f)), RoundedCornerShape(28.dp))
+            .clickable { SettingsSearch.open(context, page) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(52.dp).background(AnswerAccent.copy(alpha = 0.30f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(Icons.Settings, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(24.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(page.label, color = OnWallpaper, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.setting_go_opens), color = AnswerMuted, fontSize = 13.sp, maxLines = 1)
+        }
+        Icon(Icons.Next, contentDescription = null, tint = AnswerMuted, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Other Settings pages found, in one rounded group, each with the part of Settings it is in. */
+@Composable
+internal fun SettingList(pages: List<SettingsPage>, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(OnWallpaper.copy(alpha = 0.08f))) {
+        pages.forEachIndexed { i, page ->
+            if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = OnWallpaper.copy(alpha = 0.08f))
+            Row(
+                Modifier.fillMaxWidth().clickable { SettingsSearch.open(context, page) }.height(60.dp).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(36.dp).background(AnswerAccent.copy(alpha = 0.30f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Settings, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(18.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(page.label, color = OnWallpaper, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(page.where, color = AnswerMuted, fontSize = 12.sp, maxLines = 1)
+                }
+            }
+        }
+    }
+}

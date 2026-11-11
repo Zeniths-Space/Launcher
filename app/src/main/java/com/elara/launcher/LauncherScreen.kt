@@ -881,6 +881,16 @@ private fun AppDrawer(
     val topContact = remember(contacts, shown) { ContactSearch.top(contacts, shown.orEmpty(), query) }
     val moreContacts = remember(contacts, topContact) { contacts.filter { it != topContact } }
     val offerContacts = lookContacts && !contactsAllowed
+    // Pages this phone has; Settings itself shows as an app, so its page is left to it.
+    val settingsFound = remember(query, answer) {
+        if (!searching || answer != null) emptyList() else SettingsSearch.find(query).filter { SettingsSearch.exists(context, it) }
+    }
+    val topSetting = remember(settingsFound, topContact, shown) {
+        settingsFound.firstOrNull()?.takeIf { page ->
+            topContact == null && SettingsSearch.strong(page, query) && shown.orEmpty().none { it.label.lowercase().startsWith(query.trim().lowercase()) }
+        }
+    }
+    val moreSettings = remember(settingsFound, topSetting) { settingsFound.filter { it != topSetting } }
     // Read once per search, not per letter; only the home app gets them.
     val allShortcuts by produceState(emptyList<AppShortcut>(), searching, apps) {
         value = if (searching && apps != null) repository.shortcuts(apps) else emptyList()
@@ -946,6 +956,7 @@ private fun AppDrawer(
                         when {
                             answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
                             topContact != null -> ContactSearch.dial(context, topContact)
+                            topSetting != null -> SettingsSearch.open(context, topSetting)
                             else -> shown?.firstOrNull()?.let { open(it, null) }
                                 ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
                         }
@@ -989,9 +1000,10 @@ private fun AppDrawer(
             onSetRate = { r -> r.rate?.let { onCurrencyRates(CurrencyRates.format(rates.with(r.from, r.to, it))) } },
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
         )
-        val people = topContact != null || moreContacts.isNotEmpty() || shortcuts.isNotEmpty()
+        val people = topContact != null || moreContacts.isNotEmpty() || shortcuts.isNotEmpty() || settingsFound.isNotEmpty()
         // Above the grid, so they don't take the drawer's row spacing.
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
+        if (topSetting != null) SettingCard(topSetting, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
         when {
             shown == null -> Unit
@@ -1033,6 +1045,12 @@ private fun AppDrawer(
                     Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         ResultLabel(stringResource(R.string.results_shortcuts))
                         ShortcutList(shortcuts, repository, onStart = { keyboard?.hide() })
+                    }
+                }
+                if (moreSettings.isNotEmpty()) item(key = "settings", span = { GridItemSpan(maxLineSpan) }) {
+                    Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ResultLabel(stringResource(R.string.results_settings))
+                        SettingList(moreSettings)
                     }
                 }
                 if (moreContacts.isNotEmpty()) item(key = "contacts", span = { GridItemSpan(maxLineSpan) }) {
