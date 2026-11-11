@@ -202,6 +202,22 @@ Put a `keystore.properties` file (storeFile, storePassword, keyAlias, keyPasswor
 repository and point the Gradle property `zenithLauncherSigning` at it, for example in
 `~/.gradle/gradle.properties`. Without it, release builds are left unsigned.
 
+### Publishing a release
+
+`.github/workflows/release.yml` runs when a tag `launcher-v<versionName>` is pushed (for example
+`launcher-v1.5.0`). It checks the app ID and that the tag matches `versionName`, runs the unit
+tests and lint, builds the signed release, and publishes it as a GitHub release with the APK and
+its SHA-256 checksum. It needs four repository secrets:
+
+| Secret | Value |
+|---|---|
+| `LAUNCHER_KEYSTORE_BASE64` | The keystore file, base64-encoded (`base64 -w0 release.jks`) |
+| `LAUNCHER_STORE_PASSWORD` | The keystore's password |
+| `LAUNCHER_KEY_ALIAS` | The key's alias |
+| `LAUNCHER_KEY_PASSWORD` | The key's password |
+
+Use the same key as your local release builds, or phones with the app installed can't update.
+
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
