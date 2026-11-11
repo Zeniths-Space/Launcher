@@ -144,7 +144,7 @@ private fun ShortcutTile(shortcut: AppShortcut, repository: AppRepository, modif
         }
         Text(
             shortcut.label,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium, lineHeight = 16.sp),
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium, lineHeight = 15.sp),
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,
@@ -284,7 +284,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
             }
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                 color = cs.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -294,16 +294,16 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
                 Spacer(Modifier.width(8.dp))
                 Box(
                     Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(if (dark) Raised else RaisedLight)
                         .clickable(role = Role.Button, onClickLabel = stringResource(R.string.app_info)) { run(onAppInfo) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.InfoOutline, contentDescription = stringResource(R.string.app_info), tint = cs.primary, modifier = Modifier.size(18.dp))
                 }
             } else {
-                Spacer(Modifier.height(40.dp))
+                Spacer(Modifier.height(36.dp))
             }
         }
         top?.invoke(run)
@@ -326,12 +326,12 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     ) {
         // A small cookie behind the icon, as in the Elara forms; the label beside it names it.
         Box(Modifier.size(RowIconSize).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
-            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(14.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
             color = if (action.danger) tint else cs.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -377,12 +377,12 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 264.dp
-private val MenuMaxWidth = 320.dp
+private val MenuMinWidth = 232.dp
+private val MenuMaxWidth = 280.dp
 /** Rows sized for easy reading and tapping. */
-private val RowHeight = 50.dp
-private val RowIconSize = 38.dp
-private val ShortcutIconSize = 46.dp
+private val RowHeight = 46.dp
+private val RowIconSize = 34.dp
+private val ShortcutIconSize = 40.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 
@@ -395,4 +395,4 @@ private val DangerDark = Color(0xFFFF8A8A)
 private val ShortcutBadge = Color(0xFFEDE7FA)
 /** The Elara "cookie": a circle with 8 soft lobes. */
 private val CookieShape = polarShape(lobes = 8, depth = 0.1f)
-private val HeaderIconSize = 46.dp
+private val HeaderIconSize = 42.dp
