@@ -702,10 +702,11 @@ private fun HomeSheet(
                 .heightIn(max = with(density) { screen.toDp() } - WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
                 .onSizeChanged { sheetHeight = it.height }
                 .graphicsLayer {
-                    translationY = offset
-                    // Parked, it isn't drawn: the home screen shrinks as the drawer comes and goes, which pulled its top edge
-                    // into view, and a parked sheet that grows (a Space row appearing) would rise above the edge. Closing
-                    // animates while still visible, so this only hides it once it's away.
+                    // Parked a whole screen down, not by its height: a parked sheet that grows (its Space row or line
+                    // changing) or a home screen that shrinks (the drawer coming and going) would otherwise bring its top
+                    // back over the dock, where it took the dock's taps and the swipe up. Closing animates while still
+                    // visible, so this only moves it once it's away.
+                    translationY = if (visible) offset else screen
                     alpha = if (visible) 1f else 0f
                 }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
