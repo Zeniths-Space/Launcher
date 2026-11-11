@@ -236,7 +236,9 @@ class SettingsStore(context: Context) {
         val live = p.liveLayout()
         val layout = if (copy) live.copy(widgets = "") else SpaceLayout(dock = live.dock, hidden = live.hidden)
         val id = (spaces.maxOf { it.id }) + 1
-        p[SPACES] = Spaces.format(spaces + space.copy(id = id, layout = layout))
+        val updated = spaces + space.copy(id = id, layout = layout)
+        p[SPACES] = Spaces.format(updated)
+        p.rehold(spaces, updated)
     }
 
     /** Saves the default space alone (renamed before any other exists), making the current home it. */
@@ -249,7 +251,9 @@ class SettingsStore(context: Context) {
     /** Changes a space's name, icon or schedule; its layout stays. */
     suspend fun updateSpace(space: Space) = store.edit { p ->
         val spaces = Spaces.parse(p[SPACES])
-        p[SPACES] = Spaces.format(spaces.map { if (it.id == space.id) space.copy(layout = it.layout) else it })
+        val updated = spaces.map { if (it.id == space.id) space.copy(layout = it.layout) else it }
+        p[SPACES] = Spaces.format(updated)
+        p.rehold(spaces, updated)
     }
 
     /**
@@ -268,7 +272,15 @@ class SettingsStore(context: Context) {
             p.remove(SPACE_MANUAL_UNTIL)
         } else {
             p[SPACES] = Spaces.format(left)
+            p.rehold(spaces, left)
         }
+    }
+
+    // A schedule edit can bring the next change sooner, or make it now: shorten the hold to match.
+    private fun MutablePreferences.rehold(old: List<Space>, new: List<Space>) {
+        val until = this[SPACE_MANUAL_UNTIL] ?: return
+        val next = Spaces.rehold(until, old, new)
+        if (next <= System.currentTimeMillis()) remove(SPACE_MANUAL_UNTIL) else this[SPACE_MANUAL_UNTIL] = next
     }
 
     /**

@@ -74,6 +74,16 @@ object Spaces {
     fun holdUntil(spaces: List<Space>, now: LocalDateTime = LocalDateTime.now()): Long =
         nextChange(spaces, now)?.atZone(java.time.ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: Long.MAX_VALUE
 
+    /**
+     * A hand-picked space's hold, [until] (epoch ms), after the schedules change from [old] to [new]:
+     * the hold lasts until the schedule next wants another space, so it ends now (0) if the new
+     * schedule already does, and otherwise at the new next change if that comes sooner.
+     */
+    fun rehold(until: Long, old: List<Space>, new: List<Space>, now: LocalDateTime = LocalDateTime.now()): Long {
+        if (scheduled(old, now)?.id != scheduled(new, now)?.id) return 0
+        return minOf(until, holdUntil(new, now))
+    }
+
     /** "Mon–Fri · 9:00–17:00", "Every day · 22:00–7:00", or null without a schedule. */
     fun describe(space: Space, dayNames: List<String>, everyDay: String, weekdays: String, weekends: String): String? {
         if (!space.scheduled) return null

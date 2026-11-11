@@ -38,6 +38,20 @@ class SpacesTest {
         assertEquals(null, Spaces.nextChange(listOf(personal), at(11, 10)))
     }
 
+    @Test fun scheduleEditsShortenAHold() {
+        val now = at(11, 17, 50)
+        val far = Long.MAX_VALUE - 1
+        // A new space starting at 17:55 brings the hold's end to then.
+        val soon = all + Space(9, "Test", days = 1 shl 3, from = 17 * 60 + 55, to = 18 * 60)
+        val at1755 = at(11, 17, 55).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        assertEquals(at1755, Spaces.rehold(far, all, soon, now))
+        // One covering now ends it at once.
+        val nowOn = all + Space(9, "Test", days = 1 shl 3, from = 17 * 60, to = 18 * 60)
+        assertEquals(0L, Spaces.rehold(far, all, nowOn, now))
+        // An earlier hold stays as it was.
+        assertEquals(5L, Spaces.rehold(5L, all, soon, now))
+    }
+
     @Test fun storedForm() {
         val s = listOf(personal, work.copy(layout = SpaceLayout("a/b#0\n\tx", "f", "", "d\nd", "h")))
         assertEquals(s, Spaces.parse(Spaces.format(s)))
