@@ -40,6 +40,8 @@
     </queries>
 
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- Optional: drawer search finds contacts once allowed from the search itself. Read only. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!--
         The drawer's glass blur from any wallpaper: Android lets an app read the wallpaper only with all-files
         access (storage read before Android 11). Asked once, from the drawer; the blur reads nothing else.

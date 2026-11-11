@@ -84,6 +84,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.Manifest
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -431,6 +437,8 @@ internal fun LauncherScreen(
                 rowGap = settings.drawerRowGap.dp,
                 sidePadding = settings.drawerPadding.dp,
                 keepPosition = settings.drawerKeepPosition,
+                contactsOn = settings.drawerContacts,
+                onContactsOff = { onSettings { setDrawerContacts(false) } },
                 homeKeys = homeKeys,
                 locked = settings.locked,
                 onPick = if (picking) ({ app ->
@@ -820,6 +828,8 @@ private fun AppDrawer(
     rowGap: Dp,
     sidePadding: Dp,
     keepPosition: Boolean,
+    contactsOn: Boolean,
+    onContactsOff: () -> Unit,
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
@@ -850,6 +860,21 @@ private fun AppDrawer(
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
     val answer = remember(query) { MathSearch.answer(query) }
     val context = LocalContext.current
+    var contactsAllowed by remember { mutableStateOf(ContactSearch.allowed(context)) }
+    // Checked again each time search opens: Android settings can take it away meanwhile.
+    LaunchedEffect(searching) { if (searching) contactsAllowed = ContactSearch.allowed(context) }
+    val askContacts = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        contactsAllowed = granted
+        // Refused: stop offering; Settings > App drawer turns it back on.
+        if (!granted) onContactsOff()
+    }
+    val lookContacts = searching && contactsOn && answer == null && query.trim().length >= 2
+    val contacts by produceState(emptyList<ContactHit>(), query, lookContacts, contactsAllowed) {
+        value = if (lookContacts && contactsAllowed) withContext(Dispatchers.IO) { ContactSearch.find(context, query) } else emptyList()
+    }
+    val topContact = remember(contacts, shown) { ContactSearch.top(contacts, shown.orEmpty(), query) }
+    val moreContacts = remember(contacts, topContact) { contacts.filter { it != topContact } }
+    val offerContacts = lookContacts && !contactsAllowed
     val grid = rememberLazyGridState()
     val keyboard = LocalSoftwareKeyboardController.current
     // At the top of the list, a pull down moves the drawer instead; once it moves, it takes the
@@ -903,8 +928,14 @@ private fun AppDrawer(
                 SearchField(
                     query,
                     onQuery = { query = it },
-                    // A sum's answer is copied; otherwise the best match opens.
-                    onGo = { if (answer != null) copyAnswer(context, answer.plain) else shown?.firstOrNull()?.let { open(it, null) } },
+                    // A sum's answer is copied, a top contact called; otherwise the best match opens.
+                    onGo = {
+                        when {
+                            answer != null -> copyAnswer(context, answer.plain)
+                            topContact != null -> ContactSearch.dial(context, topContact)
+                            else -> shown?.firstOrNull()?.let { open(it, null) }
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = closeSearch) {
@@ -939,10 +970,13 @@ private fun AppDrawer(
             )
         }
         if (searching && answer != null) MathAnswerCard(answer, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
+        val people = topContact != null || moreContacts.isNotEmpty()
+        // Above the grid, so they don't take the drawer's row spacing.
+        if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
+        if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
         when {
             shown == null -> Unit
-            shown.isEmpty() && searching && answer != null -> Unit
-            shown.isEmpty() -> Text(
+            shown.isEmpty() && !people && !offerContacts -> if (answer == null) Text(
                 stringResource(R.string.drawer_no_results),
                 style = MaterialTheme.typography.bodyMedium.copy(shadow = WallpaperShadow),
                 color = OnWallpaper.copy(alpha = 0.8f),
@@ -957,6 +991,8 @@ private fun AppDrawer(
                 contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = 48.dp),
                 verticalArrangement = Arrangement.spacedBy(rowGap),
             ) {
+                // Results other than apps sit 16dp in from the screen edge, like the answer card.
+                val inset = Modifier.padding(horizontal = (16.dp - sidePadding).coerceAtLeast(0.dp))
                 items(shown, key = { it.key }) { app ->
                     AppTile(
                         app,
@@ -971,6 +1007,20 @@ private fun AppDrawer(
                         onOpen = open,
                         onDragOut = onDragOut,
                         onDragEnd = onDragEnd,
+                    )
+                }
+                // One item, label and list together, so only one row gap comes before it.
+                if (moreContacts.isNotEmpty()) item(key = "contacts", span = { GridItemSpan(maxLineSpan) }) {
+                    Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ResultLabel(stringResource(R.string.results_contacts))
+                        ContactList(moreContacts)
+                    }
+                }
+                if (offerContacts) item(key = "contacts-offer", span = { GridItemSpan(maxLineSpan) }) {
+                    ContactsOffer(
+                        onAllow = { askContacts.launch(Manifest.permission.READ_CONTACTS) },
+                        onDismiss = onContactsOff,
+                        modifier = inset,
                     )
                 }
             }

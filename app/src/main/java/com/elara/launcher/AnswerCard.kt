@@ -9,6 +9,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +31,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -37,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.liveRegion
@@ -153,6 +160,98 @@ internal fun MathAnswerCard(answer: MathAnswer, modifier: Modifier = Modifier) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RoundAction(icon: ImageVector, label: String, filled: Boolean, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = if (filled) AnswerAccent else OnWallpaper.copy(alpha = 0.14f),
+            contentColor = Color.White,
+        ),
+        modifier = Modifier.size(44.dp),
+    ) { Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp)) }
+}
+
+@Composable
+private fun Initials(contact: ContactHit, size: Dp, strong: Boolean) {
+    Box(
+        Modifier.size(size).background(if (strong) AnswerAccent else AnswerAccent.copy(alpha = 0.30f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(contact.initials, color = if (strong) Color.White else AnswerAccentText, fontSize = if (strong) 19.sp else 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** The best contact on the glass card: tap for the contact, Call (Go does the same) or Message. */
+@Composable
+internal fun ContactCard(contact: ContactHit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(OnWallpaper.copy(alpha = 0.10f))
+            .border(BorderStroke(1.dp, OnWallpaper.copy(alpha = 0.10f)), RoundedCornerShape(28.dp))
+            .clickable { ContactSearch.open(context, contact) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Initials(contact, 52.dp, strong = true)
+        Column(Modifier.weight(1f)) {
+            Text(contact.name, color = OnWallpaper, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.contact_go_calls, contact.number), color = AnswerMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        RoundAction(Icons.Call, stringResource(R.string.contact_call, contact.name), filled = true) { ContactSearch.dial(context, contact) }
+        RoundAction(Icons.Message, stringResource(R.string.contact_message, contact.name), filled = false) { ContactSearch.message(context, contact) }
+    }
+}
+
+/** A section label over search results, in the brand purple. */
+@Composable
+internal fun ResultLabel(text: String, modifier: Modifier = Modifier) {
+    Text(text, color = AnswerAccentText, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = modifier.padding(horizontal = 8.dp))
+}
+
+/** The other contacts found, in one rounded group: tap a row for the contact, the phone to call. */
+@Composable
+internal fun ContactList(contacts: List<ContactHit>, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(OnWallpaper.copy(alpha = 0.08f))) {
+        contacts.forEachIndexed { i, c ->
+            if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = OnWallpaper.copy(alpha = 0.08f))
+            Row(
+                Modifier.fillMaxWidth().clickable { ContactSearch.open(context, c) }.height(60.dp).padding(start = 14.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Initials(c, 36.dp, strong = false)
+                Text(c.name, color = OnWallpaper, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                IconButton(onClick = { ContactSearch.dial(context, c) }) {
+                    Icon(Icons.Call, contentDescription = stringResource(R.string.contact_call, c.name), tint = AnswerAccentText, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Offers contacts in search, for the first time: Allow asks Android; the cross turns it off (Settings > App drawer brings it back). */
+@Composable
+internal fun ContactsOffer(onAllow: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(OnWallpaper.copy(alpha = 0.08f)).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Person, contentDescription = null, tint = AnswerAccentText, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(stringResource(R.string.contacts_offer), color = OnWallpaper, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        TextButton(onClick = onAllow) { Text(stringResource(R.string.contacts_allow), color = AnswerAccentText, fontWeight = FontWeight.Medium) }
+        IconButton(onClick = onDismiss) {
+            Icon(Icons.Close, contentDescription = stringResource(R.string.contacts_offer_dismiss), tint = AnswerMuted, modifier = Modifier.size(20.dp))
         }
     }
 }

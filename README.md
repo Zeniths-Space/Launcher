@@ -30,6 +30,13 @@ Application ID `com.elara.launcher`.
   less and plus 12% under it). Decimal arithmetic, so 0.1 + 0.2 is 0.3; long results shrink to
   one line. Copy (or the Go key) puts the result on the clipboard; Open in Calculator shows when a
   calculator app is installed.
+- Contacts in search (Settings > App drawer, on by default): after two letters the search shows
+  a "Search contacts too" row; Allow asks Android for contacts access (read only), the cross turns
+  the feature off. Once allowed, matching contacts show: the best one on a card above the apps
+  (when no app name starts with what you typed) with Call and Message, the rest under the apps.
+  Go and Call open the dialer with the number ready (no call permission); tap a contact to open
+  it in your contacts app. Refusing access turns the setting off; a contact's details never
+  leave Android's contacts.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
   Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each

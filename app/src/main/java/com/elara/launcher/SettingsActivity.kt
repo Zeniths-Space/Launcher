@@ -312,6 +312,11 @@ internal fun SettingsScreen(
                                         save { store.setDrawerKeepPosition(it) }
                                     }
                                 },
+                                {
+                                    SwitchTile(Icons.Person, stringResource(R.string.settings_drawer_contacts), stringResource(R.string.settings_drawer_contacts_sub), settings.drawerContacts) {
+                                        save { store.setDrawerContacts(it) }
+                                    }
+                                },
                             ),
                         )
                         SectionHeader(stringResource(R.string.settings_layout))
