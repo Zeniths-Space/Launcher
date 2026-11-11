@@ -141,7 +141,7 @@ private fun ShortcutButton(shortcut: AppShortcut, repository: AppRepository, onC
         Spacer(Modifier.width(14.dp))
         Text(
             shortcut.label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -281,7 +281,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
             }
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
                 color = cs.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -323,12 +323,12 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     ) {
         // A small cookie behind the icon, as in the Elara forms; the label beside it names it.
         Box(Modifier.size(RowIconSize).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
-            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
+            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(14.dp))
         Text(
             action.label,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium),
             color = if (action.danger) tint else cs.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -375,10 +375,10 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 private const val MaxNameLength = 40
 
 private val MenuMinWidth = 264.dp
-private val MenuMaxWidth = 304.dp
-/** Compact rows, so a menu with shortcuts stays short. */
-private val RowHeight = 44.dp
-private val RowIconSize = 32.dp
+private val MenuMaxWidth = 320.dp
+/** Rows sized for easy reading and tapping. */
+private val RowHeight = 50.dp
+private val RowIconSize = 38.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 
@@ -391,4 +391,4 @@ private val DangerDark = Color(0xFFFF8A8A)
 private val ShortcutBadge = Color(0xFFEDE7FA)
 /** The Elara "cookie": a circle with 8 soft lobes. */
 private val CookieShape = polarShape(lobes = 8, depth = 0.1f)
-private val HeaderIconSize = 40.dp
+private val HeaderIconSize = 46.dp
