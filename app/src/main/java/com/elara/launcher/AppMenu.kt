@@ -1,5 +1,6 @@
 package com.elara.launcher
 
+import androidx.compose.material3.HorizontalDivider
 import android.os.Build
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.drawWithCache
@@ -108,7 +109,44 @@ internal fun AppMenu(
     val header by produceState(icon, app.key, repository.iconEpoch) { if (value == null) value = repository.icon(app, headerPx) }
     val rename = LocalRenameApp.current
     val all = if (rename == null) actions else listOf(MenuAction(Icons.Edit, stringResource(R.string.menu_rename)) { rename(app) }) + actions
-    MenuPopup(expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss)
+    // Read each time the menu opens: apps change their shortcuts at will.
+    val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) { if (expanded) value = repository.shortcuts(app) }
+    MenuPopup(
+        expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss,
+        top = if (shortcuts.isEmpty()) null else ({ run ->
+            shortcuts.forEach { s -> ShortcutButton(s, repository) { run { repository.startShortcut(s, null) } } }
+            HorizontalDivider(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }),
+    )
+}
+
+/** One of an app's shortcuts in its menu: the shortcut's own icon and name. */
+@Composable
+private fun ShortcutButton(shortcut: AppShortcut, repository: AppRepository, onClick: () -> Unit) {
+    val px = with(LocalDensity.current) { 36.dp.roundToPx() }
+    val icon by produceState<ImageBitmap?>(null, shortcut.key, px) { value = repository.shortcutIcon(shortcut, px) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(36.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(36.dp)) }
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            shortcut.label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(end = 10.dp),
+        )
+    }
 }
 
 /**
@@ -124,6 +162,8 @@ internal fun MenuPopup(
     actions: List<MenuAction>,
     onDismiss: () -> Unit,
     hasIcon: Boolean = true,
+    /** Rows above the actions (an app's shortcuts); `run` closes the menu, then runs one. */
+    top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)? = null,
 ) {
     // Stays composed after closing until the closing animation ends.
     val state = remember { MutableTransitionState(false) }
@@ -134,18 +174,18 @@ internal fun MenuPopup(
     val screen = LocalView.current.rootView.let { IntSize(it.width, it.height) }
     val glass by GlassWallpaper.image.collectAsState()
     val margin = with(density) { 8.dp.roundToPx() }
-    val top = WindowInsets.statusBars.getTop(density) + margin
+    val topEdge = WindowInsets.statusBars.getTop(density) + margin
     // Where the app is, as a point in the menu; set when the menu is placed, read when it's drawn.
     val origin = remember { floatArrayOf(0.5f, 1f) }
-    val position = remember(margin, top) {
+    val position = remember(margin, topEdge) {
         object : PopupPositionProvider {
             override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
                 val x = (anchorBounds.center.x - popupContentSize.width / 2)
                     .coerceIn(margin, (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin))
                 val above = anchorBounds.top - margin - popupContentSize.height
-                val y = if (above >= top) above else (anchorBounds.bottom + margin).coerceAtMost(windowSize.height - popupContentSize.height - margin)
+                val y = if (above >= topEdge) above else (anchorBounds.bottom + margin).coerceAtMost(windowSize.height - popupContentSize.height - margin)
                 origin[0] = ((anchorBounds.center.x - x).toFloat() / popupContentSize.width.coerceAtLeast(1)).coerceIn(0f, 1f)
-                origin[1] = if (above >= top) 1f else 0f
+                origin[1] = if (above >= topEdge) 1f else 0f
                 return IntOffset(x, y)
             }
         }
@@ -162,6 +202,7 @@ internal fun MenuPopup(
             icon,
             hasIcon,
             actions,
+            top,
             onDismiss,
             onAppInfo = onInfo,
             glass = glass,
@@ -178,7 +219,7 @@ internal fun MenuPopup(
 }
 
 @Composable
-private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
+private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)?, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val dark = LocalDark.current
     // Where the card is on screen, so it shows the part of the wallpaper that is behind it.
@@ -261,6 +302,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
                 Spacer(Modifier.height(40.dp))
             }
         }
+        top?.invoke(run)
         actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
     }
 }

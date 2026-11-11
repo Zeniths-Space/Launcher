@@ -184,6 +184,22 @@ class AppRepository(context: Context) {
         }
     }
 
+    /** [app]'s own shortcuts, in its order, for its long-press menu; empty unless this is the home app. */
+    suspend fun shortcuts(app: AppEntry, limit: Int = 4): List<AppShortcut> = withContext(Dispatchers.IO) {
+        val info = synchronized(infos) { infos[app.key] } ?: return@withContext emptyList()
+        if (runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false) != true) return@withContext emptyList()
+        val query = LauncherApps.ShortcutQuery()
+            .setPackage(app.packageName)
+            .setActivity(info.componentName)
+            .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC)
+        runCatching { launcherApps.getShortcuts(query, info.user) }.getOrNull().orEmpty()
+            .filter { it.isEnabled && !it.shortLabel.isNullOrBlank() }
+            // Manifest ones first, then dynamic, each by the app's rank, as other launchers list them.
+            .sortedWith(compareBy({ !it.isDeclaredInManifest }, { it.rank }))
+            .take(limit)
+            .map { AppShortcut(it.shortLabel.toString(), app.label, it) }
+    }
+
     /** A shortcut's own icon, drawn off the main thread; null if it has none. */
     suspend fun shortcutIcon(shortcut: AppShortcut, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
         runCatching { launcherApps.getShortcutIconDrawable(shortcut.info, density) }.getOrNull()?.toImageBitmap(sizePx)

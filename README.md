@@ -59,7 +59,8 @@ Application ID `com.elara.launcher`.
   the search opens. Android lets only the home app read them, so they show while Elara is the home
   app; hidden apps' shortcuts stay out.
 - Tap to open, with Android's own open animation and the app's own splash screen.
-  Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
+  Long-press for the app's menu, above the icon: its icon, name and App info, then the app's own
+  shortcuts (up to four, such as New tab, with their icons; tap one to run it), then a list of Rename, Add to or Remove from Home,
   Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each
   with its icon on a small purple cookie. Apps go into the dock by dragging. A locked layout hides
   the Home action. The menu grows out of the

@@ -11,7 +11,7 @@
 - [ ] Favourites dock on the home screen
 - [ ] Home screen pages with app icons, drag to arrange
 - [x] Folders (home screen; dock later)
-- [ ] App shortcuts (long-press menu)
+- [x] App shortcuts (long-press menu, and in search)
 - [x] Hidden apps
 - [x] Icon shapes for all app icons
 - [x] Custom font (TTF/OTF) for all the launcher's text
