@@ -848,6 +848,8 @@ private fun AppDrawer(
     val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
+    val answer = remember(query) { MathSearch.answer(query) }
+    val context = LocalContext.current
     val grid = rememberLazyGridState()
     val keyboard = LocalSoftwareKeyboardController.current
     // At the top of the list, a pull down moves the drawer instead; once it moves, it takes the
@@ -901,7 +903,8 @@ private fun AppDrawer(
                 SearchField(
                     query,
                     onQuery = { query = it },
-                    onGo = { shown?.firstOrNull()?.let { open(it, null) } },
+                    // A sum's answer is copied; otherwise the best match opens.
+                    onGo = { if (answer != null) copyAnswer(context, answer.plain) else shown?.firstOrNull()?.let { open(it, null) } },
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = closeSearch) {
@@ -935,8 +938,10 @@ private fun AppDrawer(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
         }
+        if (searching && answer != null) MathAnswerCard(answer, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         when {
             shown == null -> Unit
+            shown.isEmpty() && searching && answer != null -> Unit
             shown.isEmpty() -> Text(
                 stringResource(R.string.drawer_no_results),
                 style = MaterialTheme.typography.bodyMedium.copy(shadow = WallpaperShadow),

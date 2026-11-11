@@ -4,6 +4,12 @@
     <string name="drawer_search">Search apps</string>
     <string name="drawer_search_close">Close search</string>
     <string name="drawer_no_results">No apps found</string>
+    <string name="answer_label">Answer</string>
+    <string name="answer_go_copies">Go copies it</string>
+    <string name="answer_copy">Copy</string>
+    <string name="answer_copied">Copied</string>
+    <string name="answer_open_calculator">Open in Calculator</string>
+    <string name="answer_also">Also</string>
     <string name="app_info">App info</string>
     <string name="menu_add_home">Add to Home</string>
     <string name="menu_remove_home">Remove from Home</string>

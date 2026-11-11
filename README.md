@@ -25,6 +25,11 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
+- Sums typed into the search are answered on the phone, above the apps: + − × ÷ ^, brackets
+  and percent as a calculator reads them (4500 + 12% is 5,040; "12% of 4500" is 540, with 4,500
+  less and plus 12% under it). Decimal arithmetic, so 0.1 + 0.2 is 0.3; long results shrink to
+  one line. Copy (or the Go key) puts the result on the clipboard; Open in Calculator shows when a
+  calculator app is installed.
 - Tap to open, with Android's own open animation and the app's own splash screen.
   Long-press for the app's menu, above the icon: its icon, name and App info, then a list of Rename, Add to or Remove from Home,
   Hide, and Uninstall (Android asks to confirm; not shown for apps that came with the device), each
