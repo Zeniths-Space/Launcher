@@ -124,7 +124,14 @@ internal fun AppMenu(
     val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
     val header by produceState(icon, app.key, repository.iconEpoch) { if (value == null) value = repository.icon(app, headerPx) }
     val rename = LocalRenameApp.current
-    val all = if (rename == null) actions else listOf(MenuAction(Icons.Edit, stringResource(R.string.menu_rename)) { rename(app) }) + actions
+    val changeIcon = LocalChangeIcon.current
+    val renameLabel = stringResource(R.string.menu_rename)
+    val iconLabel = stringResource(R.string.menu_icon)
+    val all = buildList {
+        if (rename != null) add(MenuAction(Icons.Edit, renameLabel) { rename(app) })
+        if (changeIcon != null) add(MenuAction(Icons.Palette, iconLabel) { changeIcon(app) })
+        addAll(actions)
+    }
     // Read each time the menu opens: apps change their shortcuts at will.
     val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) { if (expanded) value = repository.shortcuts(app) }
     MenuPopup(
@@ -251,8 +258,7 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(10.dp)
             // As wide as its widest line (title row or action), within these bounds.
-            // A list without a header is only as wide as its text.
-            .widthIn(min = if (title != null) MenuMinWidth else 0.dp, max = MenuMaxWidth)
+            .widthIn(min = if (title != null) MenuMinWidth else ListMinWidth, max = MenuMaxWidth)
             .width(IntrinsicSize.Max)
             .shadow(12.dp, shape)
             .clip(shape)
@@ -421,6 +427,8 @@ private const val MaxNameLength = 40
 
 private val MenuMinWidth = 232.dp
 private val MenuMaxWidth = 280.dp
+/** A list without a header: narrower, but not cramped around short labels. */
+private val ListMinWidth = 184.dp
 /** Rows sized for easy reading and tapping. */
 private val RowHeight = 46.dp
 private val RowIconSize = 34.dp
