@@ -119,7 +119,7 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
                         if (pitch <= 0) return
                         // Glide to the first row of the letter, so its apps are what shows at the top.
                         val target = ((initials[i].second / columns) * pitch).coerceIn(0, max).toFloat()
-                                                chase?.cancel()
+                        chase?.cancel()
                         chase = scope.launch {
                             animate(pos, target, animationSpec = spring(dampingRatio = 1f, stiffness = 500f)) { v, _ ->
                                 grid.dispatchRawDelta(v - pos)
