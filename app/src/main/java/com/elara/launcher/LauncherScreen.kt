@@ -82,10 +82,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Switch
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -1111,15 +1107,17 @@ private fun AppDrawer(
             }
             Unit
         }
-        if (showSort) ChoiceSheet(
-            stringResource(R.string.drawer_sort),
-            listOf(false, true).map { frequent ->
-                MenuAction(null, stringResource(if (frequent) R.string.drawer_sort_frequent else R.string.drawer_sort_alpha), checked = frequent == sortFrequent) {
-                    onSortFrequent(frequent)
-                }
-            },
-            onDismiss = { showSort = false },
-        )
+        if (showSort) ElaraSheet(stringResource(R.string.drawer_sort), Icons.Sort, onDismiss = { showSort = false }) {
+            SheetGroup(
+                listOf(false, true).map { frequent ->
+                    SheetRow(
+                        if (frequent) Icons.History else Icons.SortAlpha,
+                        stringResource(if (frequent) R.string.drawer_sort_frequent else R.string.drawer_sort_alpha),
+                        selected = frequent == sortFrequent,
+                    ) { showSort = false; onSortFrequent(frequent) }
+                },
+            )
+        }
         if (showMore) DrawerMenuSheet(
             searchBelow = searchBelow,
             onSearchBelow = { below -> closeSearch(); onSearchBelow(below) },
@@ -1127,7 +1125,6 @@ private fun AppDrawer(
             onHorizontal = onHorizontal,
             onSort = { showSort = true },
             onHidden = unlockHidden,
-            onSettings = onOpenSettings,
             onDismiss = { showMore = false },
         )
         // Back closes the search before the drawer.
@@ -1282,9 +1279,8 @@ private fun AppDrawer(
 
 /**
  * The drawer's options, from its three dots: a sheet from the bottom with a row each, as Smart
- * Launcher's. Switches change in place; the other rows close the sheet and open their own screen.
+ * Launcher's. Switches change in place; the other rows close the sheet and open their own.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DrawerMenuSheet(
     searchBelow: Boolean,
@@ -1293,41 +1289,17 @@ private fun DrawerMenuSheet(
     onHorizontal: (Boolean) -> Unit,
     onSort: () -> Unit,
     onHidden: () -> Unit,
-    onSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.drawer_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+    ElaraSheet(stringResource(R.string.drawer_title), Icons.Apps, onDismiss) {
+        SheetGroup(
+            listOf(
+                SheetRow(Icons.Search, stringResource(R.string.drawer_search_below), checked = searchBelow) { onSearchBelow(!searchBelow) },
+                SheetRow(Icons.Columns, stringResource(R.string.drawer_scroll_horizontal), checked = horizontal) { onHorizontal(!horizontal) },
+                SheetRow(Icons.Sort, stringResource(R.string.drawer_sort)) { onDismiss(); onSort() },
+                SheetRow(Icons.Hide, stringResource(R.string.settings_hidden)) { onDismiss(); onHidden() },
+            ),
         )
-        @Composable
-        fun row(icon: ImageVector, label: Int, checked: Boolean? = null, onClick: () -> Unit) = ListItem(
-            headlineContent = { Text(stringResource(label)) },
-            leadingContent = { Icon(icon, contentDescription = null, tint = cs.onSurface) },
-            // The row is the control; the switch only shows its state.
-            trailingContent = checked?.let { { Switch(it, onCheckedChange = null) } },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .then(
-                    if (checked != null) Modifier.toggleable(checked, role = Role.Switch) { onClick() }
-                    else Modifier.clickable(role = Role.Button) { onDismiss(); onClick() },
-                ),
-        )
-        Column(Modifier.padding(bottom = 16.dp).navigationBarsPadding()) {
-            row(Icons.Search, R.string.drawer_search_below, searchBelow) { onSearchBelow(!searchBelow) }
-            row(Icons.Columns, R.string.drawer_scroll_horizontal, horizontal) { onHorizontal(!horizontal) }
-            row(Icons.Sort, R.string.drawer_sort, onClick = onSort)
-            row(Icons.Hide, R.string.settings_hidden, onClick = onHidden)
-            row(Icons.Settings, R.string.drawer_settings_all, onClick = onSettings)
-        }
     }
 }
 

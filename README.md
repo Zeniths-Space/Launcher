@@ -26,7 +26,7 @@ Application ID `com.elara.launcher`.
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - The drawer's ⋮ button opens a sheet from the bottom with its options: two switches (Search bar
-  at bottom, Horizontal scroll), Sort, Hidden apps and All settings.
+  at bottom, Horizontal scroll), Sort and Hidden apps.
 - Horizontal scroll (the ⋮ sheet): apps
   sit in pages swiped sideways, as many rows as fit, with dots for the pages. Search results are
   still one list.

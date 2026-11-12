@@ -44,15 +44,7 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 internal fun HiddenAppsSheet(apps: List<AppEntry>, repository: AppRepository, onUnhide: (AppEntry) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     LifecycleStartEffect(Unit) { onStopOrDispose { onDismiss() } }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.settings_hidden),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.settings_hidden), Icons.Hide, onDismiss = onDismiss) {
         if (apps.isEmpty()) {
             Text(
                 stringResource(R.string.settings_hidden_none),
@@ -60,7 +52,7 @@ internal fun HiddenAppsSheet(apps: List<AppEntry>, repository: AppRepository, on
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp).navigationBarsPadding(),
             )
-            return@ModalBottomSheet
+            return@ElaraSheet
         }
         val sizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).padding(bottom = 16.dp)) {

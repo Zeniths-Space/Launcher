@@ -814,15 +814,7 @@ private fun IconPackTile(settings: LauncherSettings, store: SettingsStore) {
         onClick = { choosing = true },
     )
     if (!choosing) return
-    ModalBottomSheet(
-        onDismissRequest = { choosing = false },
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.settings_icon_pack),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.settings_icon_pack), Icons.Widgets, onDismiss = { choosing = false }) {
         val accent = LocalAccent.current
         val iconPx = with(LocalDensity.current) { 40.dp.roundToPx() }
         Column(Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 24.dp)) {
@@ -883,15 +875,7 @@ private fun IconShapeTile(settings: LauncherSettings, store: SettingsStore) {
         onClick = { choosing = true },
     )
     if (!choosing) return
-    ModalBottomSheet(
-        onDismissRequest = { choosing = false },
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.settings_icon_shape),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.settings_icon_shape), Icons.Apps, onDismiss = { choosing = false }) {
         val accent = LocalAccent.current
         Column(
             Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 24.dp),
@@ -969,15 +953,7 @@ private fun FontTile(settings: LauncherSettings, store: SettingsStore) {
         onClick = { choosing = true },
     )
     if (!choosing) return
-    ModalBottomSheet(
-        onDismissRequest = { choosing = false },
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.settings_font),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.settings_font), Icons.Font, onDismiss = { choosing = false }) {
         Column(Modifier.selectableGroup().padding(bottom = 24.dp)) {
             FontChoice(stringResource(R.string.settings_font_system), stringResource(R.string.settings_font_system_sub), selected = !custom) {
                 choosing = false
@@ -1081,15 +1057,7 @@ private fun BlurStyleTile(style: BlurStyle, onSelect: (BlurStyle) -> Unit) {
         onClick = { choosing = true },
     )
     if (!choosing) return
-    ModalBottomSheet(
-        onDismissRequest = { choosing = false },
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.settings_blur_style),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.settings_blur_style), Icons.Palette, onDismiss = { choosing = false }) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
             ChoiceGroup(BlurStyle.entries, style, { it.label }) {
                 choosing = false

@@ -205,17 +205,14 @@ private fun WallpaperScreen(
             choosing = false
             onApply(bitmap, fit.visible(x, y, scale), which)
         }
-        ModalBottomSheet(onDismissRequest = { choosing = false }) {
-            Text(
-                stringResource(R.string.wallpaper_where),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        ElaraSheet(stringResource(R.string.wallpaper_where), Icons.Wallpaper, onDismiss = { choosing = false }) {
+            SheetGroup(
+                listOf(
+                    SheetRow(Icons.Home, stringResource(R.string.wallpaper_home)) { set(WallpaperManager.FLAG_SYSTEM) },
+                    SheetRow(Icons.Lock, stringResource(R.string.wallpaper_lock)) { set(WallpaperManager.FLAG_LOCK) },
+                    SheetRow(Icons.Wallpaper, stringResource(R.string.wallpaper_both)) { set(WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK) },
+                ),
             )
-            Column(Modifier.padding(bottom = 24.dp)) {
-                Where(Icons.Home, stringResource(R.string.wallpaper_home)) { set(WallpaperManager.FLAG_SYSTEM) }
-                Where(Icons.Lock, stringResource(R.string.wallpaper_lock)) { set(WallpaperManager.FLAG_LOCK) }
-                Where(Icons.Wallpaper, stringResource(R.string.wallpaper_both)) { set(WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK) }
-            }
         }
     }
 }
@@ -262,15 +259,6 @@ private fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun Where(icon: ImageVector, label: String, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(label) },
-        leadingContent = { Icon(icon, contentDescription = null) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    )
-}
 
 @RequiresApi(Build.VERSION_CODES.P)
 private fun decode(context: android.content.Context, uri: Uri, screen: IntSize): android.graphics.Bitmap =

@@ -67,17 +67,7 @@ internal fun IconPickerSheet(app: AppEntry, repository: AppRepository, current: 
     var query by remember { mutableStateOf("") }
     val found = remember(names, query) { names?.let { IconPacks.search(it, query) } }
     val sizePx = with(LocalDensity.current) { 48.dp.roundToPx() }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
-    ) {
-        Text(
-            stringResource(R.string.icon_pick_title, app.label),
-            style = MaterialTheme.typography.titleLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
-        )
+    ElaraSheet(stringResource(R.string.icon_pick_title, app.label), Icons.Palette, onDismiss = onDismiss) {
         if (packs?.isEmpty() == true) {
             Text(
                 stringResource(R.string.icon_pick_none),
@@ -85,7 +75,7 @@ internal fun IconPickerSheet(app: AppEntry, repository: AppRepository, current: 
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp).navigationBarsPadding(),
             )
-            return@ModalBottomSheet
+            return@ElaraSheet
         }
         // Which pack to look in, when there is more than one.
         if ((packs?.size ?: 0) > 1) Row(
