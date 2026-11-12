@@ -55,6 +55,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.semantics.heading
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.text.KeyboardActions
@@ -359,17 +363,23 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
     }
 }
 
-/** A small dialog to pick one of [options]; the one in use is [MenuAction.checked]. Picking one closes it. */
+/** A bottom sheet to pick one of [options]; the one in use is [MenuAction.checked]. Picking one closes it. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ChoiceDialog(title: String, options: List<MenuAction>, onDismiss: () -> Unit) {
-    AlertDialog(
+internal fun ChoiceSheet(title: String, options: List<MenuAction>, onDismiss: () -> Unit) {
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { options.forEach { o -> ActionButton(o) { onDismiss(); o.onClick() } } } },
-        confirmButton = {},
-        containerColor = if (LocalDark.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(28.dp),
-    )
+        containerColor = if (LocalPureBlack.current) PureBlackCard else MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            options.forEach { o -> ActionButton(o) { onDismiss(); o.onClick() } }
+        }
+    }
 }
 
 /**
