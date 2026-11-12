@@ -80,7 +80,7 @@
     <string name="games_add_title">Add a game</string>
     <string name="games_add">Add a game</string>
     <string name="games_done">Done</string>
-    <string name="games_none">No games found. Tap Add a game to put one here.</string>
+    <string name="games_none">No games found. Tap + to put one here.</string>
     <string name="games_remove">Remove from Games</string>
     <string name="settings_icon_pack_adapt">Adapt other icons</string>
     <string name="settings_icon_pack_adapt_note">Apps the pack doesn\'t cover get the pack\'s background, so they match the rest.</string>

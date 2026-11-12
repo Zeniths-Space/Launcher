@@ -43,7 +43,14 @@ import androidx.compose.ui.unit.dp
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ElaraSheet(title: String, icon: ImageVector, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun ElaraSheet(
+    title: String,
+    icon: ImageVector,
+    onDismiss: () -> Unit,
+    /** A button at the header's end, if any. */
+    action: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val cs = MaterialTheme.colorScheme
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -52,7 +59,7 @@ internal fun ElaraSheet(title: String, icon: ImageVector, onDismiss: () -> Unit,
         containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
-        Row(Modifier.padding(start = 20.dp, end = 24.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 20.dp, end = if (action == null) 24.dp else 16.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             // In settings, the page's own accent and badge shape.
             val accent = LocalAccent.current ?: Page.Main.accent
             AccentBadge(icon, accent, accent.shape, size = 48)
@@ -62,8 +69,9 @@ internal fun ElaraSheet(title: String, icon: ImageVector, onDismiss: () -> Unit,
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
+                modifier = Modifier.weight(1f, fill = action != null).semantics { heading() },
             )
+            action?.invoke()
         }
         content()
     }

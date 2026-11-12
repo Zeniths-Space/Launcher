@@ -8,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -20,7 +21,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -73,10 +75,14 @@ internal fun GamesSheet(
 ) {
     val cs = MaterialTheme.colorScheme
     var adding by remember { mutableStateOf(false) }
-    ElaraSheet(stringResource(if (adding) R.string.games_add_title else R.string.games_title), Icons.Widgets, onDismiss = onDismiss) {
+    ElaraSheet(stringResource(if (adding) R.string.games_add_title else R.string.games_title), Icons.Widgets, onDismiss = onDismiss, action = {
+        FilledTonalIconButton(onClick = { adding = !adding }, Modifier.size(48.dp)) {
+            Icon(if (adding) Icons.Done else Icons.Add, contentDescription = stringResource(if (adding) R.string.games_done else R.string.games_add))
+        }
+    }) {
         val sizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
         if (adding) {
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(others, key = { it.key }) { app ->
                     val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
                     ListItem(
@@ -92,10 +98,10 @@ internal fun GamesSheet(
                 stringResource(R.string.games_none),
                 style = MaterialTheme.typography.bodyMedium,
                 color = cs.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 32.dp),
             )
         } else {
-            LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().heightIn(max = 440.dp), contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(games, key = { it.key }) { app ->
                     val icon by produceState<ImageBitmap?>(repository.cachedIcon(app, sizePx), app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
                     var menu by remember { mutableStateOf(false) }
@@ -113,9 +119,5 @@ internal fun GamesSheet(
                 }
             }
         }
-        FilledTonalButton(
-            onClick = { adding = !adding },
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp).navigationBarsPadding().fillMaxWidth(),
-        ) { Text(stringResource(if (adding) R.string.games_done else R.string.games_add)) }
     }
 }
