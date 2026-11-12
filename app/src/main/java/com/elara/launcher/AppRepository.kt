@@ -86,7 +86,10 @@ class AppRepository(context: Context) {
     var onOpenGames: (() -> Unit)? = null
 
     private val infos = HashMap<String, LauncherActivityInfo>()
-    private val icons = HashMap<String, ImageBitmap>()
+    // Least recently used out beyond 600, so old sizes (after an icon size change) don't pile up.
+    private val icons = object : LinkedHashMap<String, ImageBitmap>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?) = size > 600
+    }
 
     /** The outline icons are drawn in. Set from settings; a change draws every icon again (see [iconEpoch]). */
     var iconShape by mutableStateOf(IconShape.System)

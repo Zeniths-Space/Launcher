@@ -97,7 +97,8 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
                 }
             },
     ) {
-        Column(Modifier.fillMaxHeight().alpha(alpha).padding(end = 6.dp).align(Alignment.CenterEnd)) {
+        // Not composed while hidden, so scrolling doesn't redraw 27 letters nobody sees.
+        if (alpha > 0f) Column(Modifier.fillMaxHeight().alpha(alpha).padding(end = 6.dp).align(Alignment.CenterEnd)) {
             initials.forEachIndexed { i, (letter, _) ->
                 Box(Modifier.weight(1f).width(22.dp), contentAlignment = Alignment.Center) {
                     Text(
@@ -106,6 +107,7 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
                         fontWeight = if (i == active) FontWeight.Bold else FontWeight.Medium,
                         color = if (i == active) cs.primary else OnWallpaper,
                         textAlign = TextAlign.Center,
+                        style = androidx.compose.ui.text.TextStyle(shadow = WallpaperShadow),
                     )
                 }
             }
