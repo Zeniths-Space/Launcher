@@ -114,6 +114,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -1216,6 +1217,7 @@ private fun AppDrawer(
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (topSetting != null) SettingCard(topSetting, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
+        var highlight by remember { mutableStateOf<Char?>(null) }
         val tile: @Composable (AppEntry) -> Unit = { app ->
             AppTile(
                 app,
@@ -1224,6 +1226,7 @@ private fun AppDrawer(
                 iconSize,
                 onHome = app.key in homeKeys,
                 canEdit = !locked,
+                highlighted = highlight != null && initialOf(app.label) == highlight,
                 isDrawerOpen = isDrawerOpen,
                 onHomeToggle = { onHomeToggle(app) },
                 onHide = { onHide(app) },
@@ -1264,7 +1267,9 @@ private fun AppDrawer(
             ) {
                 // Results other than apps sit 16dp in from the screen edge, like the answer card.
                 val inset = Modifier.padding(horizontal = (16.dp - sidePadding).coerceAtLeast(0.dp))
-                items(shown, key = { it.key }) { app -> tile(app) }
+                items(shown, key = { it.key }) { app ->
+                    tile(app)
+                }
                 // One item each, label and list together, so only one row gap comes before it.
                 if (shortcuts.isNotEmpty()) item(key = "shortcuts", span = { GridItemSpan(maxLineSpan) }) {
                     Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1295,7 +1300,7 @@ private fun AppDrawer(
         }
         // Only for the plain alphabetical list: with another order, or a search, the letters mean nothing.
         if (quickScroll && !searching && !horizontal && !sortFrequent && shown != null) {
-            QuickScroll(remember(shown) { initialsOf(shown) }, grid, columns, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
+            QuickScroll(remember(shown) { initialsOf(shown) }, grid, columns, { highlight = it }, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
         }
         }
     }
@@ -1490,7 +1495,11 @@ internal fun AppTileContent(
     iconSize: Dp,
     modifier: Modifier = Modifier,
     iconModifier: Modifier = Modifier,
+    highlighted: Boolean = false,
 ) {
+    val glow = MaterialTheme.colorScheme.primary
+    // Read only while drawing, so the fade redraws the halo without recomposing the tile.
+    val glowAmount = animateFloatAsState(if (highlighted) 1f else 0f, tween(if (highlighted) 250 else 300, easing = FastOutSlowInEasing), label = "highlight")
     Column(
         modifier
             .fillMaxWidth()
@@ -1502,7 +1511,16 @@ internal fun AppTileContent(
                 // Shrinks to the column, staying square, when the icon is wider than it.
                 .widthIn(max = iconSize)
                 .aspectRatio(1f)
-                .then(iconModifier),
+                .then(iconModifier)
+                // The icon's own outline, tinted and drawn larger: a halo in whatever shape the icon has.
+                .drawBehind {
+                    val img = icon
+                    val g = glowAmount.value
+                    if (g > 0f && img != null) {
+                        val grow = size.width * 0.14f * g
+                        drawImage(img, dstOffset = IntOffset((-grow).roundToInt(), (-grow).roundToInt()), dstSize = IntSize((size.width + 2 * grow).roundToInt(), (size.height + 2 * grow).roundToInt()), alpha = 0.55f * g, colorFilter = ColorFilter.tint(glow, BlendMode.SrcIn))
+                    }
+                },
         ) {
             icon?.let { Image(it, contentDescription = if (showLabels) null else label, modifier = Modifier.fillMaxSize()) }
         }
@@ -1533,6 +1551,7 @@ private fun AppTile(
     iconSize: Dp,
     onHome: Boolean,
     canEdit: Boolean,
+    highlighted: Boolean,
     /** Read by an open menu only: a plain flag would recompose every tile as the drawer opens or shuts. */
     isDrawerOpen: () -> Boolean,
     onHomeToggle: () -> Unit,
@@ -1573,7 +1592,8 @@ private fun AppTile(
             app.label,
             showLabels,
             iconSize,
-            Modifier
+            highlighted = highlighted,
+            modifier = Modifier
                 .onGloballyPositioned { tileCoords[0] = it }
                 // A release after a long-press opens nothing: that press was for the menu or a drag.
                 // No ripple: the press scale is the feedback.

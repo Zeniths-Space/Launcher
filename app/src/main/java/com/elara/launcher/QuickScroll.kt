@@ -62,13 +62,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Quick scroll for an alphabetical list. While the list scrolls, a thin scrollbar shows at the right
- * edge. Touch the edge and slide and the letters appear: the letter under the finger swells out with
- * a bubble beside it, and the list glides to that letter's first app. Both fade a moment after.
+ * Quick scroll for an alphabetical list. Touch the right edge and slide: a bubble beside the finger shows the letter, and the list glides to that letter's first app. The bubble fades a moment after.
  * [initials] come from [initialsOf]; each position is an item of [grid], laid out in [columns] columns.
  */
 @Composable
-internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGridState, columns: Int, modifier: Modifier = Modifier) {
+internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGridState, columns: Int, onHighlight: (Char?) -> Unit, modifier: Modifier = Modifier) {
     if (initials.size < 2) return
     val haptics = LocalHapticFeedback.current
     val measurer = rememberTextMeasurer(cacheSize = 64)
@@ -80,12 +78,14 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
     // Read only while drawing, so a drag redraws the strip without recomposing it.
     var fingerY by remember { mutableFloatStateOf(0f) }
     val swell = remember { Animatable(0f) }
-    val busy = touching || grid.isScrollInProgress
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(busy) {
-        if (busy) shown = true else { delay(1200); shown = false }
+        var shown by remember { mutableStateOf(false) }
+    // The bubble stays a moment after the finger lifts, so a tap still shows which letter it hit.
+    var held by remember { mutableStateOf(false) }
+    var holdJob by remember { mutableStateOf<Job?>(null) }
+    LaunchedEffect(held) {
+        if (held) shown = true else { delay(1200); shown = false }
     }
-    LaunchedEffect(touching) { swell.animateTo(if (touching) 1f else 0f, spring(dampingRatio = 1f, stiffness = 400f)) }
+    LaunchedEffect(held) { swell.animateTo(if (held) 1f else 0f, spring(dampingRatio = 1f, stiffness = 400f)) }
     val alpha by animateFloatAsState(if (shown) 1f else 0f, label = "quick scroll")
     val scope = rememberCoroutineScope()
     Box(
@@ -107,6 +107,7 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
                     // Our own running position: the grid's lags a frame behind the touch events.
                     var pos = (grid.firstVisibleItemIndex / columns * pitch + grid.firstVisibleItemScrollOffset).toFloat()
                     var last = -1
+                    var moved = false
                     var chase: Job? = null
                     fun at(y: Float) {
                         fingerY = y.coerceIn(0f, h)
@@ -124,50 +125,37 @@ internal fun BoxScope.QuickScroll(initials: List<Pair<Char, Int>>, grid: LazyGri
                                 grid.dispatchRawDelta(v - pos)
                                 pos = v
                             }
+                            // Settle exactly on the letter's row, whatever the glide left.
+                            grid.scrollToItem(initials[i].second / columns * columns)
                         }
                     }
                     touching = true
+                    holdJob?.cancel()
+                    held = true
                     at(down.position.y)
-                    drag(down.id) { change -> change.consume(); at(change.position.y) }
+                    drag(down.id) { change ->
+                        change.consume()
+                        if (!moved) { moved = true; onHighlight(null) }
+                        at(change.position.y)
+                    }
                     touching = false
+                    holdJob = scope.launch { delay(900); held = false }
+                    // A plain tap marks that letter's apps for a moment; a slide doesn't.
+                    if (!moved && last >= 0) {
+                        onHighlight(initials[last].first)
+                        scope.launch { delay(1200); onHighlight(null) }
+                    }
                 }
             }
             .drawBehind {
                 val a = alpha
                 if (a <= 0f) return@drawBehind
                 val s = swell.value
-                if (s < 0.01f) {
-                    // Scrollbar: thumb size and place follow the scrolled share of the list.
-                    val info = grid.layoutInfo
-                    val pitch = rowPitch(info)
-                    if (pitch <= 0) return@drawBehind
-                    val content = ((info.totalItemsCount + columns - 1) / columns * pitch - info.mainAxisItemSpacing).toFloat()
-                    val viewport = (info.viewportSize.height - info.beforeContentPadding - info.afterContentPadding).toFloat()
-                    if (content <= viewport) return@drawBehind
-                    val thumb = (viewport / content * size.height).coerceAtLeast(48.dp.toPx())
-                    val scrolled = grid.firstVisibleItemIndex / columns * pitch + grid.firstVisibleItemScrollOffset
-                    val top = (scrolled / (content - viewport)).coerceIn(0f, 1f) * (size.height - thumb)
-                    drawRoundRect(letterColor.copy(alpha = 0.6f * a), Offset(size.width - 7.dp.toPx(), top), Size(3.dp.toPx(), thumb), CornerRadius(1.5.dp.toPx()))
-                    return@drawBehind
-                }
+                if (s < 0.01f) return@drawBehind
                 val n = initials.size
                 val slot = size.height / n
-                val reach = slot * 3.5f
                 val big = 64.dp.toPx()
-                val style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, shadow = WallpaperShadow)
-                val bold = style.copy(fontWeight = FontWeight.Bold)
                 val activeNow = ((fingerY / slot).toInt()).coerceIn(0, n - 1)
-                for (i in 0 until n) {
-                    val cy = (i + 0.5f) * slot
-                    val near = (1f - abs(cy - fingerY) / reach).coerceAtLeast(0f)
-                    val w = near * near * s
-                    val layout = measurer.measure(initials[i].first.toString(), if (i == activeNow) bold else style)
-                    val cx = size.width - 14.dp.toPx() - w * 34.dp.toPx()
-                    val k = 1f + 0.8f * w
-                    withTransform({ scale(k, k, Offset(cx, cy)) }) {
-                        drawText(layout, if (i == activeNow) primary else letterColor, Offset(cx - layout.size.width / 2f, cy - layout.size.height / 2f), alpha = a * s)
-                    }
-                }
                 if (s > 0.01f) {
                     val cx = size.width - 14.dp.toPx() - 34.dp.toPx() - big
                     val cy = fingerY.coerceIn(big / 2, (size.height - big / 2).coerceAtLeast(big / 2))
