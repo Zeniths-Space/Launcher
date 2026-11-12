@@ -73,9 +73,11 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
@@ -1313,9 +1315,11 @@ private fun AppPages(
         val pager = rememberPagerState { pages.size }
         // Each opening starts on the first page, unless the drawer remembers its place.
         LaunchedEffect(drawerOpen) { if (!drawerOpen && !keepPosition) pager.scrollToPage(0) }
-        HorizontalPager(pager, Modifier.fillMaxSize().padding(bottom = 22.dp)) { p ->
+        // The pages either side stay built: building one as a swipe starts cost a ~100 ms frame (debug build).
+        HorizontalPager(pager, Modifier.fillMaxSize().padding(bottom = 22.dp), beyondViewportPageCount = 1) { p ->
             // Rows share the height evenly; a page that isn't full keeps the same rows.
-            Column(Modifier.fillMaxSize().padding(horizontal = sidePadding)) {
+            // Its own layer: a page slides as one picture instead of redrawing every icon and name each frame.
+            Column(Modifier.fillMaxSize().graphicsLayer().padding(horizontal = sidePadding)) {
                 val page = pages.getOrNull(p).orEmpty()
                 repeat(rows) { r ->
                     Row(Modifier.weight(1f)) {
@@ -1324,18 +1328,27 @@ private fun AppPages(
                 }
             }
         }
-        PageDots(pager.pageCount, pager.currentPage, Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp))
+        PageDots(pager, Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp))
     }
 }
 
-/** The home screen's page dots: the page shown stretches into a pill. */
+/**
+ * Page dots like the home screen's: the page shown stretches into a pill. Drawn from the pager's
+ * position, so a swipe only redraws them; animating them in composition redid them every frame.
+ */
 @Composable
-private fun PageDots(count: Int, current: Int, modifier: Modifier) {
-    if (count > 1) Row(modifier.height(6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun PageDots(pager: PagerState, modifier: Modifier) {
+    val count = pager.pageCount
+    if (count < 2) return
+    Canvas(modifier.size(width = 14.dp * (count - 1) + 18.dp, height = 6.dp)) {
+        val at = pager.currentPage + pager.currentPageOffsetFraction
+        var x = 0f
         repeat(count) { p ->
-            val width by animateDpAsState(if (p == current) 18.dp else 6.dp, Motion.bouncy(), label = "dot")
-            val alpha by animateFloatAsState(if (p == current) 1f else 0.4f, Motion.effects(), label = "dot alpha")
-            Box(Modifier.size(width, 6.dp).background(Color.White.copy(alpha = alpha), CircleShape))
+            // 1 on the page shown, 0 a page or more away.
+            val near = (1f - abs(at - p)).coerceIn(0f, 1f)
+            val w = (6.dp + 12.dp * near).toPx()
+            drawRoundRect(Color.White.copy(alpha = 0.4f + 0.6f * near), Offset(x, 0f), Size(w, size.height), CornerRadius(size.height / 2))
+            x += w + 8.dp.toPx()
         }
     }
 }
