@@ -1,5 +1,7 @@
 package com.elara.launcher
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -21,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +47,8 @@ internal fun ElaraSheet(title: String, icon: ImageVector, onDismiss: () -> Unit,
     val cs = MaterialTheme.colorScheme
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        // Opens at its content's height, not half the screen with the rest cut off below.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
     ) {
@@ -70,7 +75,7 @@ internal fun ElaraSheet(title: String, icon: ImageVector, onDismiss: () -> Unit,
  */
 @Composable
 internal fun SheetGroup(rows: List<SheetRow>) {
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp).navigationBarsPadding().clip(RoundedCornerShape(24.dp))) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 20.dp).navigationBarsPadding().clip(RoundedCornerShape(24.dp))) {
         rows.forEachIndexed { i, row ->
             if (i > 0) Spacer(Modifier.size(3.dp))
             SheetRowItem(row)

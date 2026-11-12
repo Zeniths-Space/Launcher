@@ -1114,31 +1114,32 @@ private fun AppDrawer(
         keyboard?.hide()
         if (onPick != null) onPick(app) else repository.launch(app, bounds)
     }
+    val closeSearch = {
+        // Else focus moves on to the first app, which then shows a highlight.
+        focusManager.clearFocus()
+        keyboard?.hide()
+        query = ""
+        searching = false
+    }
+    // A sum's answer is copied, a top contact called; otherwise the best match opens.
+    val go = {
+        when {
+            answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
+            topContact != null -> ContactSearch.dial(context, topContact)
+            topSetting != null -> SettingsSearch.open(context, topSetting)
+            else -> shown?.firstOrNull()?.let { open(it, null) }
+                ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
+        }
+        Unit
+    }
+    Box(modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
     Column(
-        modifier
+        Modifier
             .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding()
+            // The bar below has its own room, so a tall answer card can't push it under the keyboard.
+            .then(if (searchBelow && searching) Modifier.padding(bottom = SearchBarBottom + 52.dp) else Modifier)
             .nestedScroll(pullToClose),
     ) {
-        val closeSearch = {
-            // Else focus moves on to the first app, which then shows a highlight.
-            focusManager.clearFocus()
-            keyboard?.hide()
-            query = ""
-            searching = false
-        }
-        // A sum's answer is copied, a top contact called; otherwise the best match opens.
-        val go = {
-            when {
-                answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
-                topContact != null -> ContactSearch.dial(context, topContact)
-                topSetting != null -> SettingsSearch.open(context, topSetting)
-                else -> shown?.firstOrNull()?.let { open(it, null) }
-                    ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
-            }
-            Unit
-        }
         if (showSort) ElaraSheet(stringResource(R.string.drawer_sort), Icons.Sort, onDismiss = { showSort = false }) {
             SheetGroup(
                 listOf(false, true).map { frequent ->
@@ -1286,17 +1287,18 @@ private fun AppDrawer(
                 }
             }
         }
-        // Always there, in reach of the thumb; a tap on it starts the search.
-        if (searchBelow) SearchField(
-            query,
-            onQuery = { query = it },
-            onGo = go,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = SearchBarBottom),
-            bar = true,
-            onFocus = { searching = true },
-            onClose = closeSearch.takeIf { searching },
-        )
         }
+    }
+    // Always there, in reach of the thumb; a tap on it starts the search.
+    if (searchBelow) SearchField(
+        query,
+        onQuery = { query = it },
+        onGo = go,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = SearchBarBottom),
+        bar = true,
+        onFocus = { searching = true },
+        onClose = closeSearch.takeIf { searching },
+    )
     }
     // A new search starts at the top of the results.
     LaunchedEffect(query) { if (shown?.isNotEmpty() == true) grid.scrollToItem(0) }
