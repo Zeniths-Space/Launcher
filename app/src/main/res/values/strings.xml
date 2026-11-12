@@ -73,6 +73,7 @@
     <string name="icon_pick_back">Back to the list</string>
     <string name="icon_pick_empty">No icons match.</string>
     <string name="menu_hide">Hide</string>
+    <string name="drawer_quick_scroll">Quick scroll</string>
     <string name="games_folder">Games folder</string>
     <string name="games_enabled_note">Games are detected automatically and kept here. You can add or remove any.</string>
     <string name="games_title">Games</string>

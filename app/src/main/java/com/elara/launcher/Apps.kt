@@ -62,3 +62,16 @@ object AppLabels {
 
     fun clean(name: String) = name.replace(Regex("[\\t\\r\\n]"), " ").trim()
 }
+
+/** The letter [label] is filed under: its first letter, capitalised and without accents; '#' for a digit or symbol. */
+fun initialOf(label: String): Char {
+    val c = java.text.Normalizer.normalize(label.trim().take(1), java.text.Normalizer.Form.NFD).firstOrNull()?.uppercaseChar() ?: return '#'
+    return if (c in 'A'..'Z') c else if (c.isLetter()) c else '#'
+}
+
+/** Each initial in [apps] (in the order they are listed) with the position of the first app under it. */
+fun initialsOf(apps: List<AppEntry>): List<Pair<Char, Int>> {
+    val out = LinkedHashMap<Char, Int>()
+    apps.forEachIndexed { i, app -> out.putIfAbsent(initialOf(app.label), i) }
+    return out.toList()
+}

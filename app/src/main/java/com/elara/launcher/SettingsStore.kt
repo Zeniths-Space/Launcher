@@ -99,6 +99,8 @@ data class LauncherSettings(
     val iconPack: String = "",
     /** Apps the icon pack has no icon for get one of its backs behind their own icon. */
     val iconPackAdapt: Boolean = false,
+    /** A letter strip along the drawer's edge jumps to apps by initial. */
+    val drawerQuickScroll: Boolean = false,
     /** The Games folder in the drawer is on; off by default. */
     val gamesEnabled: Boolean = false,
     /** Home setups to switch between; empty until the user makes one. The first is the default. */
@@ -170,6 +172,7 @@ class SettingsStore(context: Context) {
                 iconShape = IconShape.parse(p[ICON_SHAPE]),
                 iconPack = p[ICON_PACK].orEmpty(),
                 iconPackAdapt = p[ICON_PACK_ADAPT] ?: false,
+                drawerQuickScroll = p[DRAWER_QUICK_SCROLL] ?: false,
                 gamesEnabled = p[GAMES_ENABLED] ?: false,
                 spaces = Spaces.parse(p[SPACES]),
                 activeSpace = p[ACTIVE_SPACE] ?: 0,
@@ -256,6 +259,7 @@ class SettingsStore(context: Context) {
     suspend fun setSetupDone() = set(SETUP_DONE, true)
     suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
     suspend fun setIconPackAdapt(on: Boolean) = store.edit { it[ICON_PACK_ADAPT] = on }
+    suspend fun setDrawerQuickScroll(on: Boolean) = store.edit { it[DRAWER_QUICK_SCROLL] = on }
     suspend fun setGamesEnabled(on: Boolean) = store.edit { it[GAMES_ENABLED] = on }
     suspend fun setIconPack(packageName: String) = store.edit { it[ICON_PACK] = packageName }
     suspend fun setSpacesBySchedule(on: Boolean) = store.edit { it[SPACES_SCHEDULE] = on; it.remove(SPACE_MANUAL_UNTIL) }
@@ -442,6 +446,7 @@ class SettingsStore(context: Context) {
         val APP_ICONS = stringPreferencesKey("app_icons")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val ICON_PACK_ADAPT = booleanPreferencesKey("icon_pack_adapt")
+        val DRAWER_QUICK_SCROLL = booleanPreferencesKey("drawer_quick_scroll")
         val GAMES_ENABLED = booleanPreferencesKey("games_enabled")
         val GAMES_ADDED = stringPreferencesKey("games_added")
         val GAMES_REMOVED = stringPreferencesKey("games_removed")

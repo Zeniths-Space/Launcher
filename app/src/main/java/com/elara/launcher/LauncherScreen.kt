@@ -501,6 +501,8 @@ internal fun LauncherScreen(
                     if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage, blocked = blocked))
                     onDrawerOpenChange(false)
                 }) else null,
+                quickScroll = settings.drawerQuickScroll,
+                onQuickScroll = { on -> onSettings { setDrawerQuickScroll(on) } },
                 gamesEnabled = settings.gamesEnabled,
                 onGamesEnabled = { on ->
                     onSettings { setGamesEnabled(on) }
@@ -1020,6 +1022,8 @@ private fun AppDrawer(
     onPick: ((AppEntry) -> Unit)?,
     gamesEnabled: Boolean,
     onGamesEnabled: (Boolean) -> Unit,
+    quickScroll: Boolean,
+    onQuickScroll: (Boolean) -> Unit,
     onHide: (AppEntry) -> Unit,
     hiddenApps: List<AppEntry>,
     onUnhide: (AppEntry) -> Unit,
@@ -1160,6 +1164,8 @@ private fun AppDrawer(
             onHidden = unlockHidden,
             gamesEnabled = gamesEnabled,
             onGamesEnabled = onGamesEnabled,
+            quickScroll = quickScroll,
+            onQuickScroll = onQuickScroll,
             onDismiss = { showMore = false },
         )
         // Back closes the search before the drawer.
@@ -1287,6 +1293,10 @@ private fun AppDrawer(
                 }
             }
         }
+        // Only for the plain alphabetical list: with another order, or a search, the letters mean nothing.
+        if (quickScroll && !searching && !horizontal && !sortFrequent && shown != null) {
+            QuickScroll(remember(shown) { initialsOf(shown) }, grid, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
+        }
         }
     }
     // Always there, in reach of the thumb; a tap on it starts the search.
@@ -1327,6 +1337,8 @@ private fun DrawerMenuSheet(
     onHidden: () -> Unit,
     gamesEnabled: Boolean,
     onGamesEnabled: (Boolean) -> Unit,
+    quickScroll: Boolean,
+    onQuickScroll: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ElaraSheet(stringResource(R.string.drawer_title), Icons.Apps, onDismiss) {
@@ -1335,6 +1347,7 @@ private fun DrawerMenuSheet(
                 SheetRow(Icons.Search, stringResource(R.string.drawer_search_below), checked = searchBelow) { onSearchBelow(!searchBelow) },
                 SheetRow(Icons.Columns, stringResource(R.string.drawer_scroll_horizontal), checked = horizontal) { onHorizontal(!horizontal) },
                 SheetRow(Icons.Sort, stringResource(R.string.drawer_sort)) { onDismiss(); onSort() },
+                SheetRow(Icons.SortAlpha, stringResource(R.string.drawer_quick_scroll), checked = quickScroll) { onQuickScroll(!quickScroll) },
                 SheetRow(Icons.Hide, stringResource(R.string.settings_hidden)) { onDismiss(); onHidden() },
                 SheetRow(Icons.Widgets, stringResource(R.string.games_folder), checked = gamesEnabled) { onGamesEnabled(!gamesEnabled) },
             ),
