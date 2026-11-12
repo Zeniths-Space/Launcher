@@ -94,7 +94,8 @@ internal val LocalRenameApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { 
 
 /** One action in an app's menu; the menu closes before it runs. [danger] marks one that removes something. */
 internal class MenuAction(
-    val icon: ImageVector,
+    /** Shown in a cookie before the label; null for a row of text alone. */
+    val icon: ImageVector?,
     val label: String,
     val danger: Boolean = false,
     /** An option that is on: filled purple, with a check, as a chosen item in the Elara dropdowns. */
@@ -246,7 +247,8 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(10.dp)
             // As wide as its widest line (title row or action), within these bounds.
-            .widthIn(min = MenuMinWidth, max = MenuMaxWidth)
+            // A list without a header is only as wide as its text.
+            .widthIn(min = if (title != null) MenuMinWidth else 0.dp, max = MenuMaxWidth)
             .width(IntrinsicSize.Max)
             .shadow(12.dp, shape)
             .clip(shape)
@@ -337,10 +339,14 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // A small cookie behind the icon, as in the Elara forms; the label beside it names it.
-        Box(Modifier.size(RowIconSize).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
-            Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        if (action.icon != null) {
+            Box(Modifier.size(RowIconSize).background(tint.copy(alpha = 0.22f), CookieShape), contentAlignment = Alignment.Center) {
+                Icon(action.icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+        } else {
+            Spacer(Modifier.width(10.dp))
         }
-        Spacer(Modifier.width(14.dp))
         Text(
             action.label,
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
@@ -351,6 +357,19 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
         )
         if (action.checked) Icon(Icons.Done, contentDescription = null, tint = tint, modifier = Modifier.padding(end = 8.dp).size(20.dp))
     }
+}
+
+/** A small dialog to pick one of [options]; the one in use is [MenuAction.checked]. Picking one closes it. */
+@Composable
+internal fun ChoiceDialog(title: String, options: List<MenuAction>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { options.forEach { o -> ActionButton(o) { onDismiss(); o.onClick() } } } },
+        confirmButton = {},
+        containerColor = if (LocalDark.current) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(28.dp),
+    )
 }
 
 /**

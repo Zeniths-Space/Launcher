@@ -5,7 +5,9 @@
     <string name="drawer_search_close">Close search</string>
     <string name="drawer_search_bar">Search</string>
     <string name="drawer_more">More options</string>
-    <string name="drawer_search_below">Search bar at bottom</string>
+    <string name="drawer_search_place">Search bar</string>
+    <string name="drawer_search_top">Top</string>
+    <string name="drawer_search_bottom">Bottom</string>
     <string name="drawer_no_results">No apps found</string>
     <string name="answer_label">Answer</string>
     <string name="answer_go_copies">Go copies it</string>

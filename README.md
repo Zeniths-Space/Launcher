@@ -25,7 +25,7 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
-- Search bar at the bottom (the drawer's ⋮ menu; off by default): the search button becomes a bar
+- Search bar, Bottom (the drawer's ⋮ menu; Top by default): the search button becomes a bar
   at the bottom of the drawer, in reach of the thumb. Apps that scroll behind it dim more the
   lower they are, as in One UI.
 - Sums typed into the search are answered on the phone, above the apps: + − × ÷ ^, brackets

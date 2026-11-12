@@ -988,10 +988,11 @@ private fun AppDrawer(
     var searching by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
+    var showPlace by remember { mutableStateOf(false) }
     val openNow by rememberUpdatedState(drawerOpen)
     val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) showHidden = false }
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showPlace = false } }
     if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
     val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
@@ -1088,6 +1089,15 @@ private fun AppDrawer(
             }
             Unit
         }
+        if (showPlace) ChoiceDialog(
+            stringResource(R.string.drawer_search_place),
+            listOf(false, true).map { below ->
+                MenuAction(null, stringResource(if (below) R.string.drawer_search_bottom else R.string.drawer_search_top), checked = below == searchBelow) {
+                    if (below != searchBelow) { closeSearch(); onSearchBelow(below) }
+                }
+            },
+            onDismiss = { showPlace = false },
+        )
         // Back closes the search before the drawer.
         BackHandler(enabled = searching, onBack = closeSearch)
         // One height either way, so the apps don't jump when the search opens.
@@ -1120,11 +1130,8 @@ private fun AppDrawer(
                         icon = null,
                         onInfo = null,
                         actions = listOf(
-                            MenuAction(Icons.Hide, stringResource(R.string.settings_hidden), onClick = unlockHidden),
-                            MenuAction(Icons.Search, stringResource(R.string.drawer_search_below), checked = searchBelow) {
-                                closeSearch()
-                                onSearchBelow(!searchBelow)
-                            },
+                            MenuAction(null, stringResource(R.string.settings_hidden), onClick = unlockHidden),
+                            MenuAction(null, stringResource(R.string.drawer_search_place)) { showPlace = true },
                         ),
                         onDismiss = { showMore = false },
                         hasIcon = false,
