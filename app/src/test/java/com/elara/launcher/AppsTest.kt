@@ -18,6 +18,13 @@ class AppsTest {
     }
 
     @Test
+    fun `most opened first, the rest in their order`() {
+        val sorted = sortByLaunches(apps, mapOf("chrome/Main#0" to 5, "whatsapp/Main#0" to 9, "gone/Main#0" to 99))
+        assertEquals(listOf("WhatsApp", "Chrome", "Calculator", "camera", "Caméra Pro", "Google Camera"), sorted.map { it.label })
+        assertEquals(apps, sortByLaunches(apps, emptyMap()))
+    }
+
+    @Test
     fun `search ranks label start, then word start, then anywhere`() {
         assertEquals(listOf("camera", "Caméra Pro", "Google Camera"), searchApps(apps, "cam").map { it.label })
         assertEquals(listOf("WhatsApp"), searchApps(apps, "app").map { it.label })

@@ -66,6 +66,8 @@ class AppRepository(context: Context) {
     // The window apps are launched from; the repository lives no longer than its activity.
     private val activity = context as? Activity
     private val pm = context.packageManager
+    /** Told of every app opened from the launcher (the drawer's most-used order counts them). */
+    var onLaunch: ((AppEntry) -> Unit)? = null
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
     private val density = context.resources.displayMetrics.densityDpi
@@ -259,6 +261,7 @@ class AppRepository(context: Context) {
      */
     fun launch(app: AppEntry, bounds: Rect?) {
         val info = synchronized(infos) { infos[app.key] } ?: return
+        onLaunch?.invoke(app)
         val source = activity?.window?.decorView
         val options = if (source != null && bounds != null && !bounds.isEmpty) {
             // The decor view fills the window, so window coordinates are its own.

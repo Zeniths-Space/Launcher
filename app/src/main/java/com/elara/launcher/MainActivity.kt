@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
         repository.onChanged = { reload() }
         repository.register()
         reload(wait = 0)
+        repository.onLaunch = { app -> lifecycleScope.launch { store.countLaunch(app.key) } }
         glassAsked = GlassWallpaper.asked(this)
         if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).addOnColorsChangedListener(wallpaperListener, Handler(mainLooper))
         // Widgets Android still holds but the home screen lost (say, the app was killed mid-add) are freed.

@@ -444,7 +444,9 @@ internal fun LauncherScreen(
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
-                remember(apps, settings.hidden) { apps?.filter { it.key !in settings.hidden } },
+                remember(apps, settings.hidden, settings.drawerSortFrequent, settings.launches) {
+                    apps?.filter { it.key !in settings.hidden }?.let { if (settings.drawerSortFrequent) sortByLaunches(it, settings.launches) else it }
+                },
                 repository,
                 settings.showLabels,
                 columns = settings.drawerColumns,
@@ -455,6 +457,8 @@ internal fun LauncherScreen(
                 contactsOn = settings.drawerContacts,
                 searchBelow = settings.drawerSearchBelow,
                 onSearchBelow = { on -> onSettings { setDrawerSearchBelow(on) } },
+                sortFrequent = settings.drawerSortFrequent,
+                onSortFrequent = { on -> onSettings { setDrawerSortFrequent(on) } },
                 currencyRates = settings.currencyRates,
                 onCurrencyRates = { stored -> onSettings { setCurrencyRates(stored) } },
                 onContactsOff = { onSettings { setDrawerContacts(false) } },
@@ -964,6 +968,9 @@ private fun AppDrawer(
     /** Search is a bar under the apps instead of a button beside the title. */
     searchBelow: Boolean,
     onSearchBelow: (Boolean) -> Unit,
+    /** The most opened apps come first instead of A to Z. */
+    sortFrequent: Boolean,
+    onSortFrequent: (Boolean) -> Unit,
     onContactsOff: () -> Unit,
     currencyRates: String,
     onCurrencyRates: (String) -> Unit,
@@ -989,10 +996,11 @@ private fun AppDrawer(
     var showHidden by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
     var showPlace by remember { mutableStateOf(false) }
+    var showSort by remember { mutableStateOf(false) }
     val openNow by rememberUpdatedState(drawerOpen)
     val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showPlace = false } }
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showPlace = false; showSort = false } }
     if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
     val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
@@ -1089,7 +1097,16 @@ private fun AppDrawer(
             }
             Unit
         }
-        if (showPlace) ChoiceDialog(
+        if (showSort) ChoiceSheet(
+            stringResource(R.string.drawer_sort),
+            listOf(false, true).map { frequent ->
+                MenuAction(null, stringResource(if (frequent) R.string.drawer_sort_frequent else R.string.drawer_sort_alpha), checked = frequent == sortFrequent) {
+                    onSortFrequent(frequent)
+                }
+            },
+            onDismiss = { showSort = false },
+        )
+        if (showPlace) ChoiceSheet(
             stringResource(R.string.drawer_search_place),
             listOf(false, true).map { below ->
                 MenuAction(null, stringResource(if (below) R.string.drawer_search_bottom else R.string.drawer_search_top), checked = below == searchBelow) {
@@ -1132,6 +1149,7 @@ private fun AppDrawer(
                         actions = listOf(
                             MenuAction(null, stringResource(R.string.settings_hidden), onClick = unlockHidden),
                             MenuAction(null, stringResource(R.string.drawer_search_place)) { showPlace = true },
+                            MenuAction(null, stringResource(R.string.drawer_sort)) { showSort = true },
                         ),
                         onDismiss = { showMore = false },
                         hasIcon = false,

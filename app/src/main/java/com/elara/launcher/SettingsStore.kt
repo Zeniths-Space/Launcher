@@ -67,6 +67,10 @@ data class LauncherSettings(
     val drawerContacts: Boolean = true,
     /** Search is a bar at the bottom of the drawer, in reach of the thumb, instead of a button at the top. */
     val drawerSearchBelow: Boolean = false,
+    /** The drawer lists the most opened apps first instead of by name. */
+    val drawerSortFrequent: Boolean = false,
+    /** How often each app was opened from Elara, by [AppEntry.key]; counted only while [drawerSortFrequent] is on. */
+    val launches: Map<String, Int> = emptyMap(),
     /** Exchange rates the user set for search, as [CurrencyRates.format] writes them. */
     val currencyRates: String = "",
     /** The wallpaper blurs behind the open drawer, as glass, where Android supports it. */
@@ -138,6 +142,8 @@ class SettingsStore(context: Context) {
                 drawerKeepPosition = p[DRAWER_KEEP_POSITION] ?: false,
                 drawerContacts = p[DRAWER_CONTACTS] ?: true,
                 drawerSearchBelow = p[DRAWER_SEARCH_BELOW] ?: false,
+                drawerSortFrequent = p[DRAWER_SORT_FREQUENT] ?: false,
+                launches = parseLaunches(p[APP_LAUNCHES]),
                 currencyRates = p[CURRENCY_RATES].orEmpty(),
                 drawerBlur = p[DRAWER_BLUR] ?: true,
                 drawerBlurStyle = BlurStyle.parse(p[DRAWER_BLUR_STYLE]),
@@ -200,6 +206,15 @@ class SettingsStore(context: Context) {
     suspend fun setDrawerKeepPosition(on: Boolean) = set(DRAWER_KEEP_POSITION, on)
     suspend fun setDrawerContacts(on: Boolean) = set(DRAWER_CONTACTS, on)
     suspend fun setDrawerSearchBelow(on: Boolean) = set(DRAWER_SEARCH_BELOW, on)
+    suspend fun setDrawerSortFrequent(on: Boolean) = set(DRAWER_SORT_FREQUENT, on)
+    /** One more opening of [key], kept only while the drawer sorts by it. */
+    // shortcut: plain totals, never aged; add decay if old favourites stick at the top.
+    suspend fun countLaunch(key: String) = store.edit {
+        if (it[DRAWER_SORT_FREQUENT] != true) return@edit
+        val counts = parseLaunches(it[APP_LAUNCHES]).toMutableMap()
+        counts[key] = (counts[key] ?: 0) + 1
+        it[APP_LAUNCHES] = AppLabels.format(counts.mapValues { c -> c.value.toString() })
+    }
     suspend fun setCurrencyRates(stored: String) = store.edit { it[CURRENCY_RATES] = stored }
     suspend fun setDrawerBlur(on: Boolean) = set(DRAWER_BLUR, on)
     suspend fun setDrawerBlurStyle(style: BlurStyle) = store.edit { it[DRAWER_BLUR_STYLE] = style.name }
@@ -401,6 +416,11 @@ class SettingsStore(context: Context) {
         val DRAWER_KEEP_POSITION = booleanPreferencesKey("drawer_keep_position")
         val DRAWER_CONTACTS = booleanPreferencesKey("drawer_contacts")
         val DRAWER_SEARCH_BELOW = booleanPreferencesKey("drawer_search_below")
+        val DRAWER_SORT_FREQUENT = booleanPreferencesKey("drawer_sort_frequent")
+        // Not in backups: it is a record of use, not a setting.
+        val APP_LAUNCHES = stringPreferencesKey("app_launches")
+        /** Stored like app names ([AppLabels]): key, tab, count. */
+        fun parseLaunches(stored: String?): Map<String, Int> = AppLabels.parse(stored).mapNotNull { (k, v) -> v.toIntOrNull()?.let { k to it } }.toMap()
         val CURRENCY_RATES = stringPreferencesKey("currency_rates")
         val DRAWER_BLUR = booleanPreferencesKey("drawer_blur")
         val DRAWER_BLUR_STYLE = stringPreferencesKey("drawer_blur_style")
@@ -417,7 +437,7 @@ class SettingsStore(context: Context) {
         val SPACE_MANUAL_UNTIL = longPreferencesKey("space_manual_until")
 
         // Keys a backup holds, by type. Not widgets (their ids belong to this install), the font (a file) or first-run state.
-        val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_SEARCH_BELOW, DRAWER_BLUR, LOCKED, SPACES_SCHEDULE, SPACES_SHOW_NAME)
+        val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_SEARCH_BELOW, DRAWER_SORT_FREQUENT, DRAWER_BLUR, LOCKED, SPACES_SCHEDULE, SPACES_SHOW_NAME)
         val BackedInt: List<Preferences.Key<Int>> = listOf(DOCK_COLUMNS, DOCK_ROWS, DOCK_ICON_SIZE, DOCK_ROW_GAP, DOCK_COLUMN_GAP, HOME_COLUMNS, HOME_ROWS, HOME_ICON_SIZE, DRAWER_COLUMNS, DRAWER_ICON_SIZE, DRAWER_ROW_GAP, DRAWER_PADDING)
         val BackedLong: List<Preferences.Key<Long>> = listOf(ACTIVE_SPACE)
         val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK, SPACES)

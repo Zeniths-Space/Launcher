@@ -47,6 +47,10 @@ private fun fold(s: String): String =
 fun renameApps(apps: List<AppEntry>, labels: Map<String, String>, locale: Locale = Locale.getDefault()): List<AppEntry> =
     if (labels.isEmpty()) apps else sortApps(apps.map { app -> labels[app.key]?.let { app.copy(label = it) } ?: app }, locale)
 
+/** [apps] with the most opened first ([launches] by [AppEntry.key]); ties keep their order. */
+fun sortByLaunches(apps: List<AppEntry>, launches: Map<String, Int>): List<AppEntry> =
+    if (launches.isEmpty()) apps else apps.sortedByDescending { launches[it.key] ?: 0 }
+
 /** App names, a line each: key, tab, name. Keys have no tab; names are kept to one line without tabs. */
 object AppLabels {
     fun parse(stored: String?): Map<String, String> = stored.orEmpty().lines().mapNotNull { line ->

@@ -6,6 +6,9 @@
     <string name="drawer_search_bar">Search</string>
     <string name="drawer_more">More options</string>
     <string name="drawer_search_place">Search bar</string>
+    <string name="drawer_sort">Sort</string>
+    <string name="drawer_sort_alpha">Alphabetical</string>
+    <string name="drawer_sort_frequent">Most used</string>
     <string name="drawer_search_top">Top</string>
     <string name="drawer_search_bottom">Bottom</string>
     <string name="drawer_no_results">No apps found</string>
