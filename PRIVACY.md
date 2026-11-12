@@ -4,11 +4,8 @@
   granted at install, with no prompt. `EXPAND_STATUS_BAR` only lets swipe down open the notification
   panel; it gives no access to your notifications. `REQUEST_DELETE_PACKAGES` only lets an app's
   menu open Android's uninstall prompt; nothing is removed unless you confirm there.
-- **Elara gestures (accessibility service), off unless you turn it on.** It exists only so double
-  tap can lock the screen (and as a fallback for swipe down), which Android allows a third-party
-  launcher only through an accessibility service. It asks Android
-  for no accessibility events and cannot read window content, so it does not see what is on your
-  screen or what you type. Turn it off any time in Android's accessibility settings.
+- **No accessibility service.** Elara does not declare one, so it cannot read your screen or
+  what you type.
 - **No telemetry, analytics, ads, or accounts.**
 - **What it reads:** the list of apps that have a launcher icon (name, icon), through Android's
   LauncherApps API, to show and start them. It does not read app data, notifications or usage.

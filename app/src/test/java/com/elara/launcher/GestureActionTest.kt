@@ -12,6 +12,10 @@ class GestureActionTest {
         assertEquals(GestureAction.Notifications, GestureAction.parse(null, GestureAction.Notifications))
     }
 
+    @Test fun removedLockScreenGivesDefault() {
+        assertEquals(GestureAction.None, GestureAction.parse("LockScreen", GestureAction.None))
+    }
+
     @Test fun unknownNameGivesDefault() {
         assertEquals(GestureAction.None, GestureAction.parse("Flashlight", GestureAction.None))
     }

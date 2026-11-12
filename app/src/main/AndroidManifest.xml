@@ -6,7 +6,8 @@
         LauncherApps lists and starts apps without QUERY_ALL_PACKAGES or INTERNET. Both
         permissions are granted at install: one lets swipe down open the notification panel, the
         other lets an app's menu ask Android to uninstall it (Android still asks the user to
-        confirm). The gestures accessibility service below is off unless the user turns it on.
+        confirm). There is no accessibility service: Play Protect blocks the install of a
+        sideloaded app that declares one, so locking the screen by gesture was dropped (2026-11-12).
     -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
@@ -91,24 +92,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!--
-            Elara gestures: lets home screen gestures open the notification panel or lock the
-            screen. Off until the user turns it on in accessibility settings; only the system can
-            bind it (BIND_ACCESSIBILITY_SERVICE).
-        -->
-        <service
-            android:name=".GestureService"
-            android:exported="true"
-            android:label="@string/gesture_service_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/gesture_service" />
-        </service>
 
         <!-- Opened from the home screen's long-press menu and the drawer; not reachable by other apps. -->
         <activity

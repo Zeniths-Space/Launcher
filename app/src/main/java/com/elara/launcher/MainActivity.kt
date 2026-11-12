@@ -207,9 +207,7 @@ class MainActivity : ComponentActivity() {
 
     // Gestures that need the accessibility service point to where it is turned on.
     private fun onGesture(action: GestureAction) {
-        if (Gestures.perform(this, action)) return
-        Toast.makeText(this, R.string.gesture_needs_service, Toast.LENGTH_SHORT).show()
-        startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, SettingsActivity.PAGE_GESTURES))
+        Gestures.perform(this, action)
     }
 
     // A burst of package events (an app store updating many apps) makes one reload, not one each.

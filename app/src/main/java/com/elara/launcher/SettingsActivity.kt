@@ -102,7 +102,6 @@ class SettingsActivity : ComponentActivity() {
     private val store by lazy { SettingsStore(this) }
     private val repository by lazy { AppRepository(this) }
     private var isDefaultHome by mutableStateOf(false)
-    private var gesturesOn by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,7 +119,6 @@ class SettingsActivity : ComponentActivity() {
                     store = store,
                     repository = repository,
                     isDefaultHome = isDefaultHome,
-                    gesturesOn = gesturesOn,
                     versionName = versionName,
                     startPage = when (intent.getStringExtra(EXTRA_PAGE)) {
                         PAGE_GESTURES -> Page.Gestures
@@ -130,7 +128,6 @@ class SettingsActivity : ComponentActivity() {
                     onBack = ::finish,
                     onChooseHome = { openSystem(Settings.ACTION_HOME_SETTINGS) },
                     onWallpaper = rememberWallpaperPicker(),
-                    onAccessibility = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) },
                     onAppInfo = { openSystem(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)) },
                     onOpenLink = { url -> openSystem(Intent.ACTION_VIEW, url.toUri()) },
                 )
@@ -142,7 +139,6 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isDefaultHome = isDefaultHome(this)
-        gesturesOn = GestureService.isEnabled(this)
     }
 
     companion object {
@@ -179,13 +175,11 @@ internal fun SettingsScreen(
     store: SettingsStore,
     repository: AppRepository,
     isDefaultHome: Boolean,
-    gesturesOn: Boolean,
     versionName: String,
     startPage: Page,
     onBack: () -> Unit,
     onChooseHome: () -> Unit,
     onWallpaper: () -> Unit,
-    onAccessibility: () -> Unit,
     onAppInfo: () -> Unit,
     onOpenLink: (String) -> Unit,
 ) {
@@ -411,21 +405,6 @@ internal fun SettingsScreen(
                         )
                     }
                     Page.Gestures -> {
-                        // The service is only asked for when a chosen gesture needs it (locking).
-                        val context = LocalContext.current
-                        val needed = Gestures.needsService(context, settings.swipeDown) || Gestures.needsService(context, settings.doubleTap)
-                        if (needed || gesturesOn) GesturesCard(gesturesOn, onAccessibility)
-                        if (needed && !gesturesOn) {
-                            Text(
-                                stringResource(R.string.gesture_service_restricted),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = cs.onSurfaceVariant,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(role = Role.Button, onClick = onAppInfo)
-                                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                            )
-                        }
                         SectionHeader(stringResource(R.string.gesture_swipe_down))
                         ChoiceGroup(
                             listOf(GestureAction.Notifications, GestureAction.QuickSettings, GestureAction.None),
@@ -434,7 +413,7 @@ internal fun SettingsScreen(
                         ) { save { store.setSwipeDown(it) } }
                         SectionHeader(stringResource(R.string.gesture_double_tap))
                         ChoiceGroup(
-                            listOf(GestureAction.LockScreen, GestureAction.None).filter { it.available },
+                            listOf(GestureAction.Notifications, GestureAction.QuickSettings, GestureAction.None),
                             settings.doubleTap,
                             { it.label },
                         ) { save { store.setDoubleTap(it) } }
@@ -462,34 +441,6 @@ private val Page.title
         Page.Backup -> R.string.settings_section_backup
         Page.About -> R.string.settings_section_about
     }
-
-/** Whether the gestures service is on, and the way to Android's accessibility settings. */
-@Composable
-private fun GesturesCard(on: Boolean, onOpen: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    val (container, content) = if (on) cs.secondaryContainer to cs.onSecondaryContainer else cs.surfaceContainerHigh to cs.onSurface
-    Surface(onClick = onOpen, shape = groupShape(0, 1), color = container, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            ScallopBadge(
-                if (on) Icons.Done else Icons.Gesture,
-                container = if (on) cs.secondary else ZenithColors.indicator,
-                content = if (on) cs.onSecondary else ZenithColors.onIndicator,
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(if (on) R.string.gesture_service_on else R.string.gesture_service_off), style = MaterialTheme.typography.titleMedium, color = content)
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    stringResource(if (on) R.string.gesture_service_on_sub else R.string.gesture_service_off_sub),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = content.copy(alpha = 0.75f),
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Next, contentDescription = null, tint = content.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
-        }
-    }
-}
 
 /** One choice of several, a row each, with a radio button; the whole row selects. */
 @Composable
@@ -520,7 +471,6 @@ private val GestureAction.label
         GestureAction.None -> R.string.gesture_none
         GestureAction.Notifications -> R.string.gesture_notifications
         GestureAction.QuickSettings -> R.string.gesture_quick_settings
-        GestureAction.LockScreen -> R.string.gesture_lock
     }
 
 @Composable

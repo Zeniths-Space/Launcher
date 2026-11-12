@@ -19,7 +19,7 @@ No other ecosystem app is needed.
 | `Dock.kt` | The dock grid: tap to open, long-press menu, drag to rearrange. |
 | `HomeGrid.kt` | Home screen pages of apps in a `HorizontalPager`: tap, long-press menu, drag across slots and pages. |
 | `HomePages.kt` | Home pages as slot lists: stored form, moving with room made, adding, removing (unit tested). |
-| `GestureService.kt` | `GestureAction`, `Gestures` (status bar expand, service fallback) and the accessibility service for locking. |
+| `GestureService.kt` | `GestureAction` and `Gestures` (status bar expand). No accessibility service: Play Protect blocks sideloaded apps that declare one. |
 | `Wallpaper.kt` | Photo picker, then the system crop-and-set screen. |
 | `Icons.kt`, `Shapes.kt` | Vector icons and M3 Expressive shapes (copied from Zenboard). |
 | `Apps.kt` | Pure model: `AppEntry`, sorting and search ranking. Unit-tested. |
@@ -66,11 +66,9 @@ No other ecosystem app is needed.
   hidden `expandNotificationsPanel` / `expandSettingsPanel` by reflection, with the install-time
   `EXPAND_STATUS_BAR` permission, as other third-party launchers do: no setup for the user
   (checked on a Galaxy S24 Ultra, One UI, 2026-11-05). This breaks the no-hidden-API rule, by
-  the owner's choice. Locking the screen has no such route, so it uses
-  `AccessibilityService.performGlobalAction` (Android 9+), which is also the fallback for the panel
-  if those methods go. The service requests no event types and `canRetrieveWindowContent="false"`,
-  holds itself only as a weak reference while bound, and does nothing between gestures; Settings
-  asks for it only when a chosen gesture needs it. A swipe down counts when it starts on the home
+  the owner's choice. Locking the screen has no such route: it needs an
+  accessibility service, and Play Protect blocks the install of a sideloaded app that declares
+  one (found 2026-11-12), so that gesture and the service were removed. A swipe down counts when it starts on the home
   screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
   it is set.
 - **Dock.** App keys by slot in reading order, "" for an empty slot, in the settings DataStore

@@ -138,12 +138,10 @@ Application ID `com.elara.launcher`.
   app in the drawer to add or remove it; long-press a dock app for the same menu (Remove from Dock, Uninstall), or keep
   holding and drag it to any slot: the other apps make room as you go, and an empty slot just takes it.
   Changing the column count rewraps the slots in reading order. Screen readers get Move left and Move right.
-- Gestures on the home screen: swipe down opens the notification panel (or quick settings, or
-  nothing), with nothing to set up. Double tap can lock the screen; that one needs Elara
-  gestures, an accessibility service you turn on once from Settings > Gestures, since Android has
-  no other way for a third-party launcher to lock the screen. It asks for no events and cannot
-  read your screen. On Android 13+ a sideloaded app's switch may be greyed out until App info >
-  ⋮ > Allow restricted settings.
+- Gestures on the home screen: swipe down and double tap can each open the notification panel
+  or quick settings, or do nothing, with nothing to set up. Locking the screen by gesture was
+  removed: Android allows it only through an accessibility service, and Play Protect blocks the
+  install of a sideloaded app that declares one.
 - Spaces (Settings > Spaces): home setups to switch between, such as Work or Night, each with
   its own home pages (widgets too), dock and hidden apps; grid, icons and other settings are shared.
   New space (an Elara form sheet) takes a name, an icon, a start (a copy of the current space
@@ -177,8 +175,7 @@ home app (for example One UI Home) in the same place. Your old launcher stays in
 - **Swipe down uses a hidden Android method.** The notification panel and quick settings open
   through `StatusBarManager`'s expand methods, which are not in the public SDK but are allowed
   for apps (the same route Niagara, Nova and Lawnchair use), with the install-time
-  `EXPAND_STATUS_BAR` permission. If a future Android blocks them, swipe down falls back to the
-  Elara gestures accessibility service and asks for it.
+  `EXPAND_STATUS_BAR` permission. If a future Android blocks them, those gestures do nothing.
 
 - **App open and close animation.** One UI Home animates the app's real window out of its icon and
   back into it, through remote app transitions, a permission Android grants only to the system's
