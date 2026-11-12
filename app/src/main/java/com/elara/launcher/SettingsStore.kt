@@ -45,6 +45,8 @@ data class LauncherSettings(
     val folders: List<HomeFolder> = emptyList(),
     /** Names the user gave apps, by [AppEntry.key]; an app not here has its own name. */
     val labels: Map<String, String> = emptyMap(),
+    /** Icons the user picked for single apps, by [AppEntry.key]: "icon pack package/drawable name". */
+    val appIcons: Map<String, String> = emptyMap(),
     /** Apps kept out of the drawer and its search, by [AppEntry.key]. Home screen and dock copies stay. */
     val hidden: Set<String> = emptySet(),
     /** Widgets on the home screen pages. */
@@ -131,6 +133,7 @@ class SettingsStore(context: Context) {
                 folders = HomeFolders.parse(p[HOME_FOLDERS]),
                 widgets = HomeWidgets.parse(p[HOME_WIDGETS]),
                 labels = AppLabels.parse(p[APP_LABELS]),
+                appIcons = AppLabels.parse(p[APP_ICONS]),
                 hidden = p[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(HashSet()) { it.isNotEmpty() }.orEmpty(),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
@@ -190,6 +193,12 @@ class SettingsStore(context: Context) {
         val clean = AppLabels.clean(label)
         if (clean.isEmpty()) labels.remove(key) else labels[key] = clean
         it[APP_LABELS] = AppLabels.format(labels)
+    }
+    /** Gives [key] the [icon] ("pack package/drawable name"); null gives the app back its usual icon. */
+    suspend fun setAppIcon(key: String, icon: String?) = store.edit {
+        val icons = AppLabels.parse(it[APP_ICONS]).toMutableMap()
+        if (icon == null) icons.remove(key) else icons[key] = icon
+        it[APP_ICONS] = AppLabels.format(icons)
     }
     suspend fun setHidden(key: String, hidden: Boolean) = store.edit {
         val keys = it[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(LinkedHashSet()) { k -> k.isNotEmpty() } ?: LinkedHashSet()
@@ -407,6 +416,7 @@ class SettingsStore(context: Context) {
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
         val HOME_FOLDERS = stringPreferencesKey("home_folders")
         val APP_LABELS = stringPreferencesKey("app_labels")
+        val APP_ICONS = stringPreferencesKey("app_icons")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
@@ -445,7 +455,7 @@ class SettingsStore(context: Context) {
         val BackedBoolean: List<Preferences.Key<Boolean>> = listOf(SHOW_LABELS, PURE_BLACK, SHOW_DOCK, DOCK_BAR, DOCK_SEEDED, HOME_LABELS, HOME_DOTS, DRAWER_KEEP_POSITION, DRAWER_CONTACTS, DRAWER_SEARCH_BELOW, DRAWER_SORT_FREQUENT, DRAWER_HORIZONTAL, DRAWER_BLUR, LOCKED, SPACES_SCHEDULE, SPACES_SHOW_NAME)
         val BackedInt: List<Preferences.Key<Int>> = listOf(DOCK_COLUMNS, DOCK_ROWS, DOCK_ICON_SIZE, DOCK_ROW_GAP, DOCK_COLUMN_GAP, HOME_COLUMNS, HOME_ROWS, HOME_ICON_SIZE, DRAWER_COLUMNS, DRAWER_ICON_SIZE, DRAWER_ROW_GAP, DRAWER_PADDING)
         val BackedLong: List<Preferences.Key<Long>> = listOf(ACTIVE_SPACE)
-        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK, SPACES)
+        val BackedString: List<Preferences.Key<String>> = listOf(SWIPE_DOWN, DOUBLE_TAP, DOCK, HOME, HOME_FOLDERS, APP_LABELS, APP_ICONS, HIDDEN_APPS, CURRENCY_RATES, DRAWER_BLUR_STYLE, ICON_SHAPE, ICON_PACK, SPACES)
         val BackedUp: List<Preferences.Key<*>> = BackedBoolean + BackedInt + BackedLong + BackedString
     }
 }

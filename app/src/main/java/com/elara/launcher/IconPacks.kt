@@ -19,9 +19,16 @@ internal class IconPackInfo(val packageName: String, val label: String)
 internal class IconPack(val packageName: String, private val res: Resources, private val drawables: Map<String, String>) {
     val size get() = drawables.size
 
+    /** Every icon the pack maps to some app, by drawable name, for picking one by hand. */
+    // shortcut: icons listed only in the pack's drawable.xml (mapped to no app) are left out; read that file if users miss them.
+    val names: List<String> by lazy { drawables.values.distinct().sorted() }
+
     /** The pack's icon for [component], or null when it has none. */
-    fun icon(component: ComponentName, density: Int): Drawable? {
-        val name = drawables["${component.packageName}/${component.className}"] ?: return null
+    fun icon(component: ComponentName, density: Int): Drawable? =
+        drawables["${component.packageName}/${component.className}"]?.let { drawable(it, density) }
+
+    /** The pack's drawable called [name], or null when it has none. */
+    fun drawable(name: String, density: Int): Drawable? {
         val id = res.getIdentifier(name, "drawable", packageName).takeIf { it != 0 } ?: return null
         return runCatching { res.getDrawableForDensity(id, density, null) }.getOrNull()
     }
@@ -64,6 +71,12 @@ internal object IconPacks {
             }
         }
         return IconPack(packageName, res, map).takeIf { map.isNotEmpty() }
+    }
+
+    /** [names] (drawable names) that hold every word of [query]; all of them for a blank one. */
+    fun search(names: List<String>, query: String): List<String> {
+        val words = query.lowercase().split(Regex("[\\s_]+")).filter { it.isNotEmpty() }
+        return if (words.isEmpty()) names else names.filter { n -> words.all { it in n.lowercase() } }
     }
 
     /** "ComponentInfo{com.whatsapp/com.whatsapp.Main}" as "com.whatsapp/com.whatsapp.Main"; a ".Main" class is the package's. */

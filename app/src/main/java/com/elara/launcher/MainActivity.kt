@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
             repository.useIconShape(settings.iconShape)
             repository.useIconPack(settings.iconPack)
+            repository.useAppIcons(settings.appIcons)
             // The first time apps are known, fill the dock with the default Phone, Messages,
             // Browser and Camera apps (once: the store keeps it from happening again).
             val apps by repository.apps.collectAsState()
@@ -112,6 +113,7 @@ class MainActivity : ComponentActivity() {
             }
             // The app being renamed, from any app's menu.
             var renaming by remember { mutableStateOf<AppEntry?>(null) }
+            var changingIcon by remember { mutableStateOf<AppEntry?>(null) }
             val focus = LocalFocusManager.current
             val glassImage by GlassWallpaper.image.collectAsState()
             val glassStale by GlassWallpaper.stale.collectAsState()
@@ -130,7 +132,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             ZenithTheme(fontVersion = settings.fontVersion) {
-                CompositionLocalProvider(LocalRenameApp provides { renaming = it }) {
+                CompositionLocalProvider(LocalRenameApp provides { renaming = it }, LocalChangeIcon provides { changingIcon = it }) {
                     LauncherScreen(
                         repository = repository,
                         motion = drawer,
@@ -170,6 +172,15 @@ class MainActivity : ComponentActivity() {
                         onSave = { name -> lifecycleScope.launch { store.setAppLabel(app.key, name) } },
                         // Focus would otherwise come back to the drawer's search field, keyboard and all.
                         onDismiss = { renaming = null; focus.clearFocus(force = true) },
+                    )
+                }
+                changingIcon?.let { app ->
+                    IconPickerSheet(
+                        app,
+                        repository,
+                        current = settings.appIcons[app.key],
+                        onPick = { icon -> lifecycleScope.launch { store.setAppIcon(app.key, icon) } },
+                        onDismiss = { changingIcon = null; focus.clearFocus(force = true) },
                     )
                 }
                 if (!settings.setupDone) {

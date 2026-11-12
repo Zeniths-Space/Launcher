@@ -97,9 +97,34 @@ class AppRepository(context: Context) {
     fun useIconPack(packageName: String, reload: Boolean = false) {
         if (packageName == iconPackName && !reload) return
         iconPackName = packageName
-        iconPack = if (packageName.isEmpty()) null else packScope.async { IconPacks.load(appContext, packageName) }
+        if (reload) synchronized(packs) { packs.remove(packageName) }
+        iconPack = if (packageName.isEmpty()) null else pack(packageName)
         synchronized(infos) { icons.clear() }
         iconEpoch++
+    }
+
+    /** Icon packs read so far (the one in use, and those icons were picked from by hand), loading or loaded. */
+    private val packs = HashMap<String, Deferred<IconPack?>>()
+    private fun pack(packageName: String) = synchronized(packs) { packs.getOrPut(packageName) { packScope.async { IconPacks.load(appContext, packageName) } } }
+
+    /** Icons the user picked for single apps: [AppEntry.key] to "pack package/drawable name". They win over the pack in use. */
+    private var appIcons: Map<String, String> = emptyMap()
+
+    fun useAppIcons(picked: Map<String, String>) {
+        if (picked == appIcons) return
+        appIcons = picked
+        synchronized(infos) { icons.clear() }
+        iconEpoch++
+    }
+
+    internal fun iconPacks(): List<IconPackInfo> = IconPacks.installed(pm)
+
+    /** The names of [packageName]'s icons, for the icon picker. */
+    suspend fun packIconNames(packageName: String): List<String> = pack(packageName).await()?.names.orEmpty()
+
+    /** One icon of a pack as the pack drew it, for the icon picker. Not cached: the picker shows each once. */
+    suspend fun packIcon(packageName: String, name: String, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+        runCatching { pack(packageName).await()?.drawable(name, density)?.toImageBitmap(sizePx) }.getOrNull()
     }
 
     fun useIconShape(shape: IconShape) {
@@ -126,6 +151,8 @@ class AppRepository(context: Context) {
 
     private fun changed(vararg packageNames: String) {
         // The icon pack itself updated or went away: read it again (gone, it gives no icons).
+        // An updated pack is read again when next asked for.
+        synchronized(packs) { packs.keys.removeAll(packageNames.toSet()) }
         if (iconPackName.isNotEmpty() && iconPackName in packageNames) useIconPack(iconPackName, reload = true)
         synchronized(infos) { changedPackages.addAll(packageNames) }
         onChanged()
@@ -176,7 +203,9 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val pack = iconPack
-        val packIcon = pack?.await()?.icon(info.componentName, density)
+        val picked = appIcons[app.key]
+        val packIcon = picked?.let { pack(it.substringBefore('/')).await()?.drawable(it.substringAfter('/'), density) }
+            ?: pack?.await()?.icon(info.componentName, density)
         val drawable = runCatching {
             // A pack's icon is drawn as the pack made it, unless it's adaptive, which takes the shape like the rest.
             if (packIcon != null && packIcon !is AdaptiveIconDrawable) return@runCatching pm.getUserBadgedIcon(packIcon, info.user)
@@ -186,7 +215,7 @@ class AppRepository(context: Context) {
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null
         // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
-        drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack) synchronized(infos) { icons[cacheKey] = it } }
+        drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
     }
 
     /**
