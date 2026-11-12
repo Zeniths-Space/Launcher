@@ -78,9 +78,11 @@ Application ID `com.elara.launcher`.
 - Rename, in every app's menu (drawer, home screen, dock, folders), gives the app a name of your own,
   used everywhere in the launcher, search and drawer order included; saving it empty gives back the
   app's own name. Names stay on the device with the other settings.
-- Change icon, in every app's menu, gives one app an icon of your choice from any installed icon
-  pack: a sheet with the pack's icons and a search by name, for apps the pack in use has no icon
-  for. "Use its usual icon" there takes it back. Picked icons are kept with the settings and backups.
+- Change icon, in every app's menu, gives one app an icon of your choice, for apps the pack in use
+  has no icon for. Its sheet lists where to take it from: each installed icon pack (then the
+  pack's icons, with a search by name), Gallery (a picture from Android's photo picker, cut square
+  and kept in the app's private files; no storage permission), and "Use its usual icon" to take it
+  back. Picks are kept with the settings; a backup keeps pack icons, not gallery pictures.
 - Hide, in the drawer's app menu, takes an app out of the drawer and its search; a copy on the home
   screen or dock stays. Hidden apps, in the drawer's ⋮ sheet, lists them, each with Unhide.
 - Back, home or pulling down from the top of the list closes the drawer.

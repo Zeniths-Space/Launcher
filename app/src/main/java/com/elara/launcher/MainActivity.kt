@@ -179,7 +179,14 @@ class MainActivity : ComponentActivity() {
                         app,
                         repository,
                         current = settings.appIcons[app.key],
-                        onPick = { icon -> lifecycleScope.launch { store.setAppIcon(app.key, icon) } },
+                        onPick = { icon ->
+                            // A gallery picture this replaces is no longer needed.
+                            val old = settings.appIcons[app.key]
+                            lifecycleScope.launch {
+                                store.setAppIcon(app.key, icon)
+                                withContext(Dispatchers.IO) { PickedIcons.delete(this@MainActivity, old) }
+                            }
+                        },
                         onDismiss = { changingIcon = null; focus.clearFocus(force = true) },
                     )
                 }

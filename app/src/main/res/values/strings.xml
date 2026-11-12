@@ -67,7 +67,8 @@
     <string name="icon_pick_title">Icon for %1$s</string>
     <string name="icon_pick_search">Search icons</string>
     <string name="icon_pick_default">Use its usual icon</string>
-    <string name="icon_pick_none">No icon packs installed. Install one to choose icons from it.</string>
+    <string name="icon_pick_gallery">Gallery</string>
+    <string name="icon_pick_back">Back to the list</string>
     <string name="icon_pick_empty">No icons match.</string>
     <string name="menu_hide">Hide</string>
     <string name="settings_hidden">Hidden apps</string>

@@ -107,7 +107,7 @@ class AppRepository(context: Context) {
     private val packs = HashMap<String, Deferred<IconPack?>>()
     private fun pack(packageName: String) = synchronized(packs) { packs.getOrPut(packageName) { packScope.async { IconPacks.load(appContext, packageName) } } }
 
-    /** Icons the user picked for single apps: [AppEntry.key] to "pack package/drawable name". They win over the pack in use. */
+    /** Icons the user picked for single apps: [AppEntry.key] to "pack package/drawable name" or a [PickedIcons] file. They win over the pack in use. */
     private var appIcons: Map<String, String> = emptyMap()
 
     fun useAppIcons(picked: Map<String, String>) {
@@ -204,7 +204,7 @@ class AppRepository(context: Context) {
         val shape = iconShape
         val pack = iconPack
         val picked = appIcons[app.key]
-        val packIcon = picked?.let { pack(it.substringBefore('/')).await()?.drawable(it.substringAfter('/'), density) }
+        val packIcon = picked?.let { if (PickedIcons.isFile(it)) PickedIcons.load(appContext, it) else pack(it.substringBefore('/')).await()?.drawable(it.substringAfter('/'), density) }
             ?: pack?.await()?.icon(info.componentName, density)
         val drawable = runCatching {
             // A pack's icon is drawn as the pack made it, unless it's adaptive, which takes the shape like the rest.
