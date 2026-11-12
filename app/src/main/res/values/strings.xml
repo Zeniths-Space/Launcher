@@ -64,6 +64,8 @@
     <string name="widget_resize">Resize</string>
     <string name="menu_rename">Rename</string>
     <string name="menu_icon">Change icon</string>
+    <string name="menu_edit">Edit name and icon</string>
+    <string name="edit_title">Edit app</string>
     <string name="icon_pick_title">Icon for %1$s</string>
     <string name="icon_pick_search">Search icons</string>
     <string name="icon_pick_default">Use its usual icon</string>

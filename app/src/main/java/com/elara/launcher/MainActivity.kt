@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             // The app being renamed, from any app's menu.
-            var renaming by remember { mutableStateOf<AppEntry?>(null) }
+            var editing by remember { mutableStateOf<AppEntry?>(null) }
             var changingIcon by remember { mutableStateOf<AppEntry?>(null) }
             val focus = LocalFocusManager.current
             val glassImage by GlassWallpaper.image.collectAsState()
@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             ZenithTheme(fontVersion = settings.fontVersion) {
-                CompositionLocalProvider(LocalRenameApp provides { renaming = it }, LocalChangeIcon provides { changingIcon = it }) {
+                CompositionLocalProvider(LocalEditApp provides { editing = it }) {
                     LauncherScreen(
                         repository = repository,
                         motion = drawer,
@@ -164,14 +164,17 @@ class MainActivity : ComponentActivity() {
                         onUpdateGlass = if (glassOn && glassStale && !glassAsked) ::askWallpaperAccess else null,
                     )
                 }
-                renaming?.let { app ->
-                    RenameDialog(
-                        current = app.label,
+                editing?.let { app ->
+                    EditAppSheet(
+                        app,
                         // The app's own name, as Android gives it, before any rename.
                         original = apps?.firstOrNull { it.key == app.key }?.label ?: app.label,
-                        onSave = { name -> lifecycleScope.launch { store.setAppLabel(app.key, name) } },
+                        repository = repository,
+                        onRename = { name -> lifecycleScope.launch { store.setAppLabel(app.key, name) } },
+                        // The picker opens over this sheet, which then shows the new icon.
+                        onChangeIcon = { changingIcon = app },
                         // Focus would otherwise come back to the drawer's search field, keyboard and all.
-                        onDismiss = { renaming = null; focus.clearFocus(force = true) },
+                        onDismiss = { editing = null; focus.clearFocus(force = true) },
                     )
                 }
                 changingIcon?.let { app ->

@@ -89,8 +89,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 
-/** Opens the rename dialog for an app; null where apps can't be renamed. Set by the launcher, so every app menu gets Rename. */
-internal val LocalRenameApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { null }
+/** Opens the sheet that changes an app's name and icon; null where apps can't be edited. Set by the launcher, so every app menu gets the pencil. */
+internal val LocalEditApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { null }
 
 /** One action in an app's menu; the menu closes before it runs. [danger] marks one that removes something. */
 internal class MenuAction(
@@ -119,19 +119,12 @@ internal fun AppMenu(
 ) {
     val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
     val header by produceState(icon, app.key, repository.iconEpoch) { if (value == null) value = repository.icon(app, headerPx) }
-    val rename = LocalRenameApp.current
-    val changeIcon = LocalChangeIcon.current
-    val renameLabel = stringResource(R.string.menu_rename)
-    val iconLabel = stringResource(R.string.menu_icon)
-    val all = buildList {
-        if (rename != null) add(MenuAction(Icons.Edit, renameLabel) { rename(app) })
-        if (changeIcon != null) add(MenuAction(Icons.Palette, iconLabel) { changeIcon(app) })
-        addAll(actions)
-    }
+    val edit = LocalEditApp.current
     // Read each time the menu opens: apps change their shortcuts at will.
     val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) { if (expanded) value = repository.shortcuts(app) }
     MenuPopup(
-        expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, all, onDismiss,
+        expanded, app.label, header, onInfo = { repository.openAppInfo(app) }, actions, onDismiss,
+        onEdit = edit?.let { { it(app) } },
         top = if (shortcuts.isEmpty()) null else ({ run ->
             // Side by side, up to four: the actions below stay a list, so the menu stays short.
             Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -184,6 +177,8 @@ internal fun MenuPopup(
     actions: List<MenuAction>,
     onDismiss: () -> Unit,
     hasIcon: Boolean = true,
+    /** A pencil button left of the info button (an app's name and icon). */
+    onEdit: (() -> Unit)? = null,
     /** Rows above the actions (an app's shortcuts); `run` closes the menu, then runs one. */
     top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)? = null,
 ) {
@@ -227,6 +222,7 @@ internal fun MenuPopup(
             top,
             onDismiss,
             onAppInfo = onInfo,
+            onEdit = onEdit,
             glass = glass,
             screen = screen,
             modifier = Modifier.graphicsLayer {
@@ -241,7 +237,7 @@ internal fun MenuPopup(
 }
 
 @Composable
-private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)?, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
+private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)?, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, onEdit: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val dark = LocalDark.current
     // Where the card is on screen, so it shows the part of the wallpaper that is behind it.
@@ -308,6 +304,19 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            if (onEdit != null) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (dark) Raised else RaisedLight)
+                        .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_edit)) { run(onEdit) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Edit, contentDescription = stringResource(R.string.menu_edit), tint = cs.primary, modifier = Modifier.size(18.dp))
+                }
+            }
             if (onAppInfo != null) {
                 Spacer(Modifier.width(8.dp))
                 Box(

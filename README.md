@@ -75,10 +75,11 @@ Application ID `com.elara.launcher`.
   with its icon on a small purple cookie. Apps go into the dock by dragging. A locked layout hides
   the Home action. The menu grows out of the
   app and shrinks back into it.
-- Rename, in every app's menu (drawer, home screen, dock, folders), gives the app a name of your own,
-  used everywhere in the launcher, search and drawer order included; saving it empty gives back the
-  app's own name. Names stay on the device with the other settings.
-- Change icon, in every app's menu, gives one app an icon of your choice, for apps the pack in use
+- The pencil in every app's menu (drawer, home screen, dock, folders), left of App info, opens a
+  sheet to edit the app: tap its name to type one of your own, used everywhere in the launcher,
+  search and drawer order included (saving it empty gives back the app's own name); tap its icon
+  to change it. Names stay on the device with the other settings.
+- Change icon (tap the icon in that sheet) gives one app an icon of your choice, for apps the pack in use
   has no icon for. Its sheet lists where to take it from: each installed icon pack (then the
   pack's icons, with a search by name), Gallery (a picture from Android's photo picker, cut square
   and kept in the app's private files; no storage permission), and "Use its usual icon" to take it

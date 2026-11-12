@@ -22,6 +22,17 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import java.io.File
 import androidx.compose.foundation.Image
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.Button
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -57,9 +68,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-/** Opens the icon picker for an app; null where icons can't be changed. Set by the launcher, so every app menu gets Change icon. */
-internal val LocalChangeIcon = staticCompositionLocalOf<((AppEntry) -> Unit)?> { null }
 
 /**
  * Picks one icon for [app], for apps the pack in use has no icon for (or a wrong one). It opens on
@@ -157,6 +165,64 @@ internal fun IconPickerSheet(app: AppEntry, repository: AppRepository, current: 
                 ) {
                     Box(Modifier.size(48.dp)) { icon?.let { Image(it, contentDescription = name.replace('_', ' '), modifier = Modifier.size(48.dp)) } }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Changes [app]'s name and icon, from the pencil in its menu: tap the icon for the icon picker
+ * ([onChangeIcon]), tap the name to type a new one. Saving an empty name gives back [original],
+ * the app's own.
+ */
+@Composable
+internal fun EditAppSheet(app: AppEntry, original: String, repository: AppRepository, onRename: (String) -> Unit, onChangeIcon: () -> Unit, onDismiss: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    var name by remember { mutableStateOf(app.label) }
+    val sizePx = with(LocalDensity.current) { 88.dp.roundToPx() }
+    val icon by produceState(repository.cachedIcon(app, sizePx), app.key, repository.iconEpoch) { value = repository.icon(app, sizePx) }
+    val save = { if (name != app.label) onRename(name); onDismiss() }
+    ElaraSheet(stringResource(R.string.edit_title), Icons.Edit, onDismiss = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 20.dp).navigationBarsPadding().imePadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // The icon, with a small pencil on its corner to say it can be tapped.
+            Box(Modifier.clip(RoundedCornerShape(28.dp)).clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_icon), onClick = onChangeIcon).padding(10.dp)) {
+                Box(Modifier.size(88.dp)) { icon?.let { Image(it, contentDescription = stringResource(R.string.menu_icon), modifier = Modifier.size(88.dp)) } }
+                Box(Modifier.align(Alignment.BottomEnd).size(30.dp).background(cs.primary, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Edit, contentDescription = null, tint = cs.onPrimary, modifier = Modifier.size(16.dp))
+                }
+            }
+            BasicTextField(
+                value = name,
+                onValueChange = { if (it.length <= 40) name = it },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.headlineSmall.copy(color = cs.onSurface, textAlign = TextAlign.Center),
+                cursorBrush = SolidColor(cs.primary),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { save() }),
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(cs.surfaceContainerHighest)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.Center) {
+                        if (name.isEmpty()) Text(original, style = MaterialTheme.typography.headlineSmall, color = cs.onSurfaceVariant, maxLines = 1)
+                        inner()
+                    }
+                },
+            )
+            Text(
+                stringResource(R.string.rename_blank, original),
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+            )
+            Button(onClick = save, shape = RoundedCornerShape(32.dp), contentPadding = PaddingValues(vertical = 18.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.rename_save))
             }
         }
     }
