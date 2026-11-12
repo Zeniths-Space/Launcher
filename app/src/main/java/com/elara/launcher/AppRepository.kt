@@ -115,6 +115,16 @@ class AppRepository(context: Context) {
     private val packs = HashMap<String, Deferred<IconPack?>>()
     private fun pack(packageName: String) = synchronized(packs) { packs.getOrPut(packageName) { packScope.async { IconPacks.load(appContext, packageName) } } }
 
+    private var adaptIcons = false
+
+    /** On, apps the icon pack has no icon for get one of the pack's backs behind their own icon; every icon is drawn again. */
+    fun useAdaptIcons(on: Boolean) {
+        if (on == adaptIcons) return
+        adaptIcons = on
+        synchronized(infos) { icons.clear() }
+        iconEpoch++
+    }
+
     /** Icons the user picked for single apps: [AppEntry.key] to "pack package/drawable name" or a [PickedIcons] file. They win over the pack in use. */
     private var appIcons: Map<String, String> = emptyMap()
 
@@ -214,6 +224,7 @@ class AppRepository(context: Context) {
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val pack = iconPack
+        val adapt = adaptIcons
         val picked = appIcons[app.key]
         val packIcon = picked?.let { if (PickedIcons.isFile(it)) PickedIcons.load(appContext, it) else pack(it.substringBefore('/')).await()?.drawable(it.substringAfter('/'), density) }
             ?: pack?.await()?.icon(info.componentName, density)
@@ -221,12 +232,14 @@ class AppRepository(context: Context) {
             // A pack's icon is drawn as the pack made it, unless it's adaptive, which takes the shape like the rest.
             if (packIcon != null && packIcon !is AdaptiveIconDrawable) return@runCatching pm.getUserBadgedIcon(packIcon, info.user)
             // Icons are drawn as the app ships them; calendar dates and clock hands on icons are not shown (owner's choice, 2026-11-09).
-            val icon = (packIcon ?: info.getIcon(density)).inSystemShape(appContext.resources)
+            val own = info.getIcon(density)
+            val icon = (if (packIcon == null && adapt) pack?.await()?.adapt(info.componentName, own, appContext.resources, density) else null)
+                ?: (packIcon ?: own).inSystemShape(appContext.resources)
             val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
             pm.getUserBadgedIcon(shaped, info.user)
         }.getOrNull() ?: return@withContext null
         // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
-        drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
+        drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && adapt == adaptIcons && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
     }
 
     // The Games entry's own icon: a purple gamepad on the brand's light background, in the icon shape.
@@ -361,17 +374,40 @@ class AppRepository(context: Context) {
  * Legacy (non-adaptive) icons are drawn as they are, square or shapeless, next to adaptive icons in
  * the system shape, so they go inside an adaptive icon that Android masks to the same shape. One
  * that already fills a square (a full-bleed tile, as many older apps ship) is cropped to its tile and
- * fills the shape, as One UI does. Any other is placed on no background (owner rejected Launcher3's white, 2026-11-12): scaled to 70% of the
- * visible area, the layer being 1.5 times that area.
+ * fills the shape, as One UI does. One with a shape of its own but padding around it (a rounded
+ * square, a circle) is cropped to that shape and sized to the visible area, so all icons come out the
+ * same size. Any other (a bare glyph) is placed on no background, scaled to 70% of the visible area,
+ * the layer being 1.5 times that area. (No white backdrop: owner rejected Launcher3's, 2026-11-12.)
  */
 private fun Drawable.inSystemShape(res: android.content.res.Resources): AdaptiveIconDrawable {
     if (this is AdaptiveIconDrawable) return this
-    fullBleedTile(res)?.let { return AdaptiveIconDrawable(InsetDrawable(it, FullBleedInset), android.graphics.Color.TRANSPARENT.toDrawable()) }
-    return AdaptiveIconDrawable(android.graphics.Color.TRANSPARENT.toDrawable(), InsetDrawable(this, LegacyIconInset))
+    val clear = android.graphics.Color.TRANSPARENT.toDrawable()
+    val (pixels, n) = sample()
+    IconTiles.tileBox(pixels, n)?.let { return AdaptiveIconDrawable(clear, InsetDrawable(cropped(res, it), FullBleedInset)) }
+    IconTiles.shapeBox(pixels, n)?.let { return AdaptiveIconDrawable(clear, InsetDrawable(cropped(res, it), VisibleInset)) }
+    return AdaptiveIconDrawable(clear, InsetDrawable(this, LegacyIconInset))
 }
 
-/** This icon cropped to its tile, if it is a full-bleed square tile ([IconTiles.tileBox]); else null. */
-private fun Drawable.fullBleedTile(res: android.content.res.Resources): Drawable? {
+/**
+ * [own] on one of this pack's backs, as launchers do for apps a pack doesn't cover: an adaptive icon
+ * gives its foreground, any other its whole icon (cropped to its shape), drawn [IconPack.scale] of the
+ * back's size. Null if the pack has no backs.
+ */
+private fun IconPack.adapt(component: ComponentName, own: Drawable, res: android.content.res.Resources, density: Int): AdaptiveIconDrawable? {
+    val back = back(component, density) ?: return null
+    // Packs set a small scale for their own big backs; below this the icon would be a speck.
+    val scale = scale.coerceAtLeast(0.62f)
+    val (art, inset) = if (own is AdaptiveIconDrawable) {
+        own.foreground to (1f - scale) / 2
+    } else {
+        val (pixels, n) = own.sample()
+        val box = IconTiles.tileBox(pixels, n) ?: IconTiles.shapeBox(pixels, n)
+        (if (box != null) own.cropped(res, box) else own) to (1f - scale * 2f / 3f) / 2
+    }
+    return AdaptiveIconDrawable(back, InsetDrawable(art, inset))
+}
+
+private fun Drawable.sample(): Pair<IntArray, Int> {
     val n = IconTiles.SampleSize
     val sample = createBitmap(n, n)
     setBounds(0, 0, n, n)
@@ -379,8 +415,12 @@ private fun Drawable.fullBleedTile(res: android.content.res.Resources): Drawable
     val pixels = IntArray(n * n)
     sample.getPixels(pixels, 0, n, 0, 0, n, n)
     sample.recycle()
-    val box = IconTiles.tileBox(pixels, n) ?: return null
-    // Drawn again, larger, with the tile filling the bitmap, so it stays sharp at the home screen's size.
+    return pixels to n
+}
+
+/** This icon drawn again, larger, with [box] (in sample pixels) filling the bitmap, so it stays sharp at the home screen's size. */
+private fun Drawable.cropped(res: android.content.res.Resources, box: IntArray): Drawable {
+    val n = IconTiles.SampleSize
     val out = 256
     val w = box[2] - box[0]
     val h = box[3] - box[1]
@@ -424,6 +464,9 @@ private const val ShortcutGlyphInset = 0.2f
 
 // The tile a little past the visible area (2/3 of the layer), so its own rounded corners are cut away.
 private const val FullBleedInset = (1f - 1.06f / 1.5f) / 2
+
+// A shaped icon exactly as big as the visible area (2/3 of the layer).
+private const val VisibleInset = (1f - 1f / 1.5f) / 2
 
 private const val LegacyIconInset = (1f - 0.7f / 1.5f) / 2
 

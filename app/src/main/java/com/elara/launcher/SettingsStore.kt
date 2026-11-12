@@ -97,6 +97,10 @@ data class LauncherSettings(
     val iconShape: IconShape = IconShape.System,
     /** The icon pack's package, or "" for the apps' own icons. */
     val iconPack: String = "",
+    /** Apps the icon pack has no icon for get one of its backs behind their own icon. */
+    val iconPackAdapt: Boolean = false,
+    /** The Games folder in the drawer is on; off by default. */
+    val gamesEnabled: Boolean = false,
     /** Home setups to switch between; empty until the user makes one. The first is the default. */
     val spaces: List<Space> = emptyList(),
     /** The id of the space whose layout is the live home, dock and hidden apps. */
@@ -165,6 +169,8 @@ class SettingsStore(context: Context) {
                 fontName = p[FONT_NAME].orEmpty(),
                 iconShape = IconShape.parse(p[ICON_SHAPE]),
                 iconPack = p[ICON_PACK].orEmpty(),
+                iconPackAdapt = p[ICON_PACK_ADAPT] ?: false,
+                gamesEnabled = p[GAMES_ENABLED] ?: false,
                 spaces = Spaces.parse(p[SPACES]),
                 activeSpace = p[ACTIVE_SPACE] ?: 0,
                 spacesBySchedule = p[SPACES_SCHEDULE] ?: true,
@@ -249,6 +255,8 @@ class SettingsStore(context: Context) {
     suspend fun setLocked(on: Boolean) = set(LOCKED, on)
     suspend fun setSetupDone() = set(SETUP_DONE, true)
     suspend fun setIconShape(shape: IconShape) = store.edit { it[ICON_SHAPE] = shape.name }
+    suspend fun setIconPackAdapt(on: Boolean) = store.edit { it[ICON_PACK_ADAPT] = on }
+    suspend fun setGamesEnabled(on: Boolean) = store.edit { it[GAMES_ENABLED] = on }
     suspend fun setIconPack(packageName: String) = store.edit { it[ICON_PACK] = packageName }
     suspend fun setSpacesBySchedule(on: Boolean) = store.edit { it[SPACES_SCHEDULE] = on; it.remove(SPACE_MANUAL_UNTIL) }
     suspend fun setSpacesShowName(on: Boolean) = set(SPACES_SHOW_NAME, on)
@@ -433,6 +441,8 @@ class SettingsStore(context: Context) {
         val APP_LABELS = stringPreferencesKey("app_labels")
         val APP_ICONS = stringPreferencesKey("app_icons")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val ICON_PACK_ADAPT = booleanPreferencesKey("icon_pack_adapt")
+        val GAMES_ENABLED = booleanPreferencesKey("games_enabled")
         val GAMES_ADDED = stringPreferencesKey("games_added")
         val GAMES_REMOVED = stringPreferencesKey("games_removed")
         val HOME_COLUMNS = intPreferencesKey("home_columns")

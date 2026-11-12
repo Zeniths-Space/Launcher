@@ -1,6 +1,7 @@
 package com.elara.launcher
 
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -31,5 +32,15 @@ class IconTilesTest {
 
     @Test fun wideBannerIsNotATile() {
         assertNull(IconTiles.tileBox(icon { _, y -> y in 10..85 }, n))
+    }
+
+    @Test fun paddedCircleHasAShape() {
+        val c = n / 2.0
+        val r = n * 0.35
+        assertNotNull(IconTiles.shapeBox(icon { x, y -> (x - c) * (x - c) + (y - c) * (y - c) <= r * r }, n))
+    }
+
+    @Test fun looseGlyphHasNoShape() {
+        assertNull(IconTiles.shapeBox(icon { x, y -> (x in 30..65 && y in 30..35) || (x in 30..35 && y in 30..65) }, n))
     }
 }

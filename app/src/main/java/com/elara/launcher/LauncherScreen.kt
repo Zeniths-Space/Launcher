@@ -88,6 +88,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import android.widget.Toast
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -228,14 +229,17 @@ internal fun LauncherScreen(
     /** Set when the glass blur needs a new picture of the wallpaper: the drawer offers it. */
     onUpdateGlass: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     val loaded by repository.apps.collectAsState()
     // Every app under the name the user gave it, so the drawer, search, home and dock agree.
-    val apps = remember(loaded, settings.labels) { loaded?.let { renameApps(it, settings.labels) } }
+    val apps = remember(loaded, settings.labels, settings.gamesEnabled) {
+        loaded?.let { renameApps(it, settings.labels) }?.filter { settings.gamesEnabled || it.key != Games.Key }
+    }
     val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
     // The Games folder: detected games and those added by hand, less those taken out. They leave the drawer grid for it.
     val detectedGames by repository.detectedGames.collectAsState()
-    val gameKeys = remember(detectedGames, settings.gamesAdded, settings.gamesRemoved, appsByKey) {
-        Games.members(detectedGames, settings.gamesAdded, settings.gamesRemoved).filterTo(HashSet()) { it in appsByKey && it != Games.Key }
+    val gameKeys = remember(detectedGames, settings.gamesEnabled, settings.gamesAdded, settings.gamesRemoved, appsByKey) {
+        if (!settings.gamesEnabled) emptySet() else Games.members(detectedGames, settings.gamesAdded, settings.gamesRemoved).filterTo(HashSet()) { it in appsByKey && it != Games.Key }
     }
     var showGames by remember { mutableStateOf(false) }
     DisposableEffect(repository) {
@@ -497,6 +501,11 @@ internal fun LauncherScreen(
                     if (app.key !in homeKeys) onHomeChange(HomePages.add(homePages, app.key, settings.homeCapacity, first = homePage, blocked = blocked))
                     onDrawerOpenChange(false)
                 }) else null,
+                gamesEnabled = settings.gamesEnabled,
+                onGamesEnabled = { on ->
+                    onSettings { setGamesEnabled(on) }
+                    if (on) Toast.makeText(context, R.string.games_enabled_note, Toast.LENGTH_LONG).show()
+                },
                 onHide = { app -> onSettings { setHidden(app.key, true) } },
                 hiddenApps = remember(apps, settings.hidden) { apps.orEmpty().filter { it.key in settings.hidden } },
                 onUnhide = { app -> onSettings { setHidden(app.key, false) } },
@@ -1009,6 +1018,8 @@ private fun AppDrawer(
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
+    gamesEnabled: Boolean,
+    onGamesEnabled: (Boolean) -> Unit,
     onHide: (AppEntry) -> Unit,
     hiddenApps: List<AppEntry>,
     onUnhide: (AppEntry) -> Unit,
@@ -1146,6 +1157,8 @@ private fun AppDrawer(
             onHorizontal = onHorizontal,
             onSort = { showSort = true },
             onHidden = unlockHidden,
+            gamesEnabled = gamesEnabled,
+            onGamesEnabled = onGamesEnabled,
             onDismiss = { showMore = false },
         )
         // Back closes the search before the drawer.
@@ -1310,6 +1323,8 @@ private fun DrawerMenuSheet(
     onHorizontal: (Boolean) -> Unit,
     onSort: () -> Unit,
     onHidden: () -> Unit,
+    gamesEnabled: Boolean,
+    onGamesEnabled: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ElaraSheet(stringResource(R.string.drawer_title), Icons.Apps, onDismiss) {
@@ -1319,6 +1334,7 @@ private fun DrawerMenuSheet(
                 SheetRow(Icons.Columns, stringResource(R.string.drawer_scroll_horizontal), checked = horizontal) { onHorizontal(!horizontal) },
                 SheetRow(Icons.Sort, stringResource(R.string.drawer_sort)) { onDismiss(); onSort() },
                 SheetRow(Icons.Hide, stringResource(R.string.settings_hidden)) { onDismiss(); onHidden() },
+                SheetRow(Icons.Widgets, stringResource(R.string.games_folder), checked = gamesEnabled) { onGamesEnabled(!gamesEnabled) },
             ),
         )
     }

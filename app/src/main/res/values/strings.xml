@@ -73,12 +73,16 @@
     <string name="icon_pick_back">Back to the list</string>
     <string name="icon_pick_empty">No icons match.</string>
     <string name="menu_hide">Hide</string>
+    <string name="games_folder">Games folder</string>
+    <string name="games_enabled_note">Games are detected automatically and kept here. You can add or remove any.</string>
     <string name="games_title">Games</string>
     <string name="games_add_title">Add a game</string>
     <string name="games_add">Add a game</string>
     <string name="games_done">Done</string>
     <string name="games_none">No games found. Tap Add a game to put one here.</string>
     <string name="games_remove">Remove from Games</string>
+    <string name="settings_icon_pack_adapt">Adapt other icons</string>
+    <string name="settings_icon_pack_adapt_note">Apps the pack doesn\'t cover get the pack\'s background, so they match the rest.</string>
     <string name="settings_hidden">Hidden apps</string>
     <string name="settings_hidden_none">No hidden apps. Long-press an app and tap Hide.</string>
     <string name="auth_no_lock">Set a screen lock to see hidden apps</string>

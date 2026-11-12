@@ -235,7 +235,7 @@ internal fun SettingsScreen(
                         SegmentedGroup(categories.drop(4))
                     }
                     Page.Appearance -> SegmentedGroup(
-                        listOf(
+                        listOfNotNull<@Composable () -> Unit>(
                             {
                                 GroupTile(
                                     badge = { ScallopBadge(Icons.Wallpaper) },
@@ -246,6 +246,12 @@ internal fun SettingsScreen(
                             },
                             { IconShapeTile(settings, store) },
                             { IconPackTile(settings, store) },
+                            // Only with a pack chosen: it adapts apps the pack doesn't cover.
+                            if (settings.iconPack.isEmpty()) null else ({
+                                SwitchTile(Icons.Widgets, stringResource(R.string.settings_icon_pack_adapt), stringResource(R.string.settings_icon_pack_adapt_note), settings.iconPackAdapt) {
+                                    save { store.setIconPackAdapt(it) }
+                                }
+                            }),
                             { FontTile(settings, store) },
                             {
                                 SwitchTile(Icons.DarkMode, stringResource(R.string.settings_pure_black), stringResource(R.string.settings_pure_black_sub), settings.pureBlack) {

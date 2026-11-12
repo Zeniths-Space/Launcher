@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
             // Before any icon below is asked for, so none is drawn in the wrong shape first.
             repository.useIconShape(settings.iconShape)
             repository.useIconPack(settings.iconPack)
+            repository.useAdaptIcons(settings.iconPackAdapt)
             repository.useAppIcons(settings.appIcons)
             // The first time apps are known, fill the dock with the default Phone, Messages,
             // Browser and Camera apps (once: the store keeps it from happening again).
