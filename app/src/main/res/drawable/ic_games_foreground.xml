@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elara Games: a glossy purple game controller with a soft shadow, drawn straight on the background (3D, One UI 8 style). -->
+<!-- Elara Games: the four face-button symbols (triangle, circle, cross, square) in white with a soft shadow. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <group android:pivotX="54" android:pivotY="54" android:translateY="-2" android:scaleX="0.86" android:scaleY="0.86">
-    <group android:translateY="3.6"><path android:pathData="M40,35H68C76,35 82,37.5 85,45L90.5,62C92,69 88.5,73.5 82.5,73.5C77.5,73.5 75,70.5 72.5,66.5L70.5,63.5H37.5L35.5,66.5C33,70.5 30.5,73.5 25.5,73.5C19.5,73.5 16,69 17.5,62L23,45C26,37.5 32,35 40,35Z" android:fillColor="#102B1766" /></group>
-    <group android:translateY="1.8"><path android:pathData="M40,35H68C76,35 82,37.5 85,45L90.5,62C92,69 88.5,73.5 82.5,73.5C77.5,73.5 75,70.5 72.5,66.5L70.5,63.5H37.5L35.5,66.5C33,70.5 30.5,73.5 25.5,73.5C19.5,73.5 16,69 17.5,62L23,45C26,37.5 32,35 40,35Z" android:fillColor="#1E2B1766" /></group>
-    <path android:pathData="M40,35H68C76,35 82,37.5 85,45L90.5,62C92,69 88.5,73.5 82.5,73.5C77.5,73.5 75,70.5 72.5,66.5L70.5,63.5H37.5L35.5,66.5C33,70.5 30.5,73.5 25.5,73.5C19.5,73.5 16,69 17.5,62L23,45C26,37.5 32,35 40,35Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="30" android:startY="34" android:endX="78" android:endY="74"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="0.5" android:color="#FF7C4DFF" /><item android:offset="1" android:color="#FF5527D9" /></gradient></aapt:attr></path>
-    <group>
-        <clip-path android:pathData="M40,35H68C76,35 82,37.5 85,45L90.5,62C92,69 88.5,73.5 82.5,73.5C77.5,73.5 75,70.5 72.5,66.5L70.5,63.5H37.5L35.5,66.5C33,70.5 30.5,73.5 25.5,73.5C19.5,73.5 16,69 17.5,62L23,45C26,37.5 32,35 40,35Z" />
-        <path android:pathData="M40,35H68C76,35 82,37.5 85,45L90.5,62C92,69 88.5,73.5 82.5,73.5C77.5,73.5 75,70.5 72.5,66.5L70.5,63.5H37.5L35.5,66.5C33,70.5 30.5,73.5 25.5,73.5C19.5,73.5 16,69 17.5,62L23,45C26,37.5 32,35 40,35Z"><aapt:attr name="android:fillColor"><gradient android:type="radial" android:centerX="38" android:centerY="42" android:gradientRadius="30"><item android:offset="0" android:color="#99FFFFFF" /><item android:offset="1" android:color="#00FFFFFF" /></gradient></aapt:attr></path>
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="1.2" android:scaleY="1.2">
+    <group android:translateY="2.2">
+        <path android:pathData="M54,30.5L60.5,42H47.5Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M65,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M48,65L60,77M60,65L48,77" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M31,48H43V60H31Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
     </group>
-    <path android:pathData="M31.8,43.5h4.4v4.6h4.6v4.4h-4.6v4.6h-4.4v-4.6h-4.6v-4.4h4.6z" android:fillColor="#F6F2FF" />
-    <path android:pathData="M74,42.4a2.6,2.6 0 1,0 0.01,0zM74,53.6a2.6,2.6 0 1,0 0.01,0zM68.4,48a2.6,2.6 0 1,0 0.01,0zM79.6,48a2.6,2.6 0 1,0 0.01,0z" android:fillColor="#F6F2FF" />
-    <path android:pathData="M44.5,56a4.3,4.3 0 1,0 0.01,0zM63.5,56a4.3,4.3 0 1,0 0.01,0z" android:fillColor="#4A25C4" />
-    <path android:pathData="M44.5,57.2a2.4,2.4 0 1,0 0.01,0zM63.5,57.2a2.4,2.4 0 1,0 0.01,0z" android:fillColor="#9B7BFF" />
+    <group android:translateY="0">
+        <path android:pathData="M54,30.5L60.5,42H47.5Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M65,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M48,65L60,77M60,65L48,77" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M31,48H43V60H31Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
     </group>
 </vector>

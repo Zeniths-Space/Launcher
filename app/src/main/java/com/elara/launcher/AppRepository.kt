@@ -242,11 +242,12 @@ class AppRepository(context: Context) {
         drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && adapt == adaptIcons && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
     }
 
-    // The Games entry's own icon: a purple gamepad on the brand's light background, in the icon shape.
+    // The Games entry's own icon: white face-button symbols on brand purple (owner's choice, 2026-11-12), in the icon shape.
     private fun gamesIcon(sizePx: Int, cacheKey: String): ImageBitmap? {
         val shape = iconShape
         val foreground = appContext.getDrawable(R.drawable.ic_games_foreground) ?: return null
-        val icon = AdaptiveIconDrawable(android.graphics.Color.parseColor("#EFE8FF").toDrawable(), foreground)
+        val background = appContext.getDrawable(R.drawable.ic_games_background) ?: return null
+        val icon = AdaptiveIconDrawable(background, foreground)
         val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
         return shaped.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
     }
