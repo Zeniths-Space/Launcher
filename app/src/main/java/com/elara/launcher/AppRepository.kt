@@ -340,13 +340,13 @@ class AppRepository(context: Context) {
  * Legacy (non-adaptive) icons are drawn as they are, square or shapeless, next to adaptive icons in
  * the system shape, so they go inside an adaptive icon that Android masks to the same shape. One
  * that already fills a square (a full-bleed tile, as many older apps ship) is cropped to its tile and
- * fills the shape, as One UI does. Any other is placed on white like Launcher3: scaled to 70% of the
+ * fills the shape, as One UI does. Any other is placed on no background (owner rejected Launcher3's white, 2026-11-12): scaled to 70% of the
  * visible area, the layer being 1.5 times that area.
  */
 private fun Drawable.inSystemShape(res: android.content.res.Resources): AdaptiveIconDrawable {
     if (this is AdaptiveIconDrawable) return this
     fullBleedTile(res)?.let { return AdaptiveIconDrawable(InsetDrawable(it, FullBleedInset), android.graphics.Color.TRANSPARENT.toDrawable()) }
-    return AdaptiveIconDrawable(android.graphics.Color.WHITE.toDrawable(), InsetDrawable(this, LegacyIconInset))
+    return AdaptiveIconDrawable(android.graphics.Color.TRANSPARENT.toDrawable(), InsetDrawable(this, LegacyIconInset))
 }
 
 /** This icon cropped to its tile, if it is a full-bleed square tile ([IconTiles.tileBox]); else null. */
