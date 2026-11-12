@@ -25,6 +25,9 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
+- Search bar at the bottom (the drawer's ⋮ menu; off by default): the search button becomes a bar
+  at the bottom of the drawer, in reach of the thumb. Apps that scroll behind it blur more the
+  lower they are (Android 13 and later; older versions only fade them).
 - Sums typed into the search are answered on the phone, above the apps: + − × ÷ ^, brackets
   and percent as a calculator reads them (4500 + 12% is 5,040; "12% of 4500" is 540, with 4,500
   less and plus 12% under it). Decimal arithmetic, so 0.1 + 0.2 is 0.3; long results shrink to
@@ -69,7 +72,7 @@ Application ID `com.elara.launcher`.
   used everywhere in the launcher, search and drawer order included; saving it empty gives back the
   app's own name. Names stay on the device with the other settings.
 - Hide, in the drawer's app menu, takes an app out of the drawer and its search; a copy on the home
-  screen or dock stays. The drawer's ⋮ button lists them, each with Unhide.
+  screen or dock stays. Hidden apps, in the drawer's ⋮ menu, lists them, each with Unhide.
 - Back, home or pulling down from the top of the list closes the drawer.
 - Blur (App drawer settings, on by default): the drawer sits over a blur of the wallpaper instead of
   the plain dim, in a chosen style: Gaussian (even, heavy), Background (light, under a darker veil),

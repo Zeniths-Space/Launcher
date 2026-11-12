@@ -103,6 +103,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.graphics.RuntimeShader
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -115,6 +127,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -448,6 +462,8 @@ internal fun LauncherScreen(
                 sidePadding = settings.drawerPadding.dp,
                 keepPosition = settings.drawerKeepPosition,
                 contactsOn = settings.drawerContacts,
+                searchBelow = settings.drawerSearchBelow,
+                onSearchBelow = { on -> onSettings { setDrawerSearchBelow(on) } },
                 currencyRates = settings.currencyRates,
                 onCurrencyRates = { stored -> onSettings { setCurrencyRates(stored) } },
                 onContactsOff = { onSettings { setDrawerContacts(false) } },
@@ -954,6 +970,9 @@ private fun AppDrawer(
     sidePadding: Dp,
     keepPosition: Boolean,
     contactsOn: Boolean,
+    /** Search is a bar under the apps instead of a button beside the title. */
+    searchBelow: Boolean,
+    onSearchBelow: (Boolean) -> Unit,
     onContactsOff: () -> Unit,
     currencyRates: String,
     onCurrencyRates: (String) -> Unit,
@@ -977,6 +996,7 @@ private fun AppDrawer(
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
     val openNow by rememberUpdatedState(drawerOpen)
     val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
@@ -1066,26 +1086,23 @@ private fun AppDrawer(
             query = ""
             searching = false
         }
+        // A sum's answer is copied, a top contact called; otherwise the best match opens.
+        val go = {
+            when {
+                answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
+                topContact != null -> ContactSearch.dial(context, topContact)
+                topSetting != null -> SettingsSearch.open(context, topSetting)
+                else -> shown?.firstOrNull()?.let { open(it, null) }
+                    ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
+            }
+            Unit
+        }
         // Back closes the search before the drawer.
         BackHandler(enabled = searching, onBack = closeSearch)
         // One height either way, so the apps don't jump when the search opens.
         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (searching) {
-                SearchField(
-                    query,
-                    onQuery = { query = it },
-                    // A sum's answer is copied, a top contact called; otherwise the best match opens.
-                    onGo = {
-                        when {
-                            answer != null -> if (answer.plain.isNotEmpty()) copyAnswer(context, answer.plain)
-                            topContact != null -> ContactSearch.dial(context, topContact)
-                            topSetting != null -> SettingsSearch.open(context, topSetting)
-                            else -> shown?.firstOrNull()?.let { open(it, null) }
-                                ?: shortcuts.firstOrNull()?.let { keyboard?.hide(); repository.startShortcut(it, null) }
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                )
+            if (searching && !searchBelow) {
+                SearchField(query, onQuery = { query = it }, onGo = go, modifier = Modifier.weight(1f))
                 IconButton(onClick = closeSearch) {
                     Icon(Icons.Close, contentDescription = stringResource(R.string.drawer_search_close), tint = OnWallpaper)
                 }
@@ -1096,14 +1113,31 @@ private fun AppDrawer(
                     color = OnWallpaper,
                     modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() },
                 )
-                IconButton(onClick = { searching = true }) {
+                if (!searchBelow) IconButton(onClick = { searching = true }) {
                     Icon(Icons.Search, contentDescription = stringResource(R.string.drawer_search), tint = OnWallpaper)
                 }
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
                 }
-                IconButton(onClick = unlockHidden) {
-                    Icon(Icons.MoreVert, contentDescription = stringResource(R.string.settings_hidden), tint = OnWallpaper)
+                Box {
+                    IconButton(onClick = { showMore = true }) {
+                        Icon(Icons.MoreVert, contentDescription = stringResource(R.string.drawer_more), tint = OnWallpaper)
+                    }
+                    MenuPopup(
+                        showMore,
+                        stringResource(R.string.drawer_title),
+                        icon = null,
+                        onInfo = null,
+                        actions = listOf(
+                            MenuAction(Icons.Hide, stringResource(R.string.settings_hidden), onClick = unlockHidden),
+                            MenuAction(Icons.Search, stringResource(if (searchBelow) R.string.drawer_search_above else R.string.drawer_search_below)) {
+                                closeSearch()
+                                onSearchBelow(!searchBelow)
+                            },
+                        ),
+                        onDismiss = { showMore = false },
+                        hasIcon = false,
+                    )
                 }
             }
         }
@@ -1128,6 +1162,7 @@ private fun AppDrawer(
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (topSetting != null) SettingCard(topSetting, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
+        Box(Modifier.weight(1f).fillMaxWidth()) {
         when {
             shown == null -> Unit
             shown.isEmpty() && !people && !offerContacts -> if (answer == null) Text(
@@ -1140,9 +1175,9 @@ private fun AppDrawer(
             else -> LazyVerticalGrid(
                 GridCells.Fixed(columns),
                 state = grid,
-                modifier = Modifier.fillMaxSize(),
-                // Extra room under the last row, so the end of the list clears the screen edge.
-                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = 48.dp),
+                modifier = Modifier.fillMaxSize().then(if (searchBelow) Modifier.bottomBlur(SearchBlurHeight) else Modifier),
+                // Extra room under the last row, so the end of the list clears the screen edge (or the search bar).
+                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = if (searchBelow) SearchBlurHeight else 48.dp),
                 verticalArrangement = Arrangement.spacedBy(rowGap),
             ) {
                 // Results other than apps sit 16dp in from the screen edge, like the answer card.
@@ -1191,6 +1226,17 @@ private fun AppDrawer(
                 }
             }
         }
+        // Always there, in reach of the thumb; a tap on it starts the search.
+        if (searchBelow) SearchField(
+            query,
+            onQuery = { query = it },
+            onGo = go,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = SearchBarBottom),
+            bar = true,
+            onFocus = { searching = true },
+            onClose = closeSearch.takeIf { searching },
+        )
+        }
     }
     // A new search starts at the top of the results.
     LaunchedEffect(query) { if (shown?.isNotEmpty() == true) grid.scrollToItem(0) }
@@ -1199,36 +1245,72 @@ private fun AppDrawer(
         if (drawerOpen) return@LaunchedEffect
         query = ""
         searching = false
+        // The bar below stays on screen, so it would keep the focus.
+        focusManager.clearFocus()
         if (!keepPosition) grid.scrollToItem(0)
     }
 }
 
+/**
+ * The drawer's search field. As a [bar] it is the One UI pill: always shown, centred, a search
+ * icon at its left; it waits for a tap ([onFocus]) and holds its close button ([onClose]) while searching.
+ */
 @Composable
-private fun SearchField(query: String, onQuery: (String) -> Unit, onGo: () -> Unit, modifier: Modifier) {
-    val cs = MaterialTheme.colorScheme
-    val placeholder = stringResource(R.string.drawer_search)
+private fun SearchField(
+    query: String,
+    onQuery: (String) -> Unit,
+    onGo: () -> Unit,
+    modifier: Modifier,
+    bar: Boolean = false,
+    onFocus: () -> Unit = {},
+    onClose: (() -> Unit)? = null,
+) {
+    val dark = LocalDark.current
+    // The pill is solid, so its text follows the theme, not the wallpaper.
+    val text = if (!bar) OnWallpaper else if (dark) Color.White else Color(0xFF18181B)
+    val hint = if (!bar) OnWallpaper.copy(alpha = 0.7f) else if (dark) Color(0xFFB4B4B4) else Color(0xFF6B6B76)
+    val style = if (bar) MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold) else MaterialTheme.typography.bodyLarge
+    val placeholder = stringResource(if (bar) R.string.drawer_search_bar else R.string.drawer_search)
     // Opened by the search button, so it takes the keyboard at once.
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    if (!bar) LaunchedEffect(Unit) { focus.requestFocus() }
+    val shape = RoundedCornerShape(26.dp)
     BasicTextField(
         value = query,
         onValueChange = onQuery,
         singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = OnWallpaper),
-        cursorBrush = SolidColor(OnWallpaper),
+        textStyle = style.copy(color = text),
+        cursorBrush = SolidColor(text),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
         keyboardActions = KeyboardActions(onGo = { onGo() }),
         modifier = modifier
             .focusRequester(focus)
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .background(OnWallpaper.copy(alpha = 0.14f))
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .onFocusChanged { if (it.isFocused) onFocus() }
+            .then(
+                if (bar) Modifier
+                    .width(SearchBarWidth)
+                    .height(52.dp)
+                    .clip(shape)
+                    .background(if (dark) Color(0xF2212121) else Color(0xF2F7F7F7))
+                    .border(1.dp, if (dark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f), shape)
+                    .padding(start = 16.dp, end = 4.dp)
+                else Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .clip(shape)
+                    .background(OnWallpaper.copy(alpha = 0.14f))
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+            ),
         decorationBox = { inner ->
-            Box {
-                if (query.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = OnWallpaper.copy(alpha = 0.7f))
-                inner()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (bar) Icon(Icons.Search, contentDescription = null, tint = hint, modifier = Modifier.padding(end = 8.dp).size(24.dp))
+                Box(Modifier.weight(1f)) {
+                    if (query.isEmpty()) Text(placeholder, style = style, color = hint, maxLines = 1)
+                    inner()
+                }
+                if (onClose != null) IconButton(onClick = onClose) {
+                    Icon(Icons.Close, contentDescription = stringResource(R.string.drawer_search_close), tint = hint)
+                }
             }
         },
     )
@@ -1404,5 +1486,77 @@ private fun GlassPrompt(onClick: () -> Unit) {
         Icon(Icons.BlurOn, contentDescription = null, tint = OnWallpaper)
         Spacer(Modifier.width(12.dp))
         Text(stringResource(R.string.glass_update), style = MaterialTheme.typography.bodyMedium, color = OnWallpaper)
+    }
+}
+
+/** How far up from the drawer's bottom edge the apps blur behind the search bar; also the room under the last row. */
+private val SearchBlurHeight = 132.dp
+private val SearchBlurRadius = 16.dp
+/** The search pill as One UI 8 draws it: 244dp wide, centred, 25dp above the screen's bottom edge. */
+private val SearchBarWidth = 244.dp
+private val SearchBarBottom = 25.dp
+
+/**
+ * One pass (across, then down) of a blur that grows from nothing at the top of the layer to
+ * `radius` at its bottom. Taps are spread over the radius, weighted as a bell curve.
+ */
+private const val ProgressiveBlur = """
+    uniform shader content;
+    uniform float2 dir;
+    uniform float height;
+    uniform float radius;
+    half4 main(float2 p) {
+        float t = clamp(p.y / height, 0.0, 1.0);
+        float r = radius * t * t;
+        if (r < 0.5) return content.eval(p);
+        half4 sum = half4(0.0);
+        float total = 0.0;
+        for (int i = -12; i <= 12; i++) {
+            float f = float(i) / 12.0;
+            float w = exp(-3.0 * f * f);
+            sum += content.eval(p + dir * (f * r)) * w;
+            total += w;
+        }
+        return sum / total;
+    }
+"""
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun progressiveBlur(height: Float, radius: Float): RenderEffect {
+    fun pass(x: Float, y: Float) = RuntimeShader(ProgressiveBlur).apply {
+        setFloatUniform("dir", x, y)
+        setFloatUniform("height", height)
+        setFloatUniform("radius", radius)
+    }
+    return android.graphics.RenderEffect.createChainEffect(
+        android.graphics.RenderEffect.createRuntimeShaderEffect(pass(0f, 1f), "content"),
+        android.graphics.RenderEffect.createRuntimeShaderEffect(pass(1f, 0f), "content"),
+    ).asComposeRenderEffect()
+}
+
+/**
+ * Blurs the bottom [height] of the content more the lower it is, and fades it almost out, so a bar can float
+ * over a list. Only that strip goes through the blur. Before Android 13 (no shaders) it only fades.
+ */
+@Composable
+private fun Modifier.bottomBlur(height: Dp): Modifier {
+    val content = rememberGraphicsLayer()
+    val strip = rememberGraphicsLayer()
+    return drawWithContent {
+        val h = height.roundToPx().coerceAtMost(size.height.toInt())
+        val top = size.height.toInt() - h
+        content.record { this@drawWithContent.drawContent() }
+        clipRect(bottom = top.toFloat()) { drawLayer(content) }
+        if (h <= 0) return@drawWithContent
+        if (strip.size.height != h) {
+            // Its own buffer, so the fade below cuts into the apps alone, not the wallpaper behind.
+            strip.compositingStrategy = androidx.compose.ui.graphics.layer.CompositingStrategy.Offscreen
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) strip.renderEffect = progressiveBlur(h.toFloat(), SearchBlurRadius.toPx())
+        }
+        strip.record(size = IntSize(size.width.toInt(), h)) {
+            translate(top = -top.toFloat()) { drawLayer(content) }
+            drawRect(Brush.verticalGradient(0f to Color.Black, 0.4f to Color.Black.copy(alpha = 0.8f), 1f to Color.Black.copy(alpha = 0.1f)), blendMode = BlendMode.DstIn)
+        }
+        translate(top = top.toFloat()) { drawLayer(strip) }
     }
 }
