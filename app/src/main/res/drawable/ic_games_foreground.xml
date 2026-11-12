@@ -1,19 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elara Games: the four face-button symbols (triangle, circle / cross, square in a 2x2 square) in white with a soft shadow. -->
+<!-- Elara Games: triangle, circle, cross and square in a 2x2 square, soft pastel colours, flat, as on Samsung's Game Launcher icon (owner's reference, 2026-11-12). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <group android:pivotX="54" android:pivotY="54" android:scaleX="1.2" android:scaleY="1.2">
-    <group android:translateY="2.2">
-        <path android:pathData="M43,36.5L49.5,48H36.5Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M59,43a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M37,59L49,71M49,59L37,71" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M59,59H71V71H59Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-    </group>
-    <group android:translateY="0">
-        <path android:pathData="M43,36.5L49.5,48H36.5Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M59,43a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M37,59L49,71M49,59L37,71" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M59,59H71V71H59Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-    </group>
-    </group>
+    <path android:pathData="M43,37.2L48.8,47.4H37.2Z" android:strokeColor="#FFBEBCFF" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M59.7,43a5.3,5.3 0 1,0 10.6,0a5.3,5.3 0 1,0 -10.6,0Z" android:strokeColor="#FFE8CCC7" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M37.7,59.7L48.3,70.3M48.3,59.7L37.7,70.3" android:strokeColor="#FFF0EDBC" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M59.7,59.7H70.3V70.3H59.7Z" android:strokeColor="#FF8DCCE5" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
 </vector>
