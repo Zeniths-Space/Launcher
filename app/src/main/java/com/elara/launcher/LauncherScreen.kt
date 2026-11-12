@@ -73,6 +73,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
@@ -457,6 +460,8 @@ internal fun LauncherScreen(
                 contactsOn = settings.drawerContacts,
                 searchBelow = settings.drawerSearchBelow,
                 onSearchBelow = { on -> onSettings { setDrawerSearchBelow(on) } },
+                horizontal = settings.drawerHorizontal,
+                onHorizontal = { on -> onSettings { setDrawerHorizontal(on) } },
                 sortFrequent = settings.drawerSortFrequent,
                 onSortFrequent = { on -> onSettings { setDrawerSortFrequent(on) } },
                 currencyRates = settings.currencyRates,
@@ -968,6 +973,9 @@ private fun AppDrawer(
     /** Search is a bar under the apps instead of a button beside the title. */
     searchBelow: Boolean,
     onSearchBelow: (Boolean) -> Unit,
+    /** Apps are in pages swiped sideways instead of one list. */
+    horizontal: Boolean,
+    onHorizontal: (Boolean) -> Unit,
     /** The most opened apps come first instead of A to Z. */
     sortFrequent: Boolean,
     onSortFrequent: (Boolean) -> Unit,
@@ -1150,6 +1158,8 @@ private fun AppDrawer(
                             MenuAction(null, stringResource(R.string.settings_hidden), onClick = unlockHidden),
                             MenuAction(null, stringResource(R.string.drawer_search_place)) { showPlace = true },
                             MenuAction(null, stringResource(R.string.drawer_sort)) { showSort = true },
+                            // Names the other way, the one a tap changes to.
+                            MenuAction(null, stringResource(if (horizontal) R.string.drawer_scroll_vertical else R.string.drawer_scroll_horizontal)) { onHorizontal(!horizontal) },
                         ),
                         onDismiss = { showMore = false },
                         hasIcon = false,
@@ -1178,6 +1188,22 @@ private fun AppDrawer(
         if (topContact != null) ContactCard(topContact, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (topSetting != null) SettingCard(topSetting, Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp))
         if (people && shown?.isNotEmpty() == true) ResultLabel(stringResource(R.string.results_apps), Modifier.padding(horizontal = 16.dp))
+        val tile: @Composable (AppEntry) -> Unit = { app ->
+            AppTile(
+                app,
+                repository,
+                showLabels,
+                iconSize,
+                onHome = app.key in homeKeys,
+                canEdit = !locked,
+                isDrawerOpen = isDrawerOpen,
+                onHomeToggle = { onHomeToggle(app) },
+                onHide = { onHide(app) },
+                onOpen = open,
+                onDragOut = onDragOut,
+                onDragEnd = onDragEnd,
+            )
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
         when {
             shown == null -> Unit
@@ -1187,6 +1213,18 @@ private fun AppDrawer(
                 color = OnWallpaper.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
+            )
+            // Search results are a list either way: they hold more than apps.
+            horizontal && !searching -> AppPages(
+                shown,
+                columns,
+                rowGap,
+                sidePadding,
+                tileHeight = iconSize + 12.dp + if (showLabels) 6.dp + with(LocalDensity.current) { MaterialTheme.typography.labelMedium.lineHeight.toDp() } else 0.dp,
+                bottomRoom = if (searchBelow) SearchBarBottom + 52.dp else 16.dp,
+                drawerOpen = drawerOpen,
+                keepPosition = keepPosition,
+                tile = tile,
             )
             else -> LazyVerticalGrid(
                 GridCells.Fixed(columns),
@@ -1198,22 +1236,7 @@ private fun AppDrawer(
             ) {
                 // Results other than apps sit 16dp in from the screen edge, like the answer card.
                 val inset = Modifier.padding(horizontal = (16.dp - sidePadding).coerceAtLeast(0.dp))
-                items(shown, key = { it.key }) { app ->
-                    AppTile(
-                        app,
-                        repository,
-                        showLabels,
-                        iconSize,
-                        onHome = app.key in homeKeys,
-                        canEdit = !locked,
-                        isDrawerOpen = isDrawerOpen,
-                        onHomeToggle = { onHomeToggle(app) },
-                        onHide = { onHide(app) },
-                        onOpen = open,
-                        onDragOut = onDragOut,
-                        onDragEnd = onDragEnd,
-                    )
-                }
+                items(shown, key = { it.key }) { app -> tile(app) }
                 // One item each, label and list together, so only one row gap comes before it.
                 if (shortcuts.isNotEmpty()) item(key = "shortcuts", span = { GridItemSpan(maxLineSpan) }) {
                     Column(inset, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1264,6 +1287,56 @@ private fun AppDrawer(
         // The bar below stays on screen, so it would keep the focus.
         focusManager.clearFocus()
         if (!keepPosition) grid.scrollToItem(0)
+    }
+}
+
+/**
+ * The drawer's apps in pages swiped sideways, as many rows on each as fit, with dots under them
+ * for the pages. [bottomRoom] is kept clear under the dots (for the search bar).
+ */
+@Composable
+private fun AppPages(
+    apps: List<AppEntry>,
+    columns: Int,
+    rowGap: Dp,
+    sidePadding: Dp,
+    tileHeight: Dp,
+    bottomRoom: Dp,
+    drawerOpen: Boolean,
+    keepPosition: Boolean,
+    tile: @Composable (AppEntry) -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(top = 8.dp, bottom = bottomRoom)) {
+        // Under the rows, 22dp is kept for the dots.
+        val rows = ((maxHeight - 22.dp + rowGap) / (tileHeight + rowGap)).toInt().coerceAtLeast(1)
+        val pages = remember(apps, columns, rows) { apps.chunked(columns * rows) }
+        val pager = rememberPagerState { pages.size }
+        // Each opening starts on the first page, unless the drawer remembers its place.
+        LaunchedEffect(drawerOpen) { if (!drawerOpen && !keepPosition) pager.scrollToPage(0) }
+        HorizontalPager(pager, Modifier.fillMaxSize().padding(bottom = 22.dp)) { p ->
+            // Rows share the height evenly; a page that isn't full keeps the same rows.
+            Column(Modifier.fillMaxSize().padding(horizontal = sidePadding)) {
+                val page = pages.getOrNull(p).orEmpty()
+                repeat(rows) { r ->
+                    Row(Modifier.weight(1f)) {
+                        repeat(columns) { c -> Box(Modifier.weight(1f)) { page.getOrNull(r * columns + c)?.let { app -> key(app.key) { tile(app) } } } }
+                    }
+                }
+            }
+        }
+        PageDots(pager.pageCount, pager.currentPage, Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp))
+    }
+}
+
+/** The home screen's page dots: the page shown stretches into a pill. */
+@Composable
+private fun PageDots(count: Int, current: Int, modifier: Modifier) {
+    if (count > 1) Row(modifier.height(6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        repeat(count) { p ->
+            val width by animateDpAsState(if (p == current) 18.dp else 6.dp, Motion.bouncy(), label = "dot")
+            val alpha by animateFloatAsState(if (p == current) 1f else 0.4f, Motion.effects(), label = "dot alpha")
+            Box(Modifier.size(width, 6.dp).background(Color.White.copy(alpha = alpha), CircleShape))
+        }
     }
 }
 

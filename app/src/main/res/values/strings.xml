@@ -7,6 +7,8 @@
     <string name="drawer_more">More options</string>
     <string name="drawer_search_place">Search bar</string>
     <string name="drawer_sort">Sort</string>
+    <string name="drawer_scroll_horizontal">Horizontal scroll</string>
+    <string name="drawer_scroll_vertical">Vertical scroll</string>
     <string name="drawer_sort_alpha">Alphabetical</string>
     <string name="drawer_sort_frequent">Most used</string>
     <string name="drawer_search_top">Top</string>

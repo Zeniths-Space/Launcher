@@ -25,6 +25,9 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
+- Horizontal scroll (the drawer's ⋮ menu; the row then reads Vertical scroll, to go back): apps
+  sit in pages swiped sideways, as many rows as fit, with dots for the pages. Search results are
+  still one list.
 - Sort (the drawer's ⋮ menu): Alphabetical, or Most used, which lists the apps you open most
   from Elara first. Openings are counted on the device, and only while Most used is chosen.
 - Search bar, Bottom (the drawer's ⋮ menu; Top by default): the search button becomes a bar
