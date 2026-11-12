@@ -74,8 +74,16 @@ class AppRepository(context: Context) {
 
     private val _apps = MutableStateFlow<List<AppEntry>?>(null)
 
-    /** Null until the first load finishes. */
+    /** Null until the first load finishes. Holds the [Games] folder entry among the real apps. */
     val apps: StateFlow<List<AppEntry>?> = _apps
+
+    private val _detectedGames = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Keys of the apps that declare themselves games (see [Games.isGame]). */
+    val detectedGames: StateFlow<Set<String>> = _detectedGames
+
+    /** Asked to show the Games list when the Games entry is opened, from the drawer, home screen or dock. */
+    var onOpenGames: (() -> Unit)? = null
 
     private val infos = HashMap<String, LauncherActivityInfo>()
     private val icons = HashMap<String, ImageBitmap>()
@@ -168,6 +176,7 @@ class AppRepository(context: Context) {
 
     suspend fun load(selfPackage: String) = withContext(Dispatchers.IO) {
         val found = HashMap<String, LauncherActivityInfo>()
+        val games = HashSet<String>()
         val entries = userManager.userProfiles.flatMap { user ->
             val serial = userManager.getSerialNumberForUser(user)
             launcherApps.getActivityList(null, user)
@@ -175,14 +184,14 @@ class AppRepository(context: Context) {
                 .filter { it.componentName.packageName != selfPackage }
                 .map { info ->
                     AppEntry(info.label.toString(), info.componentName.packageName, info.componentName.className, serial)
-                        .also { found[it.key] = info }
+                        .also { found[it.key] = info; if (Games.isGame(info.applicationInfo)) games += it.key }
                 }
         }
         synchronized(infos) {
             infos.clear()
             infos.putAll(found)
             // Drop icons of apps that are gone, and of changed ones. Cache keys are "<app key>@<size>".
-            icons.keys.retainAll { it.substringBeforeLast('@') in found }
+            icons.keys.retainAll { it.substringBeforeLast('@') in found || it.startsWith(Games.Key) }
             if (changedPackages.isNotEmpty()) {
                 icons.keys.removeAll { key -> changedPackages.any { key.startsWith("$it/") } }
                 changedPackages.clear()
@@ -190,7 +199,8 @@ class AppRepository(context: Context) {
                 iconEpoch++
             }
         }
-        _apps.value = sortApps(entries)
+        _detectedGames.value = games
+        _apps.value = sortApps(entries + Games.entry)
     }
 
     /** The app's icon at [sizePx] if already drawn, so a new view can show it from its first frame. */
@@ -200,6 +210,7 @@ class AppRepository(context: Context) {
     suspend fun icon(app: AppEntry, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
         val cacheKey = "${app.key}@$sizePx"
         synchronized(infos) { icons[cacheKey] }?.let { return@withContext it }
+        if (app.key == Games.Key) return@withContext gamesIcon(sizePx, cacheKey)
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val pack = iconPack
@@ -216,6 +227,15 @@ class AppRepository(context: Context) {
         }.getOrNull() ?: return@withContext null
         // Not cached if the shape changed while drawing, so an icon in the old shape never sticks.
         drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
+    }
+
+    // The Games entry's own icon: a purple gamepad on the brand's light background, in the icon shape.
+    private fun gamesIcon(sizePx: Int, cacheKey: String): ImageBitmap? {
+        val shape = iconShape
+        val foreground = appContext.getDrawable(R.drawable.ic_games_foreground) ?: return null
+        val icon = AdaptiveIconDrawable(android.graphics.Color.parseColor("#EFE8FF").toDrawable(), foreground)
+        val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
+        return shaped.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
     }
 
     /**
@@ -289,6 +309,7 @@ class AppRepository(context: Context) {
      * system's plain open animation.
      */
     fun launch(app: AppEntry, bounds: Rect?) {
+        if (app.key == Games.Key) { onOpenGames?.invoke(); return }
         val info = synchronized(infos) { infos[app.key] } ?: return
         onLaunch?.invoke(app)
         val source = activity?.window?.decorView

@@ -49,6 +49,10 @@ data class LauncherSettings(
     val appIcons: Map<String, String> = emptyMap(),
     /** Apps kept out of the drawer and its search, by [AppEntry.key]. Home screen and dock copies stay. */
     val hidden: Set<String> = emptySet(),
+    /** Apps the user put in the Games folder, though Android doesn't call them games, by [AppEntry.key]. */
+    val gamesAdded: Set<String> = emptySet(),
+    /** Games Android detects that the user took out of the Games folder. */
+    val gamesRemoved: Set<String> = emptySet(),
     /** Widgets on the home screen pages. */
     val widgets: List<HomeWidget> = emptyList(),
     val homeColumns: Int = 4,
@@ -135,6 +139,8 @@ class SettingsStore(context: Context) {
                 labels = AppLabels.parse(p[APP_LABELS]),
                 appIcons = AppLabels.parse(p[APP_ICONS]),
                 hidden = p[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(HashSet()) { it.isNotEmpty() }.orEmpty(),
+                gamesAdded = p[GAMES_ADDED]?.split(DockSeparator)?.filterTo(HashSet()) { it.isNotEmpty() }.orEmpty(),
+                gamesRemoved = p[GAMES_REMOVED]?.split(DockSeparator)?.filterTo(HashSet()) { it.isNotEmpty() }.orEmpty(),
                 homeColumns = (p[HOME_COLUMNS] ?: 4).coerceIn(DockGridRange),
                 homeRows = (p[HOME_ROWS] ?: 5).coerceIn(DockGridRange),
                 homeIconSize = (p[HOME_ICON_SIZE] ?: 52).coerceIn(DockIconRange),
@@ -204,6 +210,15 @@ class SettingsStore(context: Context) {
         val keys = it[HIDDEN_APPS]?.split(DockSeparator)?.filterTo(LinkedHashSet()) { k -> k.isNotEmpty() } ?: LinkedHashSet()
         if (hidden) keys += key else keys -= key
         it[HIDDEN_APPS] = keys.joinToString(DockSeparator)
+    }
+    /** Puts [key] in or out of the Games folder, whatever Android detects. */
+    suspend fun setGame(key: String, game: Boolean) = store.edit {
+        fun keys(k: Preferences.Key<String>) = it[k]?.split(DockSeparator)?.filterTo(LinkedHashSet()) { s -> s.isNotEmpty() } ?: LinkedHashSet()
+        val added = keys(GAMES_ADDED)
+        val removed = keys(GAMES_REMOVED)
+        if (game) { added += key; removed -= key } else { added -= key; removed += key }
+        it[GAMES_ADDED] = added.joinToString(DockSeparator)
+        it[GAMES_REMOVED] = removed.joinToString(DockSeparator)
     }
     suspend fun setWidgets(widgets: List<HomeWidget>) = store.edit { it[HOME_WIDGETS] = HomeWidgets.format(widgets) }
     suspend fun setHomeColumns(n: Int) = store.edit { it[HOME_COLUMNS] = n.coerceIn(DockGridRange) }
@@ -418,6 +433,8 @@ class SettingsStore(context: Context) {
         val APP_LABELS = stringPreferencesKey("app_labels")
         val APP_ICONS = stringPreferencesKey("app_icons")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val GAMES_ADDED = stringPreferencesKey("games_added")
+        val GAMES_REMOVED = stringPreferencesKey("games_removed")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val HOME_ROWS = intPreferencesKey("home_rows")
         val HOME_ICON_SIZE = intPreferencesKey("home_icon_size")

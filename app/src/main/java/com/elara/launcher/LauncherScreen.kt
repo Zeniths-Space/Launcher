@@ -88,6 +88,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -231,6 +232,26 @@ internal fun LauncherScreen(
     // Every app under the name the user gave it, so the drawer, search, home and dock agree.
     val apps = remember(loaded, settings.labels) { loaded?.let { renameApps(it, settings.labels) } }
     val appsByKey = remember(apps) { apps.orEmpty().associateBy { it.key } }
+    // The Games folder: detected games and those added by hand, less those taken out. They leave the drawer grid for it.
+    val detectedGames by repository.detectedGames.collectAsState()
+    val gameKeys = remember(detectedGames, settings.gamesAdded, settings.gamesRemoved, appsByKey) {
+        Games.members(detectedGames, settings.gamesAdded, settings.gamesRemoved).filterTo(HashSet()) { it in appsByKey && it != Games.Key }
+    }
+    var showGames by remember { mutableStateOf(false) }
+    DisposableEffect(repository) {
+        repository.onOpenGames = { showGames = true }
+        onDispose { repository.onOpenGames = null }
+    }
+    if (showGames) {
+        GamesSheet(
+            games = remember(apps, gameKeys) { apps.orEmpty().filter { it.key in gameKeys } },
+            others = remember(apps, gameKeys) { apps.orEmpty().filter { it.key !in gameKeys && it.key != Games.Key } },
+            repository = repository,
+            onAdd = { app -> onSettings { setGame(app.key, true) } },
+            onRemove = { app -> onSettings { setGame(app.key, false) } },
+            onDismiss = { showGames = false },
+        )
+    }
     // Home pages by key; an app that is gone leaves its slot empty. Kept as stored until apps load.
     val homePages = remember(apps, settings.home) {
         if (apps == null) settings.home else settings.home.map { page -> page.map { if (it in appsByKey || HomeFolders.isFolder(it)) it else "" } }
@@ -450,8 +471,8 @@ internal fun LauncherScreen(
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
-                remember(apps, settings.hidden, settings.drawerSortFrequent, settings.launches) {
-                    apps?.filter { it.key !in settings.hidden }?.let { if (settings.drawerSortFrequent) sortByLaunches(it, settings.launches) else it }
+                remember(apps, settings.hidden, gameKeys, settings.drawerSortFrequent, settings.launches) {
+                    apps?.filter { it.key !in settings.hidden && it.key !in gameKeys }?.let { if (settings.drawerSortFrequent) sortByLaunches(it, settings.launches) else it }
                 },
                 repository,
                 settings.showLabels,
