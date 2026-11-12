@@ -103,18 +103,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.graphics.RuntimeShader
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -1125,12 +1116,12 @@ private fun AppDrawer(
                     }
                     MenuPopup(
                         showMore,
-                        stringResource(R.string.drawer_title),
+                        title = null,
                         icon = null,
                         onInfo = null,
                         actions = listOf(
                             MenuAction(Icons.Hide, stringResource(R.string.settings_hidden), onClick = unlockHidden),
-                            MenuAction(Icons.Search, stringResource(if (searchBelow) R.string.drawer_search_above else R.string.drawer_search_below)) {
+                            MenuAction(Icons.Search, stringResource(R.string.drawer_search_below), checked = searchBelow) {
                                 closeSearch()
                                 onSearchBelow(!searchBelow)
                             },
@@ -1175,9 +1166,9 @@ private fun AppDrawer(
             else -> LazyVerticalGrid(
                 GridCells.Fixed(columns),
                 state = grid,
-                modifier = Modifier.fillMaxSize().then(if (searchBelow) Modifier.bottomBlur(SearchBlurHeight) else Modifier),
+                modifier = Modifier.fillMaxSize().then(if (searchBelow) Modifier.bottomFade(SearchFadeHeight) else Modifier),
                 // Extra room under the last row, so the end of the list clears the screen edge (or the search bar).
-                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = if (searchBelow) SearchBlurHeight else 48.dp),
+                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, top = 8.dp, bottom = if (searchBelow) SearchFadeHeight else 48.dp),
                 verticalArrangement = Arrangement.spacedBy(rowGap),
             ) {
                 // Results other than apps sit 16dp in from the screen edge, like the answer card.
@@ -1489,74 +1480,29 @@ private fun GlassPrompt(onClick: () -> Unit) {
     }
 }
 
-/** How far up from the drawer's bottom edge the apps blur behind the search bar; also the room under the last row. */
-private val SearchBlurHeight = 132.dp
-private val SearchBlurRadius = 16.dp
+/** How far up from the drawer's bottom edge the apps dim behind the search bar; also the room under the last row. */
+private val SearchFadeHeight = 100.dp
 /** The search pill as One UI 8 draws it: 244dp wide, centred, 25dp above the screen's bottom edge. */
 private val SearchBarWidth = 244.dp
 private val SearchBarBottom = 25.dp
 
 /**
- * One pass (across, then down) of a blur that grows from nothing at the top of the layer to
- * `radius` at its bottom. Taps are spread over the radius, weighted as a bell curve.
+ * Dims the bottom [height] of the content more the lower it is, so a bar can float over a list.
+ * The curve is One UI 8's drawer, measured: a quick drop above the bar, then a slow one to nearly gone.
  */
-private const val ProgressiveBlur = """
-    uniform shader content;
-    uniform float2 dir;
-    uniform float height;
-    uniform float radius;
-    half4 main(float2 p) {
-        float t = clamp(p.y / height, 0.0, 1.0);
-        float r = radius * t * t;
-        if (r < 0.5) return content.eval(p);
-        half4 sum = half4(0.0);
-        float total = 0.0;
-        for (int i = -12; i <= 12; i++) {
-            float f = float(i) / 12.0;
-            float w = exp(-3.0 * f * f);
-            sum += content.eval(p + dir * (f * r)) * w;
-            total += w;
-        }
-        return sum / total;
+private fun Modifier.bottomFade(height: Dp): Modifier = this
+    // Its own buffer, so the fade cuts into the apps alone, not the wallpaper behind.
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val h = height.toPx().coerceAtMost(size.height)
+        drawRect(
+            Brush.verticalGradient(
+                0f to Color.Black, 0.25f to Color.Black.copy(alpha = 0.6f), 0.85f to Color.Black.copy(alpha = 0.15f), 1f to Color.Black.copy(alpha = 0.1f),
+                startY = size.height - h, endY = size.height,
+            ),
+            topLeft = Offset(0f, size.height - h),
+            size = Size(size.width, h),
+            blendMode = BlendMode.DstIn,
+        )
     }
-"""
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun progressiveBlur(height: Float, radius: Float): RenderEffect {
-    fun pass(x: Float, y: Float) = RuntimeShader(ProgressiveBlur).apply {
-        setFloatUniform("dir", x, y)
-        setFloatUniform("height", height)
-        setFloatUniform("radius", radius)
-    }
-    return android.graphics.RenderEffect.createChainEffect(
-        android.graphics.RenderEffect.createRuntimeShaderEffect(pass(0f, 1f), "content"),
-        android.graphics.RenderEffect.createRuntimeShaderEffect(pass(1f, 0f), "content"),
-    ).asComposeRenderEffect()
-}
-
-/**
- * Blurs the bottom [height] of the content more the lower it is, and fades it almost out, so a bar can float
- * over a list. Only that strip goes through the blur. Before Android 13 (no shaders) it only fades.
- */
-@Composable
-private fun Modifier.bottomBlur(height: Dp): Modifier {
-    val content = rememberGraphicsLayer()
-    val strip = rememberGraphicsLayer()
-    return drawWithContent {
-        val h = height.roundToPx().coerceAtMost(size.height.toInt())
-        val top = size.height.toInt() - h
-        content.record { this@drawWithContent.drawContent() }
-        clipRect(bottom = top.toFloat()) { drawLayer(content) }
-        if (h <= 0) return@drawWithContent
-        if (strip.size.height != h) {
-            // Its own buffer, so the fade below cuts into the apps alone, not the wallpaper behind.
-            strip.compositingStrategy = androidx.compose.ui.graphics.layer.CompositingStrategy.Offscreen
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) strip.renderEffect = progressiveBlur(h.toFloat(), SearchBlurRadius.toPx())
-        }
-        strip.record(size = IntSize(size.width.toInt(), h)) {
-            translate(top = -top.toFloat()) { drawLayer(content) }
-            drawRect(Brush.verticalGradient(0f to Color.Black, 0.4f to Color.Black.copy(alpha = 0.8f), 1f to Color.Black.copy(alpha = 0.1f)), blendMode = BlendMode.DstIn)
-        }
-        translate(top = top.toFloat()) { drawLayer(strip) }
-    }
-}

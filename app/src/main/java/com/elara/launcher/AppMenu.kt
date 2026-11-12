@@ -8,6 +8,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -91,7 +93,14 @@ import androidx.compose.ui.window.PopupProperties
 internal val LocalRenameApp = staticCompositionLocalOf<((AppEntry) -> Unit)?> { null }
 
 /** One action in an app's menu; the menu closes before it runs. [danger] marks one that removes something. */
-internal class MenuAction(val icon: ImageVector, val label: String, val danger: Boolean = false, val onClick: () -> Unit)
+internal class MenuAction(
+    val icon: ImageVector,
+    val label: String,
+    val danger: Boolean = false,
+    /** An option that is on: filled purple, with a check, as a chosen item in the Elara dropdowns. */
+    val checked: Boolean = false,
+    val onClick: () -> Unit,
+)
 
 /**
  * An app's long-press menu: its icon, name and App info, then a list of [actions]. It opens above
@@ -160,7 +169,8 @@ private fun ShortcutTile(shortcut: AppShortcut, repository: AppRepository, modif
 @Composable
 internal fun MenuPopup(
     expanded: Boolean,
-    title: String,
+    /** The header's text, or null for a plain list of [actions] with no header. */
+    title: String?,
     icon: ImageBitmap?,
     onInfo: (() -> Unit)?,
     actions: List<MenuAction>,
@@ -223,7 +233,7 @@ internal fun MenuPopup(
 }
 
 @Composable
-private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)?, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
+private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actions: List<MenuAction>, top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)?, onDismiss: () -> Unit, onAppInfo: (() -> Unit)?, glass: ImageBitmap?, screen: IntSize, modifier: Modifier) {
     val cs = MaterialTheme.colorScheme
     val dark = LocalDark.current
     // Where the card is on screen, so it shows the part of the wallpaper that is behind it.
@@ -269,7 +279,7 @@ private fun MenuCard(title: String, icon: ImageBitmap?, hasIcon: Boolean, action
             .then(if (dark) Modifier.border(1.dp, Raised, shape) else Modifier)
             .padding(8.dp),
     ) {
-        Row(
+        if (title != null) Row(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 8.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
@@ -320,7 +330,9 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
             .fillMaxWidth()
             .heightIn(min = RowHeight)
             .clip(RoundedCornerShape(20.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .then(if (action.checked) Modifier.background(cs.primary.copy(alpha = 0.22f)) else Modifier)
+            .clickable(role = if (action.checked) Role.Checkbox else Role.Button, onClick = onClick)
+            .semantics { if (action.checked) selected = true }
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -332,11 +344,12 @@ private fun ActionButton(action: MenuAction, onClick: () -> Unit) {
         Text(
             action.label,
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
-            color = if (action.danger) tint else cs.onSurface,
+            color = if (action.danger || action.checked) tint else cs.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(end = 10.dp),
+            modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
+        if (action.checked) Icon(Icons.Done, contentDescription = null, tint = tint, modifier = Modifier.padding(end = 8.dp).size(20.dp))
     }
 }
 

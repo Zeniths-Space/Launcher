@@ -26,8 +26,8 @@ Application ID `com.elara.launcher`.
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
 - Search bar at the bottom (the drawer's ⋮ menu; off by default): the search button becomes a bar
-  at the bottom of the drawer, in reach of the thumb. Apps that scroll behind it blur more the
-  lower they are (Android 13 and later; older versions only fade them).
+  at the bottom of the drawer, in reach of the thumb. Apps that scroll behind it dim more the
+  lower they are, as in One UI.
 - Sums typed into the search are answered on the phone, above the apps: + − × ÷ ^, brackets
   and percent as a calculator reads them (4500 + 12% is 5,040; "12% of 4500" is 540, with 4,500
   less and plus 12% under it). Decimal arithmetic, so 0.1 + 0.2 is 0.3; long results shrink to
