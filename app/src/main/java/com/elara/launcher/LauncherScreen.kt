@@ -1295,7 +1295,7 @@ private fun AppDrawer(
         }
         // Only for the plain alphabetical list: with another order, or a search, the letters mean nothing.
         if (quickScroll && !searching && !horizontal && !sortFrequent && shown != null) {
-            QuickScroll(remember(shown) { initialsOf(shown) }, grid, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
+            QuickScroll(remember(shown) { initialsOf(shown) }, grid, columns, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
         }
         }
     }
