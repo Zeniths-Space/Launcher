@@ -258,7 +258,7 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(10.dp)
             // As wide as its widest line (title row or action), within these bounds.
-            .widthIn(min = if (title != null) MenuMinWidth else ListMinWidth, max = MenuMaxWidth)
+            .widthIn(min = MenuMinWidth, max = MenuMaxWidth)
             .width(IntrinsicSize.Max)
             .shadow(12.dp, shape)
             .clip(shape)
@@ -427,8 +427,6 @@ private const val MaxNameLength = 40
 
 private val MenuMinWidth = 232.dp
 private val MenuMaxWidth = 280.dp
-/** A list without a header: narrower, but not cramped around short labels. */
-private val ListMinWidth = 184.dp
 /** Rows sized for easy reading and tapping. */
 private val RowHeight = 46.dp
 private val RowIconSize = 34.dp

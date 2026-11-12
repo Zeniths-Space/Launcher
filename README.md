@@ -25,12 +25,14 @@ Application ID `com.elara.launcher`.
 - The drawer opens under an Apps title with search and settings buttons. Search swaps the title
   for a search field with the keyboard up; its close button or Back swaps it back. Matches the start of the name first, then the start of a word,
   then anywhere; case and accents are ignored. The keyboard's Go key opens the best match.
-- Horizontal scroll (the drawer's ⋮ menu; the row then reads Vertical scroll, to go back): apps
+- The drawer's ⋮ button opens a sheet from the bottom with its options: two switches (Search bar
+  at bottom, Horizontal scroll), Sort, Hidden apps and All settings.
+- Horizontal scroll (the ⋮ sheet): apps
   sit in pages swiped sideways, as many rows as fit, with dots for the pages. Search results are
   still one list.
-- Sort (the drawer's ⋮ menu): Alphabetical, or Most used, which lists the apps you open most
+- Sort (the ⋮ sheet): Alphabetical, or Most used, which lists the apps you open most
   from Elara first. Openings are counted on the device, and only while Most used is chosen.
-- Search bar, Bottom (the drawer's ⋮ menu; Top by default): the search button becomes a bar
+- Search bar at bottom (the ⋮ sheet; off by default): the search button becomes a bar
   at the bottom of the drawer, in reach of the thumb. Apps that scroll behind it dim more the
   lower they are, as in One UI.
 - Sums typed into the search are answered on the phone, above the apps: + − × ÷ ^, brackets
@@ -80,7 +82,7 @@ Application ID `com.elara.launcher`.
   pack: a sheet with the pack's icons and a search by name, for apps the pack in use has no icon
   for. "Use its usual icon" there takes it back. Picked icons are kept with the settings and backups.
 - Hide, in the drawer's app menu, takes an app out of the drawer and its search; a copy on the home
-  screen or dock stays. Hidden apps, in the drawer's ⋮ menu, lists them, each with Unhide.
+  screen or dock stays. Hidden apps, in the drawer's ⋮ sheet, lists them, each with Unhide.
 - Back, home or pulling down from the top of the list closes the drawer.
 - Blur (App drawer settings, on by default): the drawer sits over a blur of the wallpaper instead of
   the plain dim, in a chosen style: Gaussian (even, heavy), Background (light, under a darker veil),

@@ -82,6 +82,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Switch
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -1005,12 +1010,11 @@ private fun AppDrawer(
     var searching by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
-    var showPlace by remember { mutableStateOf(false) }
     var showSort by remember { mutableStateOf(false) }
     val openNow by rememberUpdatedState(drawerOpen)
     val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showPlace = false; showSort = false } }
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showMore = false; showSort = false } }
     if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
     val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
     val focusManager = LocalFocusManager.current
@@ -1116,14 +1120,15 @@ private fun AppDrawer(
             },
             onDismiss = { showSort = false },
         )
-        if (showPlace) ChoiceSheet(
-            stringResource(R.string.drawer_search_place),
-            listOf(false, true).map { below ->
-                MenuAction(null, stringResource(if (below) R.string.drawer_search_bottom else R.string.drawer_search_top), checked = below == searchBelow) {
-                    if (below != searchBelow) { closeSearch(); onSearchBelow(below) }
-                }
-            },
-            onDismiss = { showPlace = false },
+        if (showMore) DrawerMenuSheet(
+            searchBelow = searchBelow,
+            onSearchBelow = { below -> closeSearch(); onSearchBelow(below) },
+            horizontal = horizontal,
+            onHorizontal = onHorizontal,
+            onSort = { showSort = true },
+            onHidden = unlockHidden,
+            onSettings = onOpenSettings,
+            onDismiss = { showMore = false },
         )
         // Back closes the search before the drawer.
         BackHandler(enabled = searching, onBack = closeSearch)
@@ -1147,25 +1152,8 @@ private fun AppDrawer(
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Settings, contentDescription = stringResource(R.string.drawer_settings), tint = OnWallpaper)
                 }
-                Box {
-                    IconButton(onClick = { showMore = true }) {
-                        Icon(Icons.MoreVert, contentDescription = stringResource(R.string.drawer_more), tint = OnWallpaper)
-                    }
-                    MenuPopup(
-                        showMore,
-                        title = null,
-                        icon = null,
-                        onInfo = null,
-                        actions = listOf(
-                            MenuAction(null, stringResource(R.string.settings_hidden), onClick = unlockHidden),
-                            MenuAction(null, stringResource(R.string.drawer_search_place)) { showPlace = true },
-                            MenuAction(null, stringResource(R.string.drawer_sort)) { showSort = true },
-                            // Names the other way, the one a tap changes to.
-                            MenuAction(null, stringResource(if (horizontal) R.string.drawer_scroll_vertical else R.string.drawer_scroll_horizontal)) { onHorizontal(!horizontal) },
-                        ),
-                        onDismiss = { showMore = false },
-                        hasIcon = false,
-                    )
+                IconButton(onClick = { showMore = true }) {
+                    Icon(Icons.MoreVert, contentDescription = stringResource(R.string.drawer_more), tint = OnWallpaper)
                 }
             }
         }
@@ -1289,6 +1277,57 @@ private fun AppDrawer(
         // The bar below stays on screen, so it would keep the focus.
         focusManager.clearFocus()
         if (!keepPosition) grid.scrollToItem(0)
+    }
+}
+
+/**
+ * The drawer's options, from its three dots: a sheet from the bottom with a row each, as Smart
+ * Launcher's. Switches change in place; the other rows close the sheet and open their own screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DrawerMenuSheet(
+    searchBelow: Boolean,
+    onSearchBelow: (Boolean) -> Unit,
+    horizontal: Boolean,
+    onHorizontal: (Boolean) -> Unit,
+    onSort: () -> Unit,
+    onHidden: () -> Unit,
+    onSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerLow,
+    ) {
+        Text(
+            stringResource(R.string.drawer_title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+        )
+        @Composable
+        fun row(icon: ImageVector, label: Int, checked: Boolean? = null, onClick: () -> Unit) = ListItem(
+            headlineContent = { Text(stringResource(label)) },
+            leadingContent = { Icon(icon, contentDescription = null, tint = cs.onSurface) },
+            // The row is the control; the switch only shows its state.
+            trailingContent = checked?.let { { Switch(it, onCheckedChange = null) } },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .then(
+                    if (checked != null) Modifier.toggleable(checked, role = Role.Switch) { onClick() }
+                    else Modifier.clickable(role = Role.Button) { onDismiss(); onClick() },
+                ),
+        )
+        Column(Modifier.padding(bottom = 16.dp).navigationBarsPadding()) {
+            row(Icons.Search, R.string.drawer_search_below, searchBelow) { onSearchBelow(!searchBelow) }
+            row(Icons.Columns, R.string.drawer_scroll_horizontal, horizontal) { onHorizontal(!horizontal) }
+            row(Icons.Sort, R.string.drawer_sort, onClick = onSort)
+            row(Icons.Hide, R.string.settings_hidden, onClick = onHidden)
+            row(Icons.Settings, R.string.drawer_settings_all, onClick = onSettings)
+        }
     }
 }
 
