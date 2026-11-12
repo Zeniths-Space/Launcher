@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elara Games: the four face-button symbols (triangle, circle, cross, square) in white with a soft shadow. -->
+<!-- Elara Games: the four face-button symbols (triangle, circle / cross, square in a 2x2 square) in white with a soft shadow. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <group android:pivotX="54" android:pivotY="54" android:scaleX="1.2" android:scaleY="1.2">
     <group android:translateY="2.2">
-        <path android:pathData="M54,30.5L60.5,42H47.5Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M65,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M48,65L60,77M60,65L48,77" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M31,48H43V60H31Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M43,36.5L49.5,48H36.5Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M59,43a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M37,59L49,71M49,59L37,71" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M59,59H71V71H59Z" android:strokeColor="#443A1C9E" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
     </group>
     <group android:translateY="0">
-        <path android:pathData="M54,30.5L60.5,42H47.5Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M65,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M48,65L60,77M60,65L48,77" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:pathData="M31,48H43V60H31Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M43,36.5L49.5,48H36.5Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M59,43a6,6 0 1,0 12,0a6,6 0 1,0 -12,0Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M37,59L49,71M49,59L37,71" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M59,59H71V71H59Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
     </group>
     </group>
 </vector>
