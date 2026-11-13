@@ -285,7 +285,7 @@ internal fun folderColor(index: Int) = FolderColors.getOrElse(index) { FolderCol
  * free cells).
  */
 @Composable
-internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (HomeFolder) -> Boolean, onDismiss: () -> Unit, showSize: Boolean = true) {
+internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (HomeFolder) -> Boolean, onDismiss: () -> Unit, showSize: Boolean = true, anyLayout: Boolean = false) {
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
     if (!state.currentState && !state.targetState) return
@@ -359,7 +359,7 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
                     else Icon(Icons.FolderFilled, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
                 }
                 // How a large folder's apps are laid out.
-                if (folder.large && folder.style == FolderStyle.Apps) {
+                if ((folder.large || anyLayout) && folder.style == FolderStyle.Apps) {
                     Section(stringResource(R.string.folder_layout))
                     Tiles(
                         listOf(stringResource(R.string.folder_layout_grid), stringResource(R.string.folder_layout_hexagon), stringResource(R.string.folder_layout_circle)),

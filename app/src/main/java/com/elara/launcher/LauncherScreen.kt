@@ -274,6 +274,7 @@ internal fun LauncherScreen(
             onChange = { changed -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) changed else it }) }; true },
             onDismiss = { customizeFolder = null },
             showSize = false,
+            anyLayout = true,
         )
     }
     DisposableEffect(repository) {
@@ -1302,7 +1303,7 @@ private fun AppDrawer(
                 onRenameFolder = { onRenameFolder(app) },
                 onCustomizeFolder = { onCustomizeFolder(app) },
                 face = DrawerFolders.idOf(app)?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { f ->
-                    { FolderFace(f, allApps, repository, iconSize, large = false, showLabels = false, modifier = Modifier.fillMaxSize()) }
+                    { FolderFace(f, allApps, repository, iconSize, large = f.layout != FolderLayout.Grid, showLabels = false, modifier = Modifier.fillMaxSize()) }
                 },
                 onDeleteFolder = { onDeleteFolder(app) },
                 onOpen = open,
