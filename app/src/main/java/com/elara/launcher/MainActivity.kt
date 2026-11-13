@@ -17,6 +17,10 @@ import android.app.WallpaperManager
 import android.content.Intent
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.SystemClock
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -54,6 +58,13 @@ class MainActivity : ComponentActivity() {
 
     // Stopped because the screen went off: on unlock the home screen comes back as it was, like One UI.
     private var stoppedAsleep = false
+    // When the screen last went off. onStop can run just before or after isInteractive turns false, so it is not trusted alone.
+    private var screenOffAt = Long.MIN_VALUE
+    private val screenOff = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            screenOffAt = SystemClock.elapsedRealtime()
+        }
+    }
     private val drawer = DrawerMotion()
     private val widgets = WidgetHost(this)
     // Whether the blur is on; while off, wallpaper changes are not looked at.
@@ -68,6 +79,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
         super.onCreate(savedInstanceState)
         // Home and drawer draw white over the dimmed wallpaper, so system bar icons stay light in light mode too.
         enableEdgeToEdge(SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
@@ -256,7 +268,8 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         widgets.stopListening()
-        stoppedAsleep = !getSystemService(PowerManager::class.java).isInteractive
+        stoppedAsleep = !getSystemService(PowerManager::class.java).isInteractive ||
+            SystemClock.elapsedRealtime() - screenOffAt < 3000
         if (stoppedAsleep) return
         drawer.jump(0f)
         drawerOpen = false
@@ -298,6 +311,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        unregisterReceiver(screenOff)
         repository.unregister()
         if (Build.VERSION.SDK_INT >= 27) WallpaperManager.getInstance(this).removeOnColorsChangedListener(wallpaperListener)
         super.onDestroy()
