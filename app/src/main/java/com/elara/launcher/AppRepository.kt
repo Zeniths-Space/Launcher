@@ -85,6 +85,9 @@ class AppRepository(context: Context) {
     /** Asked to show the Games list when the Games entry is opened, from the drawer, home screen or dock. */
     var onOpenGames: (() -> Unit)? = null
 
+    /** Asked to show a drawer folder's sheet when its entry is opened. */
+    var onOpenFolder: ((Int) -> Unit)? = null
+
     private val infos = HashMap<String, LauncherActivityInfo>()
     // Least recently used out beyond 600, so old sizes (after an icon size change) don't pile up.
     private val icons = object : LinkedHashMap<String, ImageBitmap>(256, 0.75f, true) {
@@ -223,7 +226,8 @@ class AppRepository(context: Context) {
     suspend fun icon(app: AppEntry, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
         val cacheKey = "${app.key}@$sizePx"
         synchronized(infos) { icons[cacheKey] }?.let { return@withContext it }
-        if (app.key == Games.Key) return@withContext gamesIcon(sizePx, cacheKey)
+        if (app.key == Games.Key) return@withContext standInIcon(sizePx, cacheKey, R.drawable.ic_games_foreground, R.drawable.ic_games_background)
+        if (app.packageName == DrawerFolders.Package) return@withContext standInIcon(sizePx, cacheKey, R.drawable.ic_folder_foreground, R.drawable.ic_games_background)
         val info = synchronized(infos) { infos[app.key] } ?: return@withContext null
         val shape = iconShape
         val pack = iconPack
@@ -245,11 +249,11 @@ class AppRepository(context: Context) {
         drawable.toImageBitmap(sizePx).also { if (shape == iconShape && pack === iconPack && adapt == adaptIcons && picked == appIcons[app.key]) synchronized(infos) { icons[cacheKey] = it } }
     }
 
-    // The Games entry's own icon: white face-button symbols on brand purple (owner's choice, 2026-11-12), in the icon shape.
-    private fun gamesIcon(sizePx: Int, cacheKey: String): ImageBitmap? {
+    // Own icons of the Games entry (white face-button symbols on brand purple, owner's choice 2026-11-12) and drawer folders, in the icon shape.
+    private fun standInIcon(sizePx: Int, cacheKey: String, foregroundRes: Int, backgroundRes: Int): ImageBitmap? {
         val shape = iconShape
-        val foreground = appContext.getDrawable(R.drawable.ic_games_foreground) ?: return null
-        val background = appContext.getDrawable(R.drawable.ic_games_background) ?: return null
+        val foreground = appContext.getDrawable(foregroundRes) ?: return null
+        val background = appContext.getDrawable(backgroundRes) ?: return null
         val icon = AdaptiveIconDrawable(background, foreground)
         val shaped = shape.shape?.let { icon.masked(it, sizePx).toDrawable(appContext.resources) } ?: icon
         return shaped.toImageBitmap(sizePx).also { if (shape == iconShape) synchronized(infos) { icons[cacheKey] = it } }
@@ -327,6 +331,7 @@ class AppRepository(context: Context) {
      */
     fun launch(app: AppEntry, bounds: Rect?) {
         if (app.key == Games.Key) { onOpenGames?.invoke(); return }
+        DrawerFolders.idOf(app)?.let { onOpenFolder?.invoke(it); return }
         val info = synchronized(infos) { infos[app.key] } ?: return
         onLaunch?.invoke(app)
         val source = activity?.window?.decorView

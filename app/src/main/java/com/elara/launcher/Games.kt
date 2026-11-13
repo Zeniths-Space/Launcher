@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The Games folder: one entry in the drawer, which can sit on the home screen or dock like an app and
- * opens [GamesSheet]. It is a stand-in app ([entry]), so every place that lists or places apps takes it.
+ * opens [FolderSheet]. It is a stand-in app ([entry]), so every place that lists or places apps takes it.
  * Its members are the apps Android calls games, less those the user took out, plus those they added.
  */
 object Games {
@@ -62,10 +62,33 @@ object Games {
     fun members(detected: Set<String>, added: Set<String>, removed: Set<String>): Set<String> = (detected - removed) + added
 }
 
-/** The games, tap to play, long-press to take one out; "Add game" lists the other apps to put in. */
+/**
+ * Folders the user makes in the drawer, stored like home folders ([HomeFolders]). Each shows in the drawer as a stand-in
+ * app ([entry]) after Games and before the apps, and opens a [FolderSheet]. Their apps leave the drawer grid.
+ */
+object DrawerFolders {
+    const val Package = "app.elara.drawerfolder"
+
+    fun entry(folder: HomeFolder, defaultName: String) = AppEntry(folder.name.ifEmpty { defaultName }, Package, folder.id.toString(), 0)
+
+    fun idOf(app: AppEntry): Int? = if (app.packageName == Package) app.className.toIntOrNull() else null
+
+    /** Games, then the folders, then [apps] (which may hold the Games entry among them). */
+    fun pinFirst(apps: List<AppEntry>, folders: List<AppEntry>): List<AppEntry> =
+        apps.filter { it.key == Games.Key } + folders + apps.filter { it.key != Games.Key }
+
+    /** How many of the entries at the start of a [pinFirst] list are folders (Games included). */
+    fun pinnedCount(apps: List<AppEntry>) = apps.takeWhile { it.key == Games.Key || it.packageName == Package }.size
+}
+
+/** A folder's apps, tap to open, long-press to take one out; the + lists the other apps to put in. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-internal fun GamesSheet(
+internal fun FolderSheet(
+    title: String,
+    addTitle: String,
+    emptyText: String,
+    removeLabel: String,
     games: List<AppEntry>,
     others: List<AppEntry>,
     repository: AppRepository,
@@ -75,7 +98,7 @@ internal fun GamesSheet(
 ) {
     val cs = MaterialTheme.colorScheme
     var adding by remember { mutableStateOf(false) }
-    ElaraSheet(stringResource(if (adding) R.string.games_add_title else R.string.games_title), Icons.Widgets, onDismiss = onDismiss, action = {
+    ElaraSheet(if (adding) addTitle else title, Icons.Widgets, onDismiss = onDismiss, action = {
         FilledTonalIconButton(onClick = { adding = !adding }, Modifier.size(48.dp)) {
             Icon(if (adding) Icons.Done else Icons.Add, contentDescription = stringResource(if (adding) R.string.games_done else R.string.games_add))
         }
@@ -95,7 +118,7 @@ internal fun GamesSheet(
             }
         } else if (games.isEmpty()) {
             Text(
-                stringResource(R.string.games_none),
+                emptyText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 32.dp),
@@ -114,7 +137,7 @@ internal fun GamesSheet(
                     ) {
                         Box(Modifier.size(56.dp)) { icon?.let { Image(it, null, Modifier.size(56.dp)) } }
                         Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
-                        AppMenu(menu, app, repository, listOf(MenuAction(Icons.Delete, stringResource(R.string.games_remove), danger = true) { onRemove(app) }), onDismiss = { menu = false }, icon = icon)
+                        AppMenu(menu, app, repository, listOf(MenuAction(Icons.Delete, removeLabel, danger = true) { onRemove(app) }), onDismiss = { menu = false }, icon = icon)
                     }
                 }
             }

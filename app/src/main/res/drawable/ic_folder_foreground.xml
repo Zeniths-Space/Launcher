@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Elara drawer folder: a white folder on the Games purple. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="960" android:viewportHeight="960"
+    android:translateY="0">
+    <group android:scaleX="0.5" android:scaleY="0.5" android:pivotX="480" android:pivotY="480">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M160,800q-33,0 -56.5,-23.5T80,720v-480q0,-33 23.5,-56.5T160,160h207q16,0 30.5,6t25.5,17l57,57h320q33,0 56.5,23.5T880,320v400q0,33 -23.5,56.5T800,800H160Z" />
+    </group>
+</vector>

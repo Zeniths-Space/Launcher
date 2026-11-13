@@ -94,6 +94,10 @@
     <string name="rename_save">Save</string>
     <string name="rename_cancel">Cancel</string>
     <string name="folder_default">Folder</string>
+    <string name="drawer_folder_new">New folder</string>
+    <string name="drawer_folder_add">Add an app</string>
+    <string name="drawer_folder_none">Empty. Tap + to put apps here.</string>
+    <string name="drawer_folder_delete">Delete folder</string>
     <plurals name="folder_description">
         <item quantity="one">%1$s folder, %2$d app</item>
         <item quantity="other">%1$s folder, %2$d apps</item>

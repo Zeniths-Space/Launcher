@@ -248,13 +248,56 @@ internal fun LauncherScreen(
         onDispose { repository.onOpenGames = null }
     }
     if (showGames) {
-        GamesSheet(
+        FolderSheet(
+            title = stringResource(R.string.games_title),
+            addTitle = stringResource(R.string.games_add_title),
+            emptyText = stringResource(R.string.games_none),
+            removeLabel = stringResource(R.string.games_remove),
             games = remember(apps, gameKeys) { apps.orEmpty().filter { it.key in gameKeys } },
             others = remember(apps, gameKeys) { apps.orEmpty().filter { it.key !in gameKeys && it.key != Games.Key } },
             repository = repository,
             onAdd = { app -> onSettings { setGame(app.key, true) } },
             onRemove = { app -> onSettings { setGame(app.key, false) } },
             onDismiss = { showGames = false },
+        )
+    }
+    // Drawer folders: opened by id, renamed or newly named through [folderName] (id 0 for a new one).
+    val drawerFolders = settings.drawerFolders
+    val folderDefault = stringResource(R.string.folder_default)
+    var openFolder by remember { mutableStateOf<Int?>(null) }
+    var folderName by remember { mutableStateOf<Int?>(null) }
+    DisposableEffect(repository) {
+        repository.onOpenFolder = { openFolder = it }
+        onDispose { repository.onOpenFolder = null }
+    }
+    val inFolders = remember(drawerFolders) { HomeFolders.apps(drawerFolders) }
+    openFolder?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { folder ->
+        FolderSheet(
+            title = folder.name.ifEmpty { folderDefault },
+            addTitle = stringResource(R.string.drawer_folder_add),
+            emptyText = stringResource(R.string.drawer_folder_none),
+            removeLabel = stringResource(R.string.folder_take_out),
+            games = remember(apps, folder) { folder.apps.mapNotNull(appsByKey::get) },
+            others = remember(apps, inFolders, gameKeys) { apps.orEmpty().filter { it.key !in inFolders && it.key !in gameKeys && it.key != Games.Key } },
+            repository = repository,
+            onAdd = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps + app.key) else it }) } },
+            onRemove = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps - app.key) else it }) } },
+            onDismiss = { openFolder = null },
+        )
+    }
+    folderName?.let { id ->
+        val current = drawerFolders.firstOrNull { it.id == id }?.name.orEmpty().ifEmpty { folderDefault }
+        RenameDialog(
+            current, folderDefault,
+            onSave = { text ->
+                val name = AppLabels.clean(text).let { if (it == folderDefault) "" else it }
+                if (id == 0) {
+                    val made = HomeFolder((drawerFolders.maxOfOrNull { it.id } ?: 0) + 1, name, emptyList())
+                    onSettings { setDrawerFolders(drawerFolders + made) }
+                    openFolder = made.id
+                } else onSettings { setDrawerFolders(drawerFolders.map { if (it.id == id) it.copy(name = name) else it }) }
+            },
+            onDismiss = { folderName = null },
         )
     }
     // Home pages by key; an app that is gone leaves its slot empty. Kept as stored until apps load.
@@ -476,8 +519,11 @@ internal fun LauncherScreen(
         // Always composed, parked off screen while closed: building it when a swipe starts would
         // stall the main thread mid-gesture (measured ~270 ms in a debug build) and drop the fling.
         AppDrawer(
-                remember(apps, settings.hidden, gameKeys, settings.drawerSortFrequent, settings.launches) {
-                    apps?.filter { it.key !in settings.hidden && it.key !in gameKeys }?.let { if (settings.drawerSortFrequent) sortByLaunches(it, settings.launches) else it }
+                remember(apps, settings.hidden, gameKeys, inFolders, drawerFolders, folderDefault, settings.drawerSortFrequent, settings.launches) {
+                    apps?.filter { it.key !in settings.hidden && it.key !in gameKeys && it.key !in inFolders && it.key != Games.Key }
+                        ?.let { if (settings.drawerSortFrequent) sortByLaunches(it, settings.launches) else it }
+                        // Games, then the folders, then the apps.
+                        ?.let { DrawerFolders.pinFirst(apps.filter { a -> a.key == Games.Key } + it, drawerFolders.map { f -> DrawerFolders.entry(f, folderDefault) }) }
                 },
                 repository,
                 settings.showLabels,
@@ -504,6 +550,9 @@ internal fun LauncherScreen(
                 }) else null,
                 quickScroll = settings.drawerQuickScroll,
                 onQuickScroll = { on -> onSettings { setDrawerQuickScroll(on) } },
+                onNewFolder = { folderName = 0 },
+                onRenameFolder = { app -> folderName = DrawerFolders.idOf(app) },
+                onDeleteFolder = { app -> DrawerFolders.idOf(app)?.let { id -> onSettings { setDrawerFolders(drawerFolders.filter { it.id != id }) } } },
                 gamesEnabled = settings.gamesEnabled,
                 onGamesEnabled = { on ->
                     onSettings { setGamesEnabled(on) }
@@ -1021,6 +1070,9 @@ private fun AppDrawer(
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
+    onNewFolder: () -> Unit,
+    onRenameFolder: (AppEntry) -> Unit,
+    onDeleteFolder: (AppEntry) -> Unit,
     gamesEnabled: Boolean,
     onGamesEnabled: (Boolean) -> Unit,
     quickScroll: Boolean,
@@ -1163,6 +1215,7 @@ private fun AppDrawer(
             onHorizontal = onHorizontal,
             onSort = { showSort = true },
             onHidden = unlockHidden,
+            onNewFolder = { showMore = false; onNewFolder() },
             gamesEnabled = gamesEnabled,
             onGamesEnabled = onGamesEnabled,
             quickScroll = quickScroll,
@@ -1226,10 +1279,12 @@ private fun AppDrawer(
                 iconSize,
                 onHome = app.key in homeKeys,
                 canEdit = !locked,
-                highlighted = highlight != null && initialOf(app.label) == highlight,
+                highlighted = highlight != null && initialOf(app.label) == highlight && DrawerFolders.idOf(app) == null && app.key != Games.Key,
                 isDrawerOpen = isDrawerOpen,
                 onHomeToggle = { onHomeToggle(app) },
                 onHide = { onHide(app) },
+                onRenameFolder = { onRenameFolder(app) },
+                onDeleteFolder = { onDeleteFolder(app) },
                 onOpen = open,
                 onDragOut = onDragOut,
                 onDragEnd = onDragEnd,
@@ -1300,7 +1355,7 @@ private fun AppDrawer(
         }
         // Only for the plain alphabetical list: with another order, or a search, the letters mean nothing.
         if (quickScroll && !searching && !horizontal && !sortFrequent && shown != null) {
-            QuickScroll(remember(shown) { initialsOf(shown) }, grid, columns, { highlight = it }, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
+            QuickScroll(remember(shown) { DrawerFolders.pinnedCount(shown).let { n -> initialsOf(shown.drop(n)).map { it.first to it.second + n } } }, grid, columns, { highlight = it }, Modifier.padding(bottom = if (searchBelow) SearchBarBottom + 52.dp else 0.dp))
         }
         }
     }
@@ -1340,6 +1395,7 @@ private fun DrawerMenuSheet(
     onHorizontal: (Boolean) -> Unit,
     onSort: () -> Unit,
     onHidden: () -> Unit,
+    onNewFolder: () -> Unit,
     gamesEnabled: Boolean,
     onGamesEnabled: (Boolean) -> Unit,
     quickScroll: Boolean,
@@ -1354,6 +1410,7 @@ private fun DrawerMenuSheet(
                 SheetRow(Icons.Sort, stringResource(R.string.drawer_sort)) { onDismiss(); onSort() },
                 SheetRow(Icons.SortAlpha, stringResource(R.string.drawer_quick_scroll), checked = quickScroll) { onQuickScroll(!quickScroll) },
                 SheetRow(Icons.Hide, stringResource(R.string.settings_hidden)) { onDismiss(); onHidden() },
+                SheetRow(Icons.FolderFilled, stringResource(R.string.drawer_folder_new)) { onDismiss(); onNewFolder() },
                 SheetRow(Icons.Widgets, stringResource(R.string.games_folder), checked = gamesEnabled) { onGamesEnabled(!gamesEnabled) },
             ),
         )
@@ -1556,6 +1613,8 @@ private fun AppTile(
     isDrawerOpen: () -> Boolean,
     onHomeToggle: () -> Unit,
     onHide: () -> Unit,
+    onRenameFolder: () -> Unit,
+    onDeleteFolder: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
     onDragOut: (DrawerDrag) -> Unit,
     onDragEnd: (DrawerDrag, placed: Boolean) -> Unit,
@@ -1578,7 +1637,9 @@ private fun AppTile(
     }
     val tileCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     // The gesture below is set up once per app; these keep it on the latest values.
-    val editable by rememberUpdatedState(canEdit)
+    val isFolder = app.packageName == DrawerFolders.Package
+    // A drawer folder isn't an app: it can't go to the home screen.
+    val editable by rememberUpdatedState(canEdit && !isFolder)
     val out by rememberUpdatedState(onDragOut)
     val end by rememberUpdatedState(onDragEnd)
     val tileIcon by rememberUpdatedState(icon)
@@ -1637,7 +1698,11 @@ private fun AppTile(
             app,
             repository,
             // Locked: the layout can't change, so no home action. The dock is arranged by dragging, not from here.
-            buildList {
+            if (isFolder) listOf(
+                MenuAction(Icons.Edit, stringResource(R.string.menu_rename), onClick = onRenameFolder),
+                // The apps stay installed and go back to the drawer.
+                MenuAction(Icons.Delete, stringResource(R.string.drawer_folder_delete), danger = true, onClick = onDeleteFolder),
+            ) else buildList {
                 if (canEdit) {
                     add(MenuAction(if (onHome) Icons.RemoveHome else Icons.AddHome, stringResource(if (onHome) R.string.menu_remove_home else R.string.menu_add_home), onClick = onHomeToggle))
                 }

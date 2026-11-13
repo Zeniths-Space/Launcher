@@ -123,7 +123,7 @@ internal fun AppMenu(
     // Read each time the menu opens: apps change their shortcuts at will.
     val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) { if (expanded) value = repository.shortcuts(app) }
     MenuPopup(
-        expanded, app.label, header, onInfo = if (app.key == Games.Key) null else ({ repository.openAppInfo(app) }), actions, onDismiss,
+        expanded, app.label, header, onInfo = if (app.key == Games.Key || app.packageName == DrawerFolders.Package) null else ({ repository.openAppInfo(app) }), actions, onDismiss,
         onEdit = edit?.let { { it(app) } },
         top = if (shortcuts.isEmpty()) null else ({ run ->
             // Side by side, up to four: the actions below stay a list, so the menu stays short.
