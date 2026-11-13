@@ -266,6 +266,16 @@ internal fun LauncherScreen(
     val folderDefault = stringResource(R.string.folder_default)
     var openFolder by remember { mutableStateOf<Int?>(null) }
     var folderName by remember { mutableStateOf<Int?>(null) }
+    var customizeFolder by remember { mutableStateOf<Int?>(null) }
+    customizeFolder?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { folder ->
+        FolderCustomize(
+            expanded = true,
+            folder = folder,
+            onChange = { changed -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) changed else it }) }; true },
+            onDismiss = { customizeFolder = null },
+            showSize = false,
+        )
+    }
     DisposableEffect(repository) {
         repository.onOpenFolder = { openFolder = it }
         onDispose { repository.onOpenFolder = null }
@@ -550,6 +560,9 @@ internal fun LauncherScreen(
                 }) else null,
                 quickScroll = settings.drawerQuickScroll,
                 onQuickScroll = { on -> onSettings { setDrawerQuickScroll(on) } },
+                drawerFolders = drawerFolders,
+                allApps = appsByKey,
+                onCustomizeFolder = { app -> customizeFolder = DrawerFolders.idOf(app) },
                 onNewFolder = { folderName = 0 },
                 onRenameFolder = { app -> folderName = DrawerFolders.idOf(app) },
                 onDeleteFolder = { app -> DrawerFolders.idOf(app)?.let { id -> onSettings { setDrawerFolders(drawerFolders.filter { it.id != id }) } } },
@@ -1070,6 +1083,9 @@ private fun AppDrawer(
     homeKeys: Set<String>,
     locked: Boolean,
     onPick: ((AppEntry) -> Unit)?,
+    drawerFolders: List<HomeFolder>,
+    allApps: Map<String, AppEntry>,
+    onCustomizeFolder: (AppEntry) -> Unit,
     onNewFolder: () -> Unit,
     onRenameFolder: (AppEntry) -> Unit,
     onDeleteFolder: (AppEntry) -> Unit,
@@ -1284,6 +1300,10 @@ private fun AppDrawer(
                 onHomeToggle = { onHomeToggle(app) },
                 onHide = { onHide(app) },
                 onRenameFolder = { onRenameFolder(app) },
+                onCustomizeFolder = { onCustomizeFolder(app) },
+                face = DrawerFolders.idOf(app)?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { f ->
+                    { FolderFace(f, allApps, repository, iconSize, large = false, showLabels = false, modifier = Modifier.fillMaxSize()) }
+                },
                 onDeleteFolder = { onDeleteFolder(app) },
                 onOpen = open,
                 onDragOut = onDragOut,
@@ -1553,6 +1573,8 @@ internal fun AppTileContent(
     modifier: Modifier = Modifier,
     iconModifier: Modifier = Modifier,
     highlighted: Boolean = false,
+    /** Drawn in place of the icon (a drawer folder's own look). */
+    face: (@Composable () -> Unit)? = null,
 ) {
     val glow = MaterialTheme.colorScheme.primary
     // Read only while drawing, so the fade redraws the halo without recomposing the tile.
@@ -1579,7 +1601,7 @@ internal fun AppTileContent(
                     }
                 },
         ) {
-            icon?.let { Image(it, contentDescription = if (showLabels) null else label, modifier = Modifier.fillMaxSize()) }
+            if (face != null) face() else icon?.let { Image(it, contentDescription = if (showLabels) null else label, modifier = Modifier.fillMaxSize()) }
         }
         if (showLabels) {
             Spacer(Modifier.height(6.dp))
@@ -1614,6 +1636,8 @@ private fun AppTile(
     onHomeToggle: () -> Unit,
     onHide: () -> Unit,
     onRenameFolder: () -> Unit,
+    onCustomizeFolder: () -> Unit,
+    face: (@Composable () -> Unit)?,
     onDeleteFolder: () -> Unit,
     onOpen: (AppEntry, Rect?) -> Unit,
     onDragOut: (DrawerDrag) -> Unit,
@@ -1686,6 +1710,7 @@ private fun AppTile(
                     )
                 }
                 .pressScale(),
+            face = face,
             iconModifier = Modifier
                 .onGloballyPositioned { iconCoords[0] = it }
                 .graphicsLayer {
@@ -1700,6 +1725,7 @@ private fun AppTile(
             // Locked: the layout can't change, so no home action. The dock is arranged by dragging, not from here.
             if (isFolder) listOf(
                 MenuAction(Icons.Edit, stringResource(R.string.menu_rename), onClick = onRenameFolder),
+                MenuAction(Icons.Palette, stringResource(R.string.folder_customize), onClick = onCustomizeFolder),
                 // The apps stay installed and go back to the drawer.
                 MenuAction(Icons.Delete, stringResource(R.string.drawer_folder_delete), danger = true, onClick = onDeleteFolder),
             ) else buildList {

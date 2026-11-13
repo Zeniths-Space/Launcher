@@ -285,7 +285,7 @@ internal fun folderColor(index: Int) = FolderColors.getOrElse(index) { FolderCol
  * free cells).
  */
 @Composable
-internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (HomeFolder) -> Boolean, onDismiss: () -> Unit) {
+internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (HomeFolder) -> Boolean, onDismiss: () -> Unit, showSize: Boolean = true) {
     val state = remember { MutableTransitionState(false) }
     state.targetState = expanded
     if (!state.currentState && !state.targetState) return
@@ -340,12 +340,15 @@ internal fun FolderCustomize(expanded: Boolean, folder: HomeFolder, onChange: (H
                 Text(stringResource(R.string.folder_customize), style = MaterialTheme.typography.headlineSmall, color = cs.onSurface)
                 Text(folder.name.ifEmpty { stringResource(R.string.folder_default) }, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
-                Section(stringResource(R.string.folder_size))
-                Tiles(
-                    listOf(stringResource(R.string.folder_size_small), stringResource(R.string.folder_size_2), stringResource(R.string.folder_size_3)),
-                    selected = folder.span - 1,
-                    onSelect = { i -> if (!onChange(folder.copy(span = i + 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() },
-                ) { i, tint -> Canvas(Modifier.size(20.dp)) { sizeGlyph(i + 1, tint) } }
+                // Cells on the home screen; a drawer folder has none.
+                if (showSize) {
+                    Section(stringResource(R.string.folder_size))
+                    Tiles(
+                        listOf(stringResource(R.string.folder_size_small), stringResource(R.string.folder_size_2), stringResource(R.string.folder_size_3)),
+                        selected = folder.span - 1,
+                        onSelect = { i -> if (!onChange(folder.copy(span = i + 1))) Toast.makeText(context, noRoom, Toast.LENGTH_SHORT).show() },
+                    ) { i, tint -> Canvas(Modifier.size(20.dp)) { sizeGlyph(i + 1, tint) } }
+                }
                 Section(stringResource(R.string.folder_style))
                 Tiles(
                     listOf(stringResource(R.string.folder_style_apps), stringResource(R.string.folder_style_symbol)),

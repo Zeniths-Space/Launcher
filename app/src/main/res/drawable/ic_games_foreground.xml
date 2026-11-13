@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Elara Games: the owner's gamepad outline (game.png, 2026-11-13), tinted white and kept inside the adaptive-icon safe zone. -->
-<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="20%">
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="30%">
     <bitmap android:src="@drawable/ic_games_art" android:tint="#FFFFFFFF" />
 </inset>
