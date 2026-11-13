@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elara: a glossy purple crescent moon and star with a soft shadow, drawn straight on the background (3D, One UI 8 style). -->
+<!-- Elara: an eclipse after the owner's reference (screen.png, 2026-11-13): a glossy purple crescent round a deep purple disc, and a small dot; drawn straight on the background with a soft shadow (3D, One UI 8 style). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <group android:translateX="0.6" android:translateY="3.6" android:scaleX="1" android:scaleY="1">
-    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#102B1766" />
+    <group android:translateX="0.6" android:translateY="3.6">
+        <path android:pathData="M29,54a25,25 0 1,0 50,0a25,25 0 1,0 -50,0ZM29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0ZM73.6,31.8a2.9,2.9 0 1,0 5.8,0a2.9,2.9 0 1,0 -5.8,0Z" android:fillType="evenOdd" android:fillColor="#102B1766" />
+        <path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z" android:fillColor="#102B1766" />
     </group>
-    <group android:translateX="0.4" android:translateY="2.4" android:scaleX="1" android:scaleY="1">
-    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#162B1766" />
+    <group android:translateX="0.4" android:translateY="2.4">
+        <path android:pathData="M29,54a25,25 0 1,0 50,0a25,25 0 1,0 -50,0ZM29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0ZM73.6,31.8a2.9,2.9 0 1,0 5.8,0a2.9,2.9 0 1,0 -5.8,0Z" android:fillType="evenOdd" android:fillColor="#162B1766" />
+        <path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z" android:fillColor="#162B1766" />
     </group>
-    <group android:translateX="0.2" android:translateY="1.2" android:scaleX="1" android:scaleY="1">
-    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16zM71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z" android:fillColor="#1E2B1766" />
+    <group android:translateX="0.2" android:translateY="1.2">
+        <path android:pathData="M29,54a25,25 0 1,0 50,0a25,25 0 1,0 -50,0ZM29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0ZM73.6,31.8a2.9,2.9 0 1,0 5.8,0a2.9,2.9 0 1,0 -5.8,0Z" android:fillType="evenOdd" android:fillColor="#1E2B1766" />
+        <path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z" android:fillColor="#1E2B1766" />
     </group>
-    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="30" android:startY="30" android:endX="78" android:endY="80"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="0.5" android:color="#FF7C4DFF" /><item android:offset="1" android:color="#FF5527D9" /></gradient></aapt:attr></path>
-    <group android:translateX="0" android:translateY="0" android:scaleX="1" android:scaleY="1">
-    <clip-path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z" />
-    <path android:pathData="M47.39,34.16A22,22 0 1,0 71.45,60.89A18,18 0 0,1 47.39,34.16z"><aapt:attr name="android:fillColor"><gradient android:type="radial" android:centerX="36" android:centerY="42" android:gradientRadius="24"><item android:offset="0" android:color="#8CFFFFFF" /><item android:offset="1" android:color="#00FFFFFF" /></gradient></aapt:attr></path>
+    <path android:pathData="M29,54a25,25 0 1,0 50,0a25,25 0 1,0 -50,0ZM29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z" android:fillType="evenOdd"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="30" android:startY="28" android:endX="80" android:endY="80"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="0.5" android:color="#FF7C4DFF" /><item android:offset="1" android:color="#FF5527D9" /></gradient></aapt:attr></path>
+    <path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="38" android:startY="36" android:endX="64" android:endY="72"><item android:offset="0" android:color="#FF3E2790" /><item android:offset="1" android:color="#FF2B1766" /></gradient></aapt:attr></path>
+    <group>
+        <clip-path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z" />
+        <path android:pathData="M29,54a22.5,22.5 0 1,0 45,0a22.5,22.5 0 1,0 -45,0Z"><aapt:attr name="android:fillColor"><gradient android:type="radial" android:centerX="42" android:centerY="42" android:gradientRadius="20"><item android:offset="0" android:color="#40FFFFFF" /><item android:offset="1" android:color="#00FFFFFF" /></gradient></aapt:attr></path>
     </group>
-    <path android:pathData="M71,30Q72,37.5 79,38.5Q72,39.5 71,47Q70,39.5 63,38.5Q70,37.5 71,30zM77.3,50.5a2.2,2.2 0 1,0 4.4,0a2.2,2.2 0 1,0 -4.4,0Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="63" android:startY="30" android:endX="80" android:endY="53"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="1" android:color="#FF7C4DFF" /></gradient></aapt:attr></path>
+    <path android:pathData="M73.6,31.8a2.9,2.9 0 1,0 5.8,0a2.9,2.9 0 1,0 -5.8,0Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="73" android:startY="29" android:endX="79" android:endY="35"><item android:offset="0" android:color="#FFB9A3FF" /><item android:offset="1" android:color="#FF7C4DFF" /></gradient></aapt:attr></path>
 </vector>
