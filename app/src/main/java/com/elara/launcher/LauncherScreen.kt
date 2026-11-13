@@ -32,6 +32,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -195,6 +196,8 @@ private val HomeLift = 16.dp
 /** Icon scale while its menu is open; the press shrink (0.88) brings it near 1 while still held. */
 private const val MenuLift = 1.2f
 private const val HomeSink = 0.06f
+/** Height reserved at the bottom of the home screen for the dock: one default row (52 dp icon + 20 dp gap). */
+private val DockZone = 72.dp
 private const val HomeEnterScale = 0.9f
 private val HomeEnterSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
 
@@ -724,7 +727,11 @@ private fun HomeScreen(
     ) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             grid({ menu = true }, Modifier.weight(1f).fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 16.dp))
-            dock()
+            // A fixed zone for the dock, so its rows and icon size never change the home grid's height.
+            // A taller dock grows upward over the grid instead.
+            Box(Modifier.fillMaxWidth().height(DockZone), contentAlignment = Alignment.BottomCenter) {
+                Box(Modifier.wrapContentHeight(align = Alignment.Bottom, unbounded = true)) { dock() }
+            }
             Spacer(Modifier.height(16.dp))
         }
         // Composed once, a frame after the home screen, and kept: composing it on the long-press

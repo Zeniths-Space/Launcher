@@ -105,6 +105,7 @@
         <item quantity="other">%1$s folder, %2$d apps</item>
     </plurals>
     <string name="folder_remove">Remove</string>
+    <string name="folder_add_apps">Add apps</string>
     <string name="folder_take_out">Remove from folder</string>
     <string name="folder_customize">Customize</string>
     <string name="folder_size">Size</string>

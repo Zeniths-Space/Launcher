@@ -1,6 +1,11 @@
 package com.elara.launcher
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
@@ -513,8 +518,11 @@ internal fun FolderPopup(
     apps: Map<String, AppEntry>,
     repository: AppRepository,
     locked: Boolean,
+    /** Apps that could be added: every app not already in this folder. */
+    candidates: List<AppEntry>,
     onClose: (name: String) -> Unit,
     onTakeOut: (key: String) -> Unit,
+    onAddApps: (keys: List<String>) -> Unit,
 ) {
     // Stays composed after closing until the closing animation ends.
     val state = remember { MutableTransitionState(false) }
@@ -530,6 +538,13 @@ internal fun FolderPopup(
     val focus = LocalFocusManager.current
     val shape = RoundedCornerShape(28.dp)
     val members = folder.apps.mapNotNull(apps::get)
+    var adding by remember(folder.id) { mutableStateOf(false) }
+    var picked by remember(folder.id) { mutableStateOf(emptySet<String>()) }
+    val finishAdding = {
+        if (picked.isNotEmpty()) onAddApps(candidates.map { it.key }.filter { it in picked })
+        picked = emptySet()
+        adding = false
+    }
     Popup(popupPositionProvider = FullWindow, onDismissRequest = close, properties = PopupProperties(focusable = expanded)) {
         Box(
             Modifier
@@ -555,6 +570,39 @@ internal fun FolderPopup(
                     .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
                     .padding(horizontal = 12.dp, vertical = 20.dp),
             ) {
+                if (adding) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.folder_add_apps),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = cs.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            stringResource(R.string.games_done),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = cs.primary,
+                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { finishAdding() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    BackHandler { finishAdding() }
+                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                        if (candidates.isEmpty()) {
+                            Text(stringResource(R.string.drawer_no_results), color = cs.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
+                        }
+                        candidates.chunked(FolderColumns).forEach { row ->
+                            Row {
+                                row.forEach { app ->
+                                    PickApp(app, repository, app.key in picked, Modifier.weight(1f)) {
+                                        picked = if (app.key in picked) picked - app.key else picked + app.key
+                                    }
+                                }
+                                repeat(FolderColumns - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
+                    }
+                } else {
                 BasicTextField(
                     value = name,
                     onValueChange = { name = it.take(MaxNameLength) },
@@ -591,6 +639,17 @@ internal fun FolderPopup(
                             )
                         }
                         repeat(FolderColumns - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                    if (!locked) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.folder_add_apps),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = cs.primary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button) { adding = true }.padding(vertical = 12.dp),
+                        )
                     }
                 }
             }
@@ -642,6 +701,34 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
             onDismiss = { menu = false },
             icon = icon,
         )
+    }
+}
+
+/** An app in the add list: its icon and name, with a check while chosen. */
+@Composable
+private fun PickApp(app: AppEntry, repository: AppRepository, chosen: Boolean, modifier: Modifier, onToggle: () -> Unit) {
+    val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
+    val icon by produceState(repository.cachedIcon(app, px), app.key, px, repository.iconEpoch) { value = repository.icon(app, px) }
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (chosen) cs.primary.copy(alpha = 0.18f) else Color.Transparent)
+            .toggleable(chosen, role = Role.Checkbox, onValueChange = { onToggle() })
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(FolderIconSize)) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
+            if (chosen) {
+                Box(Modifier.align(Alignment.BottomEnd).size(20.dp).clip(CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Done, contentDescription = null, tint = cs.onPrimary, modifier = Modifier.size(14.dp))
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(app.label, style = MaterialTheme.typography.labelMedium, color = cs.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 4.dp))
     }
 }
 

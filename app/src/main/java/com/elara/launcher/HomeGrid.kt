@@ -614,6 +614,13 @@ fun HomeGrid(
                 apps = apps,
                 repository = repository,
                 locked = locked,
+                candidates = apps.values.filter { it.key !in folder.apps && it.key != Games.Key }.sortedBy { it.label.lowercase() },
+                onAddApps = { keys ->
+                    // Each app leaves its slot (or another folder) and joins this one.
+                    var (p, f) = local to localFolders
+                    keys.forEach { k -> HomeFolders.removeApp(p, f, k).let { (np, nf) -> p = np; f = nf } }
+                    commitLayout(p, f.map { if (it.id == folder.id) it.copy(apps = it.apps + keys) else it })
+                },
                 onClose = { name ->
                     openFolder = null
                     val clean = HomeFolders.clean(name)
