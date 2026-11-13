@@ -250,7 +250,11 @@ internal fun LauncherScreen(
         onDispose { repository.onOpenGames = null }
     }
     LaunchedEffect(drawerOpen) { if (!drawerOpen) page = null }
-    val pageShown by animateFloatAsState(if (page != null) 1f else 0f, tween(180), label = "page")
+    // The page eases in and out: it stays composed on the way out, so leaving animates too.
+    val pageShown by animateFloatAsState(if (page != null) 1f else 0f, tween(320, easing = FastOutSlowInEasing), label = "page")
+    var lastPage by remember { mutableStateOf<DrawerPage?>(null) }
+    LaunchedEffect(page) { if (page != null) lastPage = page }
+    val shownPage = page ?: lastPage
     // Drawer folders: opened by id, renamed or newly named through [folderName] (id 0 for a new one).
     val drawerFolders = settings.drawerFolders
     val folderDefault = stringResource(R.string.folder_default)
@@ -577,18 +581,25 @@ internal fun LauncherScreen(
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
                         val shown = ((motion.progress - HomeFadeEnd) / (1f - HomeFadeEnd)).coerceIn(0f, 1f)
-                        alpha = shown * (1f - pageShown)
+                        // Fades out in the first half of the page's arrival, and swells a little as it recedes.
+                        alpha = shown * (1f - (pageShown * 2f).coerceAtMost(1f))
+                        scaleX = 1f + 0.05f * pageShown
+                        scaleY = scaleX
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                         // Off screen while closed, so it takes no touches meant for the home screen.
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
         // Games, a folder or the hidden apps: the drawer's look with only their apps.
-        if (page != null) {
+        if (shownPage != null && (page != null || pageShown > 0f)) {
             val shownApps = apps.orEmpty()
-            val common = Modifier.graphicsLayer { alpha = pageShown }
+            val common = Modifier.graphicsLayer {
+                alpha = pageShown
+                scaleX = 0.92f + 0.08f * pageShown
+                scaleY = scaleX
+            }
             val look = settings
-            when (val p = page) {
+            when (val p = shownPage) {
                 DrawerPage.Games -> AppListPage(
                     title = stringResource(R.string.games_title), addTitle = stringResource(R.string.games_add_title),
                     emptyText = stringResource(R.string.games_none), removeLabel = stringResource(R.string.games_remove), removeIcon = Icons.Delete,
