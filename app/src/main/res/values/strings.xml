@@ -87,6 +87,8 @@
     <string name="settings_hidden">Hidden apps</string>
     <string name="settings_hidden_none">No hidden apps. Long-press an app and tap Hide.</string>
     <string name="auth_no_lock">Set a screen lock to see hidden apps</string>
+    <string name="menu_unhide">Unhide</string>
+    <string name="drawer_hide_title">Hide apps</string>
     <string name="settings_unhide_app">Unhide %1$s</string>
     <string name="rename_title">Rename %1$s</string>
     <string name="rename_name">Name</string>

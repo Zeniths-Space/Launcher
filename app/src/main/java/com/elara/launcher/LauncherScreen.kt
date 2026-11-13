@@ -14,6 +14,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -242,29 +243,17 @@ internal fun LauncherScreen(
     val gameKeys = remember(detectedGames, settings.gamesEnabled, settings.gamesAdded, settings.gamesRemoved, appsByKey) {
         if (!settings.gamesEnabled) emptySet() else Games.members(detectedGames, settings.gamesAdded, settings.gamesRemoved).filterTo(HashSet()) { it in appsByKey && it != Games.Key }
     }
-    var showGames by remember { mutableStateOf(false) }
+    // The page over the drawer: Games, a drawer folder or the hidden apps.
+    var page by remember { mutableStateOf<DrawerPage?>(null) }
     DisposableEffect(repository) {
-        repository.onOpenGames = { showGames = true }
+        repository.onOpenGames = { page = DrawerPage.Games }
         onDispose { repository.onOpenGames = null }
     }
-    if (showGames) {
-        FolderSheet(
-            title = stringResource(R.string.games_title),
-            addTitle = stringResource(R.string.games_add_title),
-            emptyText = stringResource(R.string.games_none),
-            removeLabel = stringResource(R.string.games_remove),
-            games = remember(apps, gameKeys) { apps.orEmpty().filter { it.key in gameKeys } },
-            others = remember(apps, gameKeys) { apps.orEmpty().filter { it.key !in gameKeys && it.key != Games.Key } },
-            repository = repository,
-            onAdd = { app -> onSettings { setGame(app.key, true) } },
-            onRemove = { app -> onSettings { setGame(app.key, false) } },
-            onDismiss = { showGames = false },
-        )
-    }
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) page = null }
+    val pageShown by animateFloatAsState(if (page != null) 1f else 0f, tween(180), label = "page")
     // Drawer folders: opened by id, renamed or newly named through [folderName] (id 0 for a new one).
     val drawerFolders = settings.drawerFolders
     val folderDefault = stringResource(R.string.folder_default)
-    var openFolder by remember { mutableStateOf<Int?>(null) }
     var folderName by remember { mutableStateOf<Int?>(null) }
     var customizeFolder by remember { mutableStateOf<Int?>(null) }
     customizeFolder?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { folder ->
@@ -278,24 +267,10 @@ internal fun LauncherScreen(
         )
     }
     DisposableEffect(repository) {
-        repository.onOpenFolder = { openFolder = it }
+        repository.onOpenFolder = { page = DrawerPage.Folder(it) }
         onDispose { repository.onOpenFolder = null }
     }
     val inFolders = remember(drawerFolders) { HomeFolders.apps(drawerFolders) }
-    openFolder?.let { id -> drawerFolders.firstOrNull { it.id == id } }?.let { folder ->
-        FolderSheet(
-            title = folder.name.ifEmpty { folderDefault },
-            addTitle = stringResource(R.string.drawer_folder_add),
-            emptyText = stringResource(R.string.drawer_folder_none),
-            removeLabel = stringResource(R.string.folder_take_out),
-            games = remember(apps, folder) { folder.apps.mapNotNull(appsByKey::get) },
-            others = remember(apps, inFolders, gameKeys) { apps.orEmpty().filter { it.key !in inFolders && it.key !in gameKeys && it.key != Games.Key } },
-            repository = repository,
-            onAdd = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps + app.key) else it }) } },
-            onRemove = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps - app.key) else it }) } },
-            onDismiss = { openFolder = null },
-        )
-    }
     folderName?.let { id ->
         val current = drawerFolders.firstOrNull { it.id == id }?.name.orEmpty().ifEmpty { folderDefault }
         RenameDialog(
@@ -305,7 +280,7 @@ internal fun LauncherScreen(
                 if (id == 0) {
                     val made = HomeFolder((drawerFolders.maxOfOrNull { it.id } ?: 0) + 1, name, emptyList())
                     onSettings { setDrawerFolders(drawerFolders + made) }
-                    openFolder = made.id
+                    page = DrawerPage.Folder(made.id)
                 } else onSettings { setDrawerFolders(drawerFolders.map { if (it.id == id) it.copy(name = name) else it }) }
             },
             onDismiss = { folderName = null },
@@ -573,8 +548,7 @@ internal fun LauncherScreen(
                     if (on) Toast.makeText(context, R.string.games_enabled_note, Toast.LENGTH_LONG).show()
                 },
                 onHide = { app -> onSettings { setHidden(app.key, true) } },
-                hiddenApps = remember(apps, settings.hidden) { apps.orEmpty().filter { it.key in settings.hidden } },
-                onUnhide = { app -> onSettings { setHidden(app.key, false) } },
+                onOpenHidden = { page = DrawerPage.Hidden },
                 onHomeToggle = { app ->
                     if (app.key in homeKeys) {
                         HomeFolders.removeApp(homePages, settings.folders, app.key).let { (p, f) -> onLayoutChange(p, f) }
@@ -603,12 +577,63 @@ internal fun LauncherScreen(
                     .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
                         val shown = ((motion.progress - HomeFadeEnd) / (1f - HomeFadeEnd)).coerceIn(0f, 1f)
-                        alpha = shown
+                        alpha = shown * (1f - pageShown)
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                         // Off screen while closed, so it takes no touches meant for the home screen.
                         translationY = if (motion.progress == 0f) 2 * size.height else (1f - shown) * DrawerRise * size.height
                     },
             )
+        // Games, a folder or the hidden apps: the drawer's look with only their apps.
+        if (page != null) {
+            val shownApps = apps.orEmpty()
+            val common = Modifier.graphicsLayer { alpha = pageShown }
+            val look = settings
+            when (val p = page) {
+                DrawerPage.Games -> AppListPage(
+                    title = stringResource(R.string.games_title), addTitle = stringResource(R.string.games_add_title),
+                    emptyText = stringResource(R.string.games_none), removeLabel = stringResource(R.string.games_remove), removeIcon = Icons.Delete,
+                    apps = shownApps.filter { it.key in gameKeys },
+                    others = shownApps.filter { it.key !in gameKeys && it.key != Games.Key },
+                    repository = repository, showLabels = look.showLabels, columns = look.drawerColumns, iconSize = look.drawerIconSize.dp,
+                    rowGap = look.drawerRowGap.dp, sidePadding = look.drawerPadding.dp,
+                    onSettings = onOpenSettings,
+                    onAdd = { app -> onSettings { setGame(app.key, true) } },
+                    onRemove = { app -> onSettings { setGame(app.key, false) } },
+                    onClose = { page = null }, modifier = common,
+                )
+                DrawerPage.Hidden -> {
+                    // Seen only after the device lock; leaving the launcher shuts it, so seeing them again asks again.
+                    LifecycleStartEffect(Unit) { onStopOrDispose { page = null } }
+                    AppListPage(
+                        title = stringResource(R.string.settings_hidden), addTitle = stringResource(R.string.drawer_hide_title),
+                        emptyText = stringResource(R.string.settings_hidden_none), removeLabel = stringResource(R.string.menu_unhide), removeIcon = Icons.Visibility,
+                        apps = shownApps.filter { it.key in look.hidden },
+                        others = shownApps.filter { it.key !in look.hidden && it.key != Games.Key },
+                        repository = repository, showLabels = look.showLabels, columns = look.drawerColumns, iconSize = look.drawerIconSize.dp,
+                        rowGap = look.drawerRowGap.dp, sidePadding = look.drawerPadding.dp,
+                        onSettings = onOpenSettings,
+                        onAdd = { app -> onSettings { setHidden(app.key, true) } },
+                        onRemove = { app -> onSettings { setHidden(app.key, false) } },
+                        onClose = { page = null }, modifier = common,
+                    )
+                }
+                is DrawerPage.Folder -> drawerFolders.firstOrNull { it.id == p.id }?.let { folder ->
+                    AppListPage(
+                        title = folder.name.ifEmpty { folderDefault }, addTitle = stringResource(R.string.drawer_folder_add),
+                        emptyText = stringResource(R.string.drawer_folder_none), removeLabel = stringResource(R.string.folder_take_out), removeIcon = Icons.Delete,
+                        apps = folder.apps.mapNotNull(appsByKey::get),
+                        others = shownApps.filter { it.key !in inFolders && it.key !in gameKeys && it.key != Games.Key },
+                        repository = repository, showLabels = look.showLabels, columns = look.drawerColumns, iconSize = look.drawerIconSize.dp,
+                        rowGap = look.drawerRowGap.dp, sidePadding = look.drawerPadding.dp,
+                        onSettings = { customizeFolder = folder.id },
+                        onAdd = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps + app.key) else it }) } },
+                        onRemove = { app -> onSettings { setDrawerFolders(drawerFolders.map { if (it.id == folder.id) it.copy(apps = it.apps - app.key) else it }) } },
+                        onClose = { page = null }, modifier = common,
+                    )
+                }
+                null -> Unit
+            }
+        }
         SpaceBanner(settings, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 16.dp))
         // The app dragged from the drawer, under the finger.
         drawerDrag?.let { d ->
@@ -1095,8 +1120,7 @@ private fun AppDrawer(
     quickScroll: Boolean,
     onQuickScroll: (Boolean) -> Unit,
     onHide: (AppEntry) -> Unit,
-    hiddenApps: List<AppEntry>,
-    onUnhide: (AppEntry) -> Unit,
+    onOpenHidden: () -> Unit,
     onHomeToggle: (AppEntry) -> Unit,
     drawerOpen: Boolean,
     onPull: (Float) -> Unit,
@@ -1110,15 +1134,13 @@ private fun AppDrawer(
 ) {
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
-    var showHidden by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
     var showSort by remember { mutableStateOf(false) }
     val openNow by rememberUpdatedState(drawerOpen)
     val isDrawerOpen = remember { { openNow } }
     // Closing the drawer (back, home) hides them again.
-    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showHidden = false; showMore = false; showSort = false } }
-    if (showHidden) HiddenAppsSheet(hiddenApps, repository, onUnhide, onDismiss = { showHidden = false })
-    val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { showHidden = true }
+    LaunchedEffect(drawerOpen) { if (!drawerOpen) { showMore = false; showSort = false } }
+    val unlockHidden = rememberDeviceAuth(stringResource(R.string.settings_hidden)) { onOpenHidden() }
     val focusManager = LocalFocusManager.current
     val shown = remember(apps, query) { apps?.let { searchApps(it, query) } }
     val context = LocalContext.current

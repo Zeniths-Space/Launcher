@@ -252,7 +252,8 @@ private fun Ring(members: List<AppEntry>, repository: AppRepository, size: Dp, a
                 Modifier
                     .offset(x = radius + radius * dx, y = radius + radius * dy)
                     .size(icon)
-                    .pointerInput(app.key) { detectTapGestures(onTap = { onLaunch?.invoke(app) }) },
+                    // Without a launcher the tap is left for the tile around it (the drawer's folder).
+                    .then(if (onLaunch == null) Modifier else Modifier.pointerInput(app.key) { detectTapGestures(onTap = { onLaunch(app) }) }),
             ) { AppIcon(app, repository, icon) }
         }
     }
