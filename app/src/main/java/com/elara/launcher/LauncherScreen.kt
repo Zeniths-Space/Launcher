@@ -327,6 +327,8 @@ internal fun LauncherScreen(
     var picking by remember { mutableStateOf(false) }
     // How far open a home folder is, for the home screen to blur under it.
     var folderOpen by remember { mutableFloatStateOf(0f) }
+    // A home folder to open after an app was dropped into it from the drawer.
+    var folderRequest by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
@@ -361,6 +363,7 @@ internal fun LauncherScreen(
                     if (app.key !in into.apps) {
                         val (pages, folders) = HomeFolders.removeApp(homePages, settings.folders, app.key)
                         onLayoutChange(pages, folders.map { if (it.id == into.id) it.copy(apps = it.apps + app.key) else it })
+                        folderRequest = into.id
                     }
                 } else {
                     // Already on the home screen: it moves here.
@@ -496,6 +499,8 @@ internal fun LauncherScreen(
                 HomeGrid(
                     glass = glassImage,
                     onFolderProgress = { folderOpen = it },
+                    openRequest = folderRequest,
+                    onOpenHandled = { folderRequest = null },
                     pages = homePages,
                     folders = settings.folders,
                     widgets = settings.widgets,

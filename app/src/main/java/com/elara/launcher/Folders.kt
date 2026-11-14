@@ -559,7 +559,8 @@ internal fun FolderPopup(
     var name by remember(folder.id) { mutableStateOf(folder.name) }
     val close = { onClose(name) }
     val shown by rememberTransition(state, label = "folder").animateFloat(
-        transitionSpec = { if (targetState) spring(dampingRatio = 0.85f, stiffness = 500f) else tween(280, easing = FastOutSlowInEasing) },
+        // Measured from One UI Home (screen recording at 83 fps): about 300 ms open and 330 ms shut, slow start, quick middle, long gentle end, no overshoot.
+        transitionSpec = { if (targetState) tween(300, easing = FolderEase) else tween(330, easing = FolderEase) },
         label = "shown",
     ) { if (it) 1f else 0f }
     val cs = MaterialTheme.colorScheme
@@ -599,7 +600,7 @@ internal fun FolderPopup(
             val cardTop = ((screen - cardHeight) / 2 - 8.dp).coerceAtLeast(120.dp)
             val cardWidth = maxWidth * 0.79f
             val sidePad = (maxWidth - cardWidth) / 2
-            val fade = Modifier.graphicsLayer { alpha = ((shown - 0.3f) / 0.5f).coerceIn(0f, 1f) }
+            val fade = Modifier.graphicsLayer { alpha = ((shown - 0.25f) / 0.35f).coerceIn(0f, 1f) }
             // Name and the add button on one row over the card's top edge.
             Row(
                 Modifier.offset(x = sidePad, y = cardTop - 64.dp).width(cardWidth).height(56.dp).then(fade).padding(horizontal = 8.dp),
@@ -644,7 +645,7 @@ internal fun FolderPopup(
                         val cx = origin.center.x - sidePad.toPx()
                         val cy = origin.center.y - cardTop.toPx()
                         transformOrigin = TransformOrigin(cx / size.width, cy / size.height)
-                        alpha = (shown * 2f).coerceIn(0f, 1f)
+                        alpha = ((shown - 0.1f) / 0.3f).coerceIn(0f, 1f)
                     }
                     .clip(cardShape)
                     .drawBehind {
@@ -728,9 +729,10 @@ internal fun FolderPopup(
 }
 
 /** Black over the wallpaper behind the open folder, at most. */
+private val FolderEase = androidx.compose.animation.core.CubicBezierEasing(0.3f, 0f, 0.1f, 1f)
 private const val FolderDim = 0.7f
 /** The card's scale when it starts to open, as a share of its size. */
-private const val CardFrom = 0.4f
+private const val CardFrom = 0.35f
 /** Where an app's icon starts, as a share of the way from the folder tile to its place. */
 private const val IconFrom = 0.35f
 
@@ -753,7 +755,8 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
                 scaleX = k; scaleY = k
                 val at = cell[0]?.takeIf { it.isAttached }?.boundsInWindow()
                 if (at != null && at.width > 0f) transformOrigin = TransformOrigin((origin.center.x - at.left) / at.width, (origin.center.y - at.top) / at.height)
-                alpha = (t * 2f).coerceIn(0f, 1f)
+                // The tile's own mini icons were what grew, so these are there from the first frame.
+                alpha = if (t > 0f) 1f else 0f
             },
     ) {
         Column(

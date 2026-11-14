@@ -147,6 +147,9 @@ fun HomeGrid(
     /** The blurred wallpaper, for an open folder's card to be glass over. */
     glass: androidx.compose.ui.graphics.ImageBitmap? = null,
     onFolderProgress: (Float) -> Unit = {},
+    /** A folder to open (after a drop from the drawer into it); call [onOpenHandled] once seen. */
+    openRequest: Int? = null,
+    onOpenHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val capacity = columns * rows
@@ -161,7 +164,7 @@ fun HomeGrid(
     // Once the closing animation (160 ms) is over the tile comes back.
     LaunchedEffect(openFolder) {
         if (openFolder == null && shownFolder != null) {
-            kotlinx.coroutines.delay(320)
+            kotlinx.coroutines.delay(360)
             shownFolder = null
         }
     }
@@ -175,20 +178,22 @@ fun HomeGrid(
     var widgetMenuFor by remember { mutableStateOf<Int?>(null) }
     // Where each folder's tile is on screen, read when one is opened for you after an app is added.
     val tiles = remember { HashMap<Int, androidx.compose.ui.layout.LayoutCoordinates>() }
-    // Folder sizes as last seen: one that grew (an app dropped in) or is new (two apps made one) opens to show it.
-    var seenSizes by remember { mutableStateOf(folders.associate { it.id to it.apps.size }) }
-    LaunchedEffect(localFolders) {
-        val grew = localFolders.firstOrNull { f -> f.apps.size >= 2 && (seenSizes[f.id] ?: 0) < f.apps.size }
-        seenSizes = localFolders.associate { it.id to it.apps.size }
-        if (grew != null && openFolder == null && drag == null) {
-            // A moment for the dropped icon to settle into its tile first.
-            kotlinx.coroutines.delay(280)
-            tiles[grew.id]?.takeIf { it.isAttached }?.boundsInWindow()?.let { b ->
+    // A folder to open after an app went into it (or two made it): asked by the drawer drop through [openRequest], or by a merge here.
+    var mergedFolder by remember { mutableStateOf<Int?>(null) }
+    val requested = openRequest ?: mergedFolder
+    LaunchedEffect(requested) {
+        val id = requested ?: return@LaunchedEffect
+        // A moment for the dropped icon to settle into its tile first.
+        kotlinx.coroutines.delay(280)
+        tiles[id]?.takeIf { it.isAttached }?.boundsInWindow()?.let { b ->
+            if (openFolder == null && drag == null) {
                 folderOrigin = b
-                shownFolder = grew.id
-                openFolder = grew.id
+                shownFolder = id
+                openFolder = id
             }
         }
+        mergedFolder = null
+        onOpenHandled()
     }
     // The widget showing its resize frame.
     var resizing by remember { mutableStateOf<Int?>(null) }
@@ -414,7 +419,10 @@ fun HomeGrid(
                                         // Dropped into an app or folder, as the page shows it now.
                                         val shown = HomePages.move(local, d.fromPage, d.from, page, d.target, capacity, blockedOf) ?: local
                                         val at = shown.getOrNull(page)?.indexOf(d.key) ?: -1
-                                        HomeFolders.merge(shown, localFolders, page, at, page, into)?.let { (p, f) -> commitLayout(p, f) }
+                                        HomeFolders.merge(shown, localFolders, page, at, page, into)?.let { (p, f) ->
+                                            commitLayout(p, f)
+                                            mergedFolder = f.firstOrNull { d.key in it.apps }?.id
+                                        }
                                     } else {
                                         val to = HomePages.move(local, d.fromPage, d.from, page, slotAt(d.at), capacity, blockedOf)
                                         if (to != null && to != local) commit(to)
@@ -562,7 +570,7 @@ fun HomeGrid(
                                             .graphicsLayer {
                                                 // An open folder is its own card: the tile goes, its icons grow out of the place it was.
                                                 // Fades out as its folder opens and back in as the card shrinks onto it.
-                                                alpha = if (hidden) 0f else if (shownFolder == folder.id) (1f - folderProgress * 2f).coerceIn(0f, 1f) else 1f
+                                                alpha = if (hidden) 0f else if (shownFolder == folder.id) (1f - folderProgress * 8f).coerceIn(0f, 1f) else 1f
                                                 scaleX = lift
                                                 scaleY = lift
                                             },
