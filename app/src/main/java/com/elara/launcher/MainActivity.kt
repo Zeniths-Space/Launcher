@@ -49,6 +49,9 @@ class MainActivity : ComponentActivity() {
     private val repository by lazy { AppRepository(this) }
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
+    // Ignore the tail of a system Recents swipe when its window hands focus back to the launcher.
+    private var suppressDrawerSwipe by mutableStateOf(false)
+    private var suppressDrawerSwipeJob: Job? = null
     // Checked on every return, for the setup's home app step: it changes in Android's settings.
     private var isDefaultHome by mutableStateOf(false)
     // Counts Home presses and leaving, which also close the home sheet.
@@ -153,6 +156,7 @@ class MainActivity : ComponentActivity() {
                         drawerOpen = drawerOpen,
                         resets = resets,
                         entrances = entrances,
+                        suppressDrawerSwipe = suppressDrawerSwipe,
                         onDrawerOpenChange = { drawerOpen = it },
                         onOpenSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) },
                         onSettings = { edit -> lifecycleScope.launch { store.edit() } },
@@ -246,6 +250,18 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isDefaultHome = isDefaultHome(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            suppressDrawerSwipeJob?.cancel()
+            suppressDrawerSwipe = true
+            suppressDrawerSwipeJob = lifecycleScope.launch {
+                delay(350)
+                suppressDrawerSwipe = false
+            }
+        }
     }
 
     // Widgets update only while the home screen is started.

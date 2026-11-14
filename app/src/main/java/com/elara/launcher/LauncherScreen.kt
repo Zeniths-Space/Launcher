@@ -226,6 +226,7 @@ internal fun LauncherScreen(
     drawerOpen: Boolean,
     resets: Int,
     entrances: Int,
+    suppressDrawerSwipe: Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
@@ -437,6 +438,9 @@ internal fun LauncherScreen(
                     dragBy(dy)
                 },
                 Orientation.Vertical,
+                // The drawer grid owns vertical gestures while open. Its nested-scroll handler
+                // closes the drawer when a downward pull reaches the top of the list.
+                enabled = !suppressDrawerSwipe && !drawerOpen,
                 onDragStarted = {
                     homePull.distance = 0f
                     homePull.up = 0f
