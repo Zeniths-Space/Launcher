@@ -353,11 +353,22 @@ internal fun LauncherScreen(
                 val p = grid.windowToLocal(at)
                 val slot = (p.y / cell.height).toInt().coerceIn(0, settings.homeRows - 1) * settings.homeColumns +
                     (p.x / cell.width).toInt().coerceIn(0, settings.homeColumns - 1)
-                // Already on the home screen: it moves here.
-                val (pages, folders) = HomeFolders.removeApp(homePages, settings.folders, app.key)
-                val placed = HomePages.insert(pages, app.key, homePage, slot, settings.homeCapacity, blocked)
-                    ?: HomePages.add(pages, app.key, settings.homeCapacity, first = homePage, blocked = blocked)
-                onLayoutChange(placed, folders)
+                // Dropped on a folder: into it. Already in it: nothing changes (taking it out would dissolve a one-app folder).
+                val anchor = HomeFolders.anchorAt(homePages, settings.folders, homePage, slot, settings.homeColumns, settings.homeRows)
+                val into = HomeFolders.idOf(HomePages.slots(homePages.getOrNull(homePage), settings.homeCapacity).getOrNull(anchor))
+                    ?.let { id -> settings.folders.firstOrNull { it.id == id } }
+                if (into != null) {
+                    if (app.key !in into.apps) {
+                        val (pages, folders) = HomeFolders.removeApp(homePages, settings.folders, app.key)
+                        onLayoutChange(pages, folders.map { if (it.id == into.id) it.copy(apps = it.apps + app.key) else it })
+                    }
+                } else {
+                    // Already on the home screen: it moves here.
+                    val (pages, folders) = HomeFolders.removeApp(homePages, settings.folders, app.key)
+                    val placed = HomePages.insert(pages, app.key, homePage, slot, settings.homeCapacity, blocked)
+                        ?: HomePages.add(pages, app.key, settings.homeCapacity, first = homePage, blocked = blocked)
+                    onLayoutChange(placed, folders)
+                }
             }
         }
     }
