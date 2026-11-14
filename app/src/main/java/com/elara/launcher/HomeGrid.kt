@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -160,10 +161,11 @@ fun HomeGrid(
     // Once the closing animation (160 ms) is over the tile comes back.
     LaunchedEffect(openFolder) {
         if (openFolder == null && shownFolder != null) {
-            kotlinx.coroutines.delay(200)
+            kotlinx.coroutines.delay(320)
             shownFolder = null
         }
     }
+    var folderProgress by remember { mutableFloatStateOf(0f) }
     var folderOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var localWidgets by remember { mutableStateOf(widgets) }
     LaunchedEffect(widgets) { localWidgets = widgets }
@@ -541,7 +543,8 @@ fun HomeGrid(
                                             .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
                                             .graphicsLayer {
                                                 // An open folder is its own card: the tile goes, its icons grow out of the place it was.
-                                                alpha = if (hidden || shownFolder == folder.id) 0f else 1f
+                                                // Fades out as its folder opens and back in as the card shrinks onto it.
+                                                alpha = if (hidden) 0f else if (shownFolder == folder.id) (1f - folderProgress * 2f).coerceIn(0f, 1f) else 1f
                                                 scaleX = lift
                                                 scaleY = lift
                                             },
@@ -629,7 +632,7 @@ fun HomeGrid(
                 repository = repository,
                 locked = locked,
                 glass = glass,
-                onProgress = onFolderProgress,
+                onProgress = { folderProgress = it; onFolderProgress(it) },
                 candidates = apps.values.filter { it.key !in folder.apps && it.key != Games.Key }.sortedBy { it.label.lowercase() },
                 onAddApps = { keys ->
                     // Each app leaves its slot (or another folder) and joins this one.

@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
@@ -558,7 +559,7 @@ internal fun FolderPopup(
     var name by remember(folder.id) { mutableStateOf(folder.name) }
     val close = { onClose(name) }
     val shown by rememberTransition(state, label = "folder").animateFloat(
-        transitionSpec = { if (targetState) spring(dampingRatio = 0.85f, stiffness = 500f) else tween(160, easing = FastOutLinearInEasing) },
+        transitionSpec = { if (targetState) spring(dampingRatio = 0.85f, stiffness = 500f) else tween(280, easing = FastOutSlowInEasing) },
         label = "shown",
     ) { if (it) 1f else 0f }
     val cs = MaterialTheme.colorScheme

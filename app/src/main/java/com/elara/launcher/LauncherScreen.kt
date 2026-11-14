@@ -477,7 +477,7 @@ internal fun LauncherScreen(
                     scaleX = scale
                     scaleY = scale
                     if (folderOpen > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        val r = folderOpen * 40f
+                        val r = folderOpen * folderOpen * 40f
                         renderEffect = BlurEffect(r, r, TileMode.Decal)
                     }
                 },
