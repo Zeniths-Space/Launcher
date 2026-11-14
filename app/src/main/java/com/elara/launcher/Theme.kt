@@ -5,6 +5,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -210,10 +212,15 @@ object Motion {
  */
 fun Modifier.pressScale(springy: Boolean = true, enabled: Boolean = true): Modifier = composed {
     var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (pressed && enabled) PressedScale else 1f, if (springy) Motion.bouncy() else Motion.effects(150), label = "press")
+    // Switched off during a press (a long-press menu opened): that press stays unshrunk until the finger lifts.
+    var cancelled by remember { mutableStateOf(false) }
+    val on by rememberUpdatedState(enabled)
+    LaunchedEffect(enabled) { if (!enabled) cancelled = true }
+    val scale by animateFloatAsState(if (pressed && !cancelled) PressedScale else 1f, if (springy) Motion.bouncy() else Motion.effects(150), label = "press")
     pointerInput(Unit) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
+            cancelled = !on
             pressed = true
             waitForUpOrCancellation()
             pressed = false
