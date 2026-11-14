@@ -639,12 +639,12 @@ internal fun FolderPopup(
                     .offset(x = sidePad, y = cardTop)
                     .size(cardWidth, cardHeight)
                     .graphicsLayer {
-                        val k = CardFrom + (1f - CardFrom) * shown.coerceIn(0f, 1.05f)
+                        val t = shown.coerceIn(0f, 1f)
+                        val k = CardFrom + (1f - CardFrom) * t
                         scaleX = k; scaleY = k
-                        // Grows about the tile's centre, in the card's own coordinates.
-                        val cx = origin.center.x - sidePad.toPx()
-                        val cy = origin.center.y - cardTop.toPx()
-                        transformOrigin = TransformOrigin(cx / size.width, cy / size.height)
+                        // Its centre travels from the tile's centre to its place as it grows, so it lands on the tile when shut.
+                        translationX = (origin.center.x - (sidePad.toPx() + size.width / 2f)) * (1f - t)
+                        translationY = (origin.center.y - (cardTop.toPx() + size.height / 2f)) * (1f - t)
                         alpha = ((shown - 0.1f) / 0.3f).coerceIn(0f, 1f)
                     }
                     .clip(cardShape)
@@ -668,7 +668,21 @@ internal fun FolderPopup(
                     .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
             )
             // Apps and the add list over the card, each moving from the tile on its own.
-            Box(Modifier.offset(x = sidePad, y = cardTop).size(cardWidth, cardHeight).clip(cardShape)) {
+            Box(
+                Modifier
+                    .offset(x = sidePad, y = cardTop)
+                    .size(cardWidth, cardHeight)
+                    // Moves and grows exactly as the card does, so the apps ride on it (and nothing inside clips them mid-flight).
+                    .graphicsLayer {
+                        val t = shown.coerceIn(0f, 1f)
+                        val k = CardFrom + (1f - CardFrom) * t
+                        scaleX = k; scaleY = k
+                        translationX = (origin.center.x - (sidePad.toPx() + size.width / 2f)) * (1f - t)
+                        translationY = (origin.center.y - (cardTop.toPx() + size.height / 2f)) * (1f - t)
+                        // Cross-fades with the tile's own mini icons (see HomeGrid) over the first and last eighth.
+                        alpha = (t * 8f).coerceIn(0f, 1f)
+                    },
+            ) {
                 if (adding) {
                     BackHandler { finishAdding() }
                     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 16.dp)) {
@@ -748,16 +762,6 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
     Box(
         modifier
             .onGloballyPositioned { cell[0] = it }
-            .graphicsLayer {
-                // Grows about the folder tile's centre: from IconFrom of the way out to its place.
-                val t = shown().coerceIn(0f, 1.05f)
-                val k = IconFrom + (1f - IconFrom) * t
-                scaleX = k; scaleY = k
-                val at = cell[0]?.takeIf { it.isAttached }?.boundsInWindow()
-                if (at != null && at.width > 0f) transformOrigin = TransformOrigin((origin.center.x - at.left) / at.width, (origin.center.y - at.top) / at.height)
-                // The tile's own mini icons were what grew, so these are there from the first frame.
-                alpha = if (t > 0f) 1f else 0f
-            },
     ) {
         Column(
             Modifier
