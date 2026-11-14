@@ -111,7 +111,6 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Popup
@@ -565,8 +564,9 @@ internal fun FolderPopup(
     var name by remember(folder.id) { mutableStateOf(folder.name) }
     val close = { onClose(name) }
     val shown by rememberTransition(state, label = "folder").animateFloat(
-        // Measured from One UI Home (screen recording at 83 fps): about 300 ms open and 330 ms shut, slow start, quick middle, long gentle end, no overshoot.
-        transitionSpec = { if (targetState) tween(300, easing = FolderEase) else tween(330, easing = FolderEase) },
+        // A single spring drives the card, its contents, and the dim layer. This also lets a
+        // closing folder reverse smoothly if it is reopened before the animation has finished.
+        transitionSpec = { spring(dampingRatio = 1f, stiffness = 380f) },
         label = "shown",
     ) { if (it) 1f else 0f }
     val cs = MaterialTheme.colorScheme
@@ -600,6 +600,8 @@ internal fun FolderPopup(
             // As tall as its apps need (three to a row), up to the most the screen allows; the add list takes the most.
             val rows = ((members.size + FolderColumns - 1) / FolderColumns).coerceAtLeast(1)
             val wanted = if (adding) maxHeight else (rows * 100 + 48).dp.coerceAtMost(maxHeight)
+            // Keep the app grid at its final size throughout open/close so its icon destinations
+            // do not move while the icons travel from the folder tile.
             val cardHeight by animateDpAsState(wanted, tween(220), label = "folder height")
             // The card and its name row sit together a little above the screen's middle.
             val screen = with(LocalDensity.current) { (h + inset).toDp() }
@@ -607,6 +609,18 @@ internal fun FolderPopup(
             val cardWidth = maxWidth * 0.79f
             val sidePad = (maxWidth - cardWidth) / 2
             val fade = Modifier.graphicsLayer { alpha = ((shown - 0.25f) / 0.35f).coerceIn(0f, 1f) }
+            // The card and app grid share one transform. Per-icon translations made the grid
+            // drift against the card and gave every app a different trajectory while it opened.
+            val folderTransform = Modifier.graphicsLayer {
+                val t = shown.coerceIn(0f, 1f)
+                val sx0 = origin.width / size.width
+                val sy0 = origin.height / size.height
+                scaleX = sx0 + (1f - sx0) * t
+                scaleY = sy0 + (1f - sy0) * t
+                translationX = (origin.center.x - (sidePad.toPx() + size.width / 2f)) * (1f - t)
+                translationY = (origin.center.y - (cardTop.toPx() + size.height / 2f)) * (1f - t)
+                alpha = ((shown - 0.1f) / 0.3f).coerceIn(0f, 1f)
+            }
             // Name and the add button on one row over the card's top edge.
             Row(
                 Modifier.offset(x = sidePad, y = cardTop - 64.dp).width(cardWidth).height(56.dp).then(fade).padding(horizontal = 8.dp),
@@ -644,17 +658,7 @@ internal fun FolderPopup(
                 Modifier
                     .offset(x = sidePad, y = cardTop)
                     .size(cardWidth, cardHeight)
-                    .graphicsLayer {
-                        val t = shown.coerceIn(0f, 1f)
-                        // From exactly the tile's size and place to its own, so it lands on the tile when shut.
-                        val sx0 = origin.width / size.width
-                        val sy0 = origin.height / size.height
-                        scaleX = sx0 + (1f - sx0) * t
-                        scaleY = sy0 + (1f - sy0) * t
-                        translationX = (origin.center.x - (sidePad.toPx() + size.width / 2f)) * (1f - t)
-                        translationY = (origin.center.y - (cardTop.toPx() + size.height / 2f)) * (1f - t)
-                        alpha = ((shown - 0.1f) / 0.3f).coerceIn(0f, 1f)
-                    }
+                    .then(folderTransform)
                     .clip(cardShape)
                     .drawBehind {
                         if (glass != null) {
@@ -675,8 +679,8 @@ internal fun FolderPopup(
                     // Taps on the card stay on it.
                     .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
             )
-            // Apps and the add list over the card, each moving from the tile on its own.
-            Box(Modifier.offset(x = sidePad, y = cardTop).size(cardWidth, cardHeight)) {
+            // Keep the app grid in its final layout and carry it with the card transform.
+            Box(Modifier.offset(x = sidePad, y = cardTop).size(cardWidth, cardHeight).then(folderTransform).clip(cardShape)) {
                 if (adding) {
                     BackHandler { finishAdding() }
                     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 16.dp)) {
@@ -710,15 +714,13 @@ internal fun FolderPopup(
                     // shortcut: one scrolling page, not One UI's swipeable pages with dots; add pages when a folder holds more than a card shows.
                     val scrolls = (rows * 100 + 48).dp > maxHeight
                     Column(Modifier.fillMaxSize().then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier).padding(horizontal = 11.dp, vertical = 24.dp)) {
-                        members.chunked(FolderColumns).forEachIndexed { r, row ->
+                        members.chunked(FolderColumns).forEach { row ->
                             Row {
-                                row.forEachIndexed { c, app ->
+                                row.forEach { app ->
                                     FolderApp(
                                         app,
-                                        index = r * FolderColumns + c,
                                         repository,
                                         locked,
-                                        origin = origin,
                                         shown = { shown },
                                         onOpen = { bounds ->
                                             repository.launch(app, bounds)
@@ -741,45 +743,16 @@ internal fun FolderPopup(
 /** Black over the wallpaper behind the open folder, at most. */
 private val FolderEase = androidx.compose.animation.core.CubicBezierEasing(0.3f, 0f, 0.1f, 1f)
 private const val FolderDim = 0.7f
-/** The card's scale when it starts to open, as a share of its size. */
-private const val CardFrom = 0.35f
-/** Where an app's icon starts, as a share of the way from the folder tile to its place. */
-private const val IconFrom = 0.35f
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderApp(app: AppEntry, index: Int, repository: AppRepository, locked: Boolean, origin: androidx.compose.ui.geometry.Rect, shown: () -> Float, onOpen: (Rect?) -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
+private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, shown: () -> Float, onOpen: (Rect?) -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
     var menu by remember { mutableStateOf(false) }
     // Read at tap time only, for the app to open out of its icon.
     val iconCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
     val icon by produceState(repository.cachedIcon(app, px), app.key, px, repository.iconEpoch) { value = repository.icon(app, px) }
-    val cell = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val density = LocalDensity.current
-    val lift = with(density) { (8.dp + FolderIconSize / 2).toPx() }
-    val full = with(density) { FolderIconSize.toPx() }
     Box(
         modifier
-            .onGloballyPositioned { cell[0] = it }
-            .graphicsLayer {
-                // Each icon leaves from, and lands on, its own mini icon in the folder tile (two by two), the rest on its middle.
-                val t = shown().coerceIn(0f, 1f)
-                val at = cell[0]?.takeIf { it.isAttached }?.boundsInWindow() ?: return@graphicsLayer
-                val pad = origin.width * 0.14f
-                val inner = origin.width - pad * 2f
-                val gap = inner * 0.08f
-                val mini = (inner - gap) / 2f
-                val toX = if (index < 4) origin.left + pad + (index % 2) * (mini + gap) + mini / 2f else origin.center.x
-                val toY = if (index < 4) origin.top + pad + (index / 2) * (mini + gap) + mini / 2f else origin.center.y
-                val k0 = mini / full
-                val k = k0 + (1f - k0) * t
-                scaleX = k; scaleY = k
-                transformOrigin = TransformOrigin(0.5f, lift / size.height)
-                translationX = (toX - at.center.x) * (1f - t)
-                translationY = (toY - (at.top + lift)) * (1f - t)
-                // Cross-fades with the tile's own mini icons (see HomeGrid) over the first and last eighth.
-                alpha = (t * 8f).coerceIn(0f, 1f)
-            },
     ) {
         Column(
             Modifier
