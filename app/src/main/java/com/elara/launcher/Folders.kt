@@ -588,8 +588,14 @@ internal fun FolderPopup(
             val h = constraints.maxHeight
             // The popup starts below the status bar; the measured fractions are of the whole screen.
             val inset = (LocalWindowInfo.current.containerSize.height - h).coerceAtLeast(0)
-            val cardTop = with(LocalDensity.current) { ((h + inset) * 0.378f - inset).toDp() }
-            val cardHeight = with(LocalDensity.current) { ((h + inset) * 0.54f).toDp() }
+            val maxHeight = with(LocalDensity.current) { ((h + inset) * 0.54f).toDp() }
+            // As tall as its apps need (three to a row), up to the most the screen allows; the add list takes the most.
+            val rows = ((members.size + FolderColumns - 1) / FolderColumns).coerceAtLeast(1)
+            val wanted = if (adding) maxHeight else (rows * 100 + 48).dp.coerceAtMost(maxHeight)
+            val cardHeight by animateDpAsState(wanted, tween(220), label = "folder height")
+            // The card and its name row sit together a little above the screen's middle.
+            val screen = with(LocalDensity.current) { (h + inset).toDp() }
+            val cardTop = ((screen - cardHeight) / 2 - 8.dp).coerceAtLeast(120.dp)
             val cardWidth = maxWidth * 0.79f
             val sidePad = (maxWidth - cardWidth) / 2
             val fade = Modifier.graphicsLayer { alpha = ((shown - 0.3f) / 0.5f).coerceIn(0f, 1f) }
