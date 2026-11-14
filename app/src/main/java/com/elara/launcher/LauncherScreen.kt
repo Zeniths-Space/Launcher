@@ -192,13 +192,11 @@ private val GlassSheen = Brush.verticalGradient(
 private const val FlickSpeed = 0.4f
 /** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
 private val SwipeDownDistance = 48.dp
-private val SwipeDownSpeed = 600.dp
 /** A swipe up must travel this far to open the drawer from the home screen, whatever its speed. */
 private val OpenDistance = 56.dp
 
 /** The current drag on the home screen: how far it has pulled down while the drawer was shut. */
 private class HomePull {
-    var distance = 0f
     /** Net upward travel since the drag began, in px; a flick or jitter that barely moved must not open the drawer. */
     var up = 0f
     var startedClosed = false
@@ -384,13 +382,13 @@ internal fun LauncherScreen(
     val dragBy: (Float) -> Unit = { dy -> motion.drag(-dy / range) }
     val homePull = remember { HomePull() }
     val swipeDownDistance = with(LocalDensity.current) { SwipeDownDistance.toPx() }
-    val swipeDownSpeed = with(LocalDensity.current) { SwipeDownSpeed.toPx() }
     val openDistance = with(LocalDensity.current) { OpenDistance.toPx() }
     val settle: (Float) -> Unit = { velocityY ->
         val speed = -velocityY / range
-        val short = homePull.startedClosed && homePull.up < openDistance
         val open = when {
-            short -> false
+            // On the closed home screen, classify by the finger's net travel. A release flick
+            // in the opposite direction must not turn a down swipe into an opening gesture.
+            homePull.startedClosed -> homePull.up >= openDistance
             speed > FlickSpeed -> true
             speed < -FlickSpeed -> false
             else -> motion.progress > 0.35f
@@ -433,7 +431,6 @@ internal fun LauncherScreen(
             }
             .draggable(
                 rememberDraggableState { dy ->
-                    if (homePull.startedClosed && motion.progress == 0f && dy > 0f) homePull.distance += dy
                     homePull.up -= dy
                     dragBy(dy)
                 },
@@ -442,19 +439,21 @@ internal fun LauncherScreen(
                 // closes the drawer when a downward pull reaches the top of the list.
                 enabled = !suppressDrawerSwipe && !drawerOpen,
                 onDragStarted = {
-                    homePull.distance = 0f
                     homePull.up = 0f
                     homePull.startedClosed = motion.progress == 0f
                 },
                 onDragStopped = { velocityY ->
                     // A swipe down that started on the home screen is the swipe-down gesture.
                     if (homePull.startedClosed && motion.progress == 0f &&
-                        // Net travel down, so finger wobble and a tap's noisy release speed don't count.
-                        (-homePull.up > swipeDownDistance || (-homePull.up > swipeDownDistance / 2 && velocityY > swipeDownSpeed))
+                        // Net travel down, so finger wobble and a tap's release speed don't count.
+                        -homePull.up > swipeDownDistance
                     ) {
                         onGesture(settings.swipeDown)
                     }
                     settle(velocityY)
+                    // settle is also called by the drawer's nested-scroll pull-to-close.
+                    // Do not let that later gesture inherit this home swipe's start state.
+                    homePull.startedClosed = false
                 },
             ),
     ) {
