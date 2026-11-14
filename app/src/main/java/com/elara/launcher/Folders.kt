@@ -160,7 +160,7 @@ internal fun FolderIcon(
                     role = Role.Button
                     onClick { open(); true }
                 }
-                .pressScale(),
+                .pressScale(springy = false),
         )
         MenuPopup(
             menu,

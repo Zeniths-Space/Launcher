@@ -208,9 +208,9 @@ object Motion {
  * Only watches touches: put it last in the chain, inside any gesture handlers, which still get them.
  * A drag or long-press drag that takes the touch lets it go.
  */
-fun Modifier.pressScale(): Modifier = composed {
+fun Modifier.pressScale(springy: Boolean = true): Modifier = composed {
     var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (pressed) PressedScale else 1f, Motion.bouncy(), label = "press")
+    val scale by animateFloatAsState(if (pressed) PressedScale else 1f, if (springy) Motion.bouncy() else Motion.effects(150), label = "press")
     pointerInput(Unit) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
