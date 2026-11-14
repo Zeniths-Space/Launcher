@@ -552,6 +552,7 @@ fun HomeGrid(
                                         onMenuDismiss = { menuFor = null },
                                         canTap = { drag == null && menuFor == null },
                                         canEdit = !locked,
+                                        onTilePositioned = { tiles[folder.id] = it },
                                         onOpen = { from ->
                                             folderOrigin = from
                                             openFolder = folder.id
@@ -566,7 +567,6 @@ fun HomeGrid(
                                         modifier = Modifier
                                             .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
                                             .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
-                                            .onGloballyPositioned { tiles[folder.id] = it }
                                             .graphicsLayer {
                                                 // An open folder is its own card: the tile goes, its icons grow out of the place it was.
                                                 // Fades out as its folder opens and back in as the card shrinks onto it.
