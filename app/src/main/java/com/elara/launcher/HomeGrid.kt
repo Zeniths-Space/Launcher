@@ -143,6 +143,9 @@ fun HomeGrid(
     onCellSize: (Size) -> Unit,
     onLongPressEmpty: (Offset) -> Unit,
     onDoubleTap: (() -> Unit)?,
+    /** The blurred wallpaper, for an open folder's card to be glass over. */
+    glass: androidx.compose.ui.graphics.ImageBitmap? = null,
+    onFolderProgress: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val capacity = columns * rows
@@ -625,6 +628,8 @@ fun HomeGrid(
                 apps = apps,
                 repository = repository,
                 locked = locked,
+                glass = glass,
+                onProgress = onFolderProgress,
                 candidates = apps.values.filter { it.key !in folder.apps && it.key != Games.Key }.sortedBy { it.label.lowercase() },
                 onAddApps = { keys ->
                     // Each app leaves its slot (or another folder) and joins this one.

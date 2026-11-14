@@ -97,6 +97,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalView
+import android.view.WindowManager
+import android.os.Build
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.sp
@@ -535,6 +543,10 @@ internal fun FolderPopup(
     locked: Boolean,
     /** Apps that could be added: every app not already in this folder. */
     candidates: List<AppEntry>,
+    /** The blurred wallpaper (see [GlassWallpaper]) for the card to be frosted glass over, or null for a plain tint. */
+    glass: ImageBitmap? = null,
+    /** Reports how far open the folder is (0..1), for the home screen under it to blur. */
+    onProgress: (Float) -> Unit = {},
     onClose: (name: String) -> Unit,
     onTakeOut: (key: String) -> Unit,
     onAddApps: (keys: List<String>) -> Unit,
@@ -564,6 +576,9 @@ internal fun FolderPopup(
         // One UI Home's folder, measured from a screen recording: the wallpaper goes almost black, the name sits
         // high, a "+" over the card's top-right corner, a tall translucent card of three columns. On opening the
         // folder's mini icons grow out to their places while the card swells from the tile (about 330 ms).
+        // The home screen under this window blurs as the folder opens (Android 12+; the window blur behind is off on some phones, so it is done in the home screen's own layer).
+        LaunchedEffect(Unit) { snapshotFlow { shown }.collect { onProgress(it.coerceIn(0f, 1f)) } }
+        DisposableEffect(Unit) { onDispose { onProgress(0f) } }
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -625,8 +640,23 @@ internal fun FolderPopup(
                         alpha = (shown * 2f).coerceIn(0f, 1f)
                     }
                     .clip(cardShape)
-                    .background(Color(0xFF1C1C1C).copy(alpha = 0.94f))
-                    .border(1.dp, Color.White.copy(alpha = 0.06f), cardShape)
+                    .drawBehind {
+                        if (glass != null) {
+                            // The blurred wallpaper, laid over the whole screen and seen through the card.
+                            translate(-sidePad.toPx(), -cardTop.toPx()) {
+                                drawImage(glass, dstSize = IntSize(constraints.maxWidth, h), filterQuality = FilterQuality.Low)
+                            }
+                            drawRect(Color.Black, alpha = 0.3f)
+                            drawRect(Color.White, alpha = 0.12f)
+                            // Light catching the top edge.
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.16f), 0.25f to Color.Transparent))
+                        } else {
+                            // No copy of the wallpaper to blur (Android won't let an app read it without all-files access): a frosted tint that hides its detail.
+                            drawRect(Color(0xFF26282B), alpha = 0.84f)
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.14f), 0.3f to Color.Transparent))
+                        }
+                    }
+                    .border(1.dp, Color.White.copy(alpha = 0.14f), cardShape)
                     // Taps on the card stay on it.
                     .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
             )
@@ -692,7 +722,7 @@ internal fun FolderPopup(
 }
 
 /** Black over the wallpaper behind the open folder, at most. */
-private const val FolderDim = 0.5f
+private const val FolderDim = 0.7f
 /** The card's scale when it starts to open, as a share of its size. */
 private const val CardFrom = 0.4f
 /** Where an app's icon starts, as a share of the way from the folder tile to its place. */

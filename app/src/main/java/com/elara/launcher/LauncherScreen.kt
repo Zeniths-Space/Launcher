@@ -158,6 +158,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.BlurEffect
+import android.os.Build
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -322,6 +325,8 @@ internal fun LauncherScreen(
     // The home page shown, and whether the drawer was opened to pick an app for it.
     var homePage by remember { mutableIntStateOf(0) }
     var picking by remember { mutableStateOf(false) }
+    // How far open a home folder is, for the home screen to blur under it.
+    var folderOpen by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
@@ -471,9 +476,15 @@ internal fun LauncherScreen(
                     val scale = enter.value * (1f - gone * HomeSink)
                     scaleX = scale
                     scaleY = scale
+                    if (folderOpen > 0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val r = folderOpen * 40f
+                        renderEffect = BlurEffect(r, r, TileMode.Decal)
+                    }
                 },
             grid = { onLongPressEmpty, modifier ->
                 HomeGrid(
+                    glass = glassImage,
+                    onFolderProgress = { folderOpen = it },
                     pages = homePages,
                     folders = settings.folders,
                     widgets = settings.widgets,
