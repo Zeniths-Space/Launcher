@@ -154,6 +154,7 @@ fun HomeGrid(
     var openFolder by remember { mutableStateOf<Int?>(null) }
     // The folder last opened, kept while it animates shut.
     var shownFolder by remember { mutableStateOf<Int?>(null) }
+    var folderOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var localWidgets by remember { mutableStateOf(widgets) }
     LaunchedEffect(widgets) { localWidgets = widgets }
     var drag by remember { mutableStateOf<HomeDrag?>(null) }
@@ -514,7 +515,8 @@ fun HomeGrid(
                                         onMenuDismiss = { menuFor = null },
                                         canTap = { drag == null && menuFor == null },
                                         canEdit = !locked,
-                                        onOpen = {
+                                        onOpen = { from ->
+                                            folderOrigin = from
                                             openFolder = folder.id
                                             shownFolder = folder.id
                                         },
@@ -610,6 +612,7 @@ fun HomeGrid(
         shownFolder?.let { id -> localFolders.firstOrNull { it.id == id } }?.let { folder ->
             FolderPopup(
                 expanded = openFolder == folder.id,
+                origin = folderOrigin,
                 folder = folder,
                 apps = apps,
                 repository = repository,

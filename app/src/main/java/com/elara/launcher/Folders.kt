@@ -1,6 +1,7 @@
 package com.elara.launcher
 
 import android.widget.Toast
+import androidx.compose.foundation.shape.CornerSize
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
@@ -120,7 +121,8 @@ internal fun FolderIcon(
     onMenuDismiss: () -> Unit,
     canTap: () -> Boolean,
     canEdit: Boolean,
-    onOpen: () -> Unit,
+    /** Opens the folder, given where its tile is in the window, for the popup to grow out of. */
+    onOpen: (origin: androidx.compose.ui.geometry.Rect) -> Unit,
     onRename: () -> Unit,
     onCustomize: () -> Unit,
     onRemove: () -> Unit,
@@ -129,7 +131,10 @@ internal fun FolderIcon(
     val label = folder.name.ifEmpty { stringResource(R.string.folder_default) }
     val count = folder.apps.count { it in apps }
     val description = pluralStringResource(R.plurals.folder_description, count, label, count)
-    Box(modifier) {
+    // Read at tap time only.
+    val tileCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val open = { tileCoords[0]?.takeIf { it.isAttached }?.boundsInWindow()?.let(onOpen) ?: Unit }
+    Box(modifier.onGloballyPositioned { tileCoords[0] = it }) {
         FolderFace(
             folder,
             apps,
@@ -141,11 +146,11 @@ internal fun FolderIcon(
             modifier = Modifier
                 .fillMaxSize()
                 // A release after a long-press opens nothing: that press was for the menu or a drag.
-                .pointerInput(folder.id) { detectTapGestures(onTap = { if (canTap()) onOpen() }) }
+                .pointerInput(folder.id) { detectTapGestures(onTap = { if (canTap()) open() }) }
                 .semantics {
                     contentDescription = description
                     role = Role.Button
-                    onClick { onOpen(); true }
+                    onClick { open(); true }
                 }
                 .pressScale(),
         )
@@ -514,6 +519,8 @@ private fun AppIcon(app: AppEntry, repository: AppRepository, size: Dp) {
 @Composable
 internal fun FolderPopup(
     expanded: Boolean,
+    /** The folder tile's bounds in the window: the card grows out of it and shrinks back into it. */
+    origin: androidx.compose.ui.geometry.Rect,
     folder: HomeFolder,
     apps: Map<String, AppEntry>,
     repository: AppRepository,
@@ -554,15 +561,34 @@ internal fun FolderPopup(
                 .pointerInput(Unit) { detectTapGestures { close() } },
             contentAlignment = Alignment.Center,
         ) {
+            // The card's own bounds, measured outside its layer, so the grow animation can start from the tile.
+            var card by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+            Box(
+                Modifier
+                    .fillMaxWidth(0.88f)
+                    .widthIn(max = 400.dp)
+                    .onGloballyPositioned { card = it.boundsInWindow() },
+            ) {
             Column(
                 Modifier
                     .graphicsLayer {
-                        val scale = 0.85f + 0.15f * shown
-                        scaleX = scale
-                        scaleY = scale
+                        val b = card
+                        if (b == null || b.width == 0f || b.height == 0f) {
+                            alpha = 0f
+                        } else {
+                            val t = shown
+                            scaleX = origin.width / b.width + (1f - origin.width / b.width) * t
+                            scaleY = origin.height / b.height + (1f - origin.height / b.height) * t
+                            translationX = (origin.center.x - b.center.x) * (1f - t)
+                            translationY = (origin.center.y - b.center.y) * (1f - t)
+                            // Corners go from the tile's to the card's, as drawn on screen.
+                            val onScreen = origin.width * 0.25f + (28.dp.toPx() - origin.width * 0.25f) * t.coerceIn(0f, 1f)
+                            clip = true
+                            this.shape = RoundedCornerShape(CornerSize(onScreen / ((scaleX + scaleY) / 2f).coerceAtLeast(0.01f)))
+                            alpha = (shown * 1.6f).coerceIn(0f, 1f)
+                        }
                     }
-                    .fillMaxWidth(0.88f)
-                    .widthIn(max = 400.dp)
+                    .fillMaxWidth()
                     .shadow(8.dp, shape)
                     .clip(shape)
                     .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh)
@@ -652,6 +678,7 @@ internal fun FolderPopup(
                         )
                     }
                 }
+            }
             }
         }
     }
