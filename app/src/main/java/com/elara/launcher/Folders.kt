@@ -652,17 +652,16 @@ internal fun FolderPopup(
                             translate(-sidePad.toPx(), -cardTop.toPx()) {
                                 drawImage(glass, dstSize = IntSize(constraints.maxWidth, h), filterQuality = FilterQuality.Low)
                             }
-                            drawRect(Color.Black, alpha = 0.3f)
-                            drawRect(Color.White, alpha = 0.12f)
-                            // Light catching the top edge.
-                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.16f), 0.25f to Color.Transparent))
+                            // Lifted with a pale tint, light catching the top edge, a faint purple at the bottom.
+                            drawRect(Color.White, alpha = 0.16f)
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent, 1f to Color(0xFF7C4DFF).copy(alpha = 0.10f)))
                         } else {
                             // No copy of the wallpaper to blur (Android won't let an app read it without all-files access): a frosted tint that hides its detail.
-                            drawRect(Color(0xFF26282B), alpha = 0.84f)
-                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.14f), 0.3f to Color.Transparent))
+                            drawRect(Color(0xFF3A3748), alpha = 0.78f)
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent, 1f to Color(0xFF7C4DFF).copy(alpha = 0.10f)))
                         }
                     }
-                    .border(1.dp, Color.White.copy(alpha = 0.14f), cardShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), cardShape)
                     // Taps on the card stay on it.
                     .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
             )
