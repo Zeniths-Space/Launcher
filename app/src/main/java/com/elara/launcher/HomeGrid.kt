@@ -154,6 +154,13 @@ fun HomeGrid(
     var openFolder by remember { mutableStateOf<Int?>(null) }
     // The folder last opened, kept while it animates shut.
     var shownFolder by remember { mutableStateOf<Int?>(null) }
+    // Once the closing animation (160 ms) is over the tile comes back.
+    LaunchedEffect(openFolder) {
+        if (openFolder == null && shownFolder != null) {
+            kotlinx.coroutines.delay(200)
+            shownFolder = null
+        }
+    }
     var folderOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     var localWidgets by remember { mutableStateOf(widgets) }
     LaunchedEffect(widgets) { localWidgets = widgets }
@@ -530,7 +537,8 @@ fun HomeGrid(
                                             .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
                                             .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
                                             .graphicsLayer {
-                                                alpha = if (hidden) 0f else 1f
+                                                // An open folder is its own card: the tile goes, its icons grow out of the place it was.
+                                                alpha = if (hidden || shownFolder == folder.id) 0f else 1f
                                                 scaleX = lift
                                                 scaleY = lift
                                             },

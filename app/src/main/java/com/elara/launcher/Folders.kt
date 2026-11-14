@@ -97,6 +97,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -552,147 +560,166 @@ internal fun FolderPopup(
         picked = emptySet()
         adding = false
     }
-    Popup(popupPositionProvider = FullWindow, onDismissRequest = close, properties = PopupProperties(focusable = expanded)) {
-        Box(
+    Popup(popupPositionProvider = FullWindow, onDismissRequest = close, properties = PopupProperties(focusable = expanded, clippingEnabled = false)) {
+        // One UI Home's folder, measured from a screen recording: the wallpaper goes almost black, the name sits
+        // high, a "+" over the card's top-right corner, a tall translucent card of three columns. On opening the
+        // folder's mini icons grow out to their places while the card swells from the tile (about 330 ms).
+        BoxWithConstraints(
             Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = shown.coerceIn(0f, 1f) }
-                .background(Color.Black.copy(alpha = 0.45f))
+                .drawBehind { drawRect(Color.Black, alpha = FolderDim * shown.coerceIn(0f, 1f)) }
                 .pointerInput(Unit) { detectTapGestures { close() } },
-            contentAlignment = Alignment.Center,
         ) {
-            // The card's own bounds, measured outside its layer, so the grow animation can start from the tile.
-            var card by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+            val h = constraints.maxHeight
+            // The popup starts below the status bar; the measured fractions are of the whole screen.
+            val inset = (LocalWindowInfo.current.containerSize.height - h).coerceAtLeast(0)
+            val cardTop = with(LocalDensity.current) { ((h + inset) * 0.378f - inset).toDp() }
+            val cardHeight = with(LocalDensity.current) { ((h + inset) * 0.54f).toDp() }
+            val cardWidth = maxWidth * 0.79f
+            val sidePad = (maxWidth - cardWidth) / 2
+            val fade = Modifier.graphicsLayer { alpha = ((shown - 0.3f) / 0.5f).coerceIn(0f, 1f) }
+            // Name and the add button on one row over the card's top edge.
+            Row(
+                Modifier.offset(x = sidePad, y = cardTop - 64.dp).width(cardWidth).height(56.dp).then(fade).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = name,
+                    onValueChange = { name = it.take(MaxNameLength) },
+                    enabled = !locked && !adding,
+                    singleLine = true,
+                    textStyle = TextStyle(color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium),
+                    cursorBrush = SolidColor(Color.White),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { field ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (name.isEmpty()) Text(stringResource(R.string.folder_default), fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.55f))
+                            field()
+                        }
+                    },
+                )
+                if (!locked && !adding) {
+                    Icon(
+                        Icons.AddRing,
+                        contentDescription = stringResource(R.string.folder_add_apps),
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp).clip(CircleShape).clickable(role = Role.Button) { adding = true },
+                    )
+                }
+            }
+            // The card: scales out of the folder tile.
+            val cardShape = RoundedCornerShape(24.dp)
             Box(
                 Modifier
-                    .fillMaxWidth(0.88f)
-                    .widthIn(max = 400.dp)
-                    .onGloballyPositioned { card = it.boundsInWindow() },
-            ) {
-            Column(
-                Modifier
+                    .offset(x = sidePad, y = cardTop)
+                    .size(cardWidth, cardHeight)
                     .graphicsLayer {
-                        val b = card
-                        if (b == null || b.width == 0f || b.height == 0f) {
-                            alpha = 0f
-                        } else {
-                            val t = shown
-                            scaleX = origin.width / b.width + (1f - origin.width / b.width) * t
-                            scaleY = origin.height / b.height + (1f - origin.height / b.height) * t
-                            translationX = (origin.center.x - b.center.x) * (1f - t)
-                            translationY = (origin.center.y - b.center.y) * (1f - t)
-                            // Corners go from the tile's to the card's, as drawn on screen.
-                            val onScreen = origin.width * 0.25f + (28.dp.toPx() - origin.width * 0.25f) * t.coerceIn(0f, 1f)
-                            clip = true
-                            this.shape = RoundedCornerShape(CornerSize(onScreen / ((scaleX + scaleY) / 2f).coerceAtLeast(0.01f)))
-                            alpha = (shown * 1.6f).coerceIn(0f, 1f)
-                        }
+                        val k = CardFrom + (1f - CardFrom) * shown.coerceIn(0f, 1.05f)
+                        scaleX = k; scaleY = k
+                        // Grows about the tile's centre, in the card's own coordinates.
+                        val cx = origin.center.x - sidePad.toPx()
+                        val cy = origin.center.y - cardTop.toPx()
+                        transformOrigin = TransformOrigin(cx / size.width, cy / size.height)
+                        alpha = (shown * 2f).coerceIn(0f, 1f)
                     }
-                    .fillMaxWidth()
-                    .shadow(8.dp, shape)
-                    .clip(shape)
-                    .background(if (LocalPureBlack.current) PureBlackCard else cs.surfaceContainerHigh)
+                    .clip(cardShape)
+                    .background(Color(0xFF1C1C1C).copy(alpha = 0.94f))
+                    .border(1.dp, Color.White.copy(alpha = 0.06f), cardShape)
                     // Taps on the card stay on it.
-                    .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
-                    .padding(horizontal = 12.dp, vertical = 20.dp),
-            ) {
+                    .pointerInput(Unit) { detectTapGestures { focus.clearFocus() } },
+            )
+            // Apps and the add list over the card, each moving from the tile on its own.
+            Box(Modifier.offset(x = sidePad, y = cardTop).size(cardWidth, cardHeight).clip(cardShape)) {
                 if (adding) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            stringResource(R.string.folder_add_apps),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = cs.onSurface,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            stringResource(R.string.games_done),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = cs.primary,
-                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { finishAdding() }.padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
                     BackHandler { finishAdding() }
-                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                        if (candidates.isEmpty()) {
-                            Text(stringResource(R.string.drawer_no_results), color = cs.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
+                    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 16.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.folder_add_apps), style = MaterialTheme.typography.titleLarge, color = Color.White, modifier = Modifier.weight(1f))
+                            Text(
+                                stringResource(R.string.games_done),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFFB69CFF),
+                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { finishAdding() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                            )
                         }
-                        candidates.chunked(FolderColumns).forEach { row ->
+                        Spacer(Modifier.height(8.dp))
+                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                            if (candidates.isEmpty()) {
+                                Text(stringResource(R.string.drawer_no_results), color = Color.White.copy(alpha = 0.6f), modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
+                            }
+                            candidates.chunked(FolderColumns).forEach { row ->
+                                Row {
+                                    row.forEach { app ->
+                                        PickApp(app, repository, app.key in picked, Modifier.weight(1f)) {
+                                            picked = if (app.key in picked) picked - app.key else picked + app.key
+                                        }
+                                    }
+                                    repeat(FolderColumns - row.size) { Spacer(Modifier.weight(1f)) }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // shortcut: one scrolling page, not One UI's swipeable pages with dots; add pages when a folder holds more than a card shows.
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 11.dp, vertical = 24.dp)) {
+                        members.chunked(FolderColumns).forEach { row ->
                             Row {
                                 row.forEach { app ->
-                                    PickApp(app, repository, app.key in picked, Modifier.weight(1f)) {
-                                        picked = if (app.key in picked) picked - app.key else picked + app.key
-                                    }
+                                    FolderApp(
+                                        app,
+                                        repository,
+                                        locked,
+                                        origin = origin,
+                                        shown = { shown },
+                                        onOpen = { bounds ->
+                                            repository.launch(app, bounds)
+                                            close()
+                                        },
+                                        onTakeOut = { onTakeOut(app.key) },
+                                        modifier = Modifier.weight(1f),
+                                    )
                                 }
                                 repeat(FolderColumns - row.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
                     }
-                } else {
-                BasicTextField(
-                    value = name,
-                    onValueChange = { name = it.take(MaxNameLength) },
-                    enabled = !locked,
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.titleLarge.copy(color = cs.onSurface, textAlign = TextAlign.Center),
-                    cursorBrush = SolidColor(cs.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    decorationBox = { field ->
-                        Box(contentAlignment = Alignment.Center) {
-                            if (name.isEmpty()) {
-                                Text(stringResource(R.string.folder_default), style = MaterialTheme.typography.titleLarge, color = cs.onSurfaceVariant)
-                            }
-                            field()
-                        }
-                    },
-                )
-                Spacer(Modifier.height(16.dp))
-                members.chunked(FolderColumns).forEach { row ->
-                    Row {
-                        row.forEach { app ->
-                            FolderApp(
-                                app,
-                                repository,
-                                locked,
-                                onOpen = { bounds ->
-                                    repository.launch(app, bounds)
-                                    close()
-                                },
-                                onTakeOut = { onTakeOut(app.key) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        repeat(FolderColumns - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
                 }
-                    if (!locked) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.folder_add_apps),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = cs.primary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button) { adding = true }.padding(vertical = 12.dp),
-                        )
-                    }
-                }
-            }
             }
         }
     }
 }
 
+/** Black over the wallpaper behind the open folder, at most. */
+private const val FolderDim = 0.5f
+/** The card's scale when it starts to open, as a share of its size. */
+private const val CardFrom = 0.4f
+/** Where an app's icon starts, as a share of the way from the folder tile to its place. */
+private const val IconFrom = 0.35f
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, onOpen: (Rect?) -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
+private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean, origin: androidx.compose.ui.geometry.Rect, shown: () -> Float, onOpen: (Rect?) -> Unit, onTakeOut: () -> Unit, modifier: Modifier) {
     var menu by remember { mutableStateOf(false) }
     // Read at tap time only, for the app to open out of its icon.
     val iconCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val px = with(LocalDensity.current) { FolderIconSize.roundToPx() }
     val icon by produceState(repository.cachedIcon(app, px), app.key, px, repository.iconEpoch) { value = repository.icon(app, px) }
-    Box(modifier) {
+    val cell = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    Box(
+        modifier
+            .onGloballyPositioned { cell[0] = it }
+            .graphicsLayer {
+                // Grows about the folder tile's centre: from IconFrom of the way out to its place.
+                val t = shown().coerceIn(0f, 1.05f)
+                val k = IconFrom + (1f - IconFrom) * t
+                scaleX = k; scaleY = k
+                val at = cell[0]?.takeIf { it.isAttached }?.boundsInWindow()
+                if (at != null && at.width > 0f) transformOrigin = TransformOrigin((origin.center.x - at.left) / at.width, (origin.center.y - at.top) / at.height)
+                alpha = (t * 2f).coerceIn(0f, 1f)
+            },
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -707,7 +734,7 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
             Text(
                 app.label,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -755,7 +782,7 @@ private fun PickApp(app: AppEntry, repository: AppRepository, chosen: Boolean, m
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(app.label, style = MaterialTheme.typography.labelMedium, color = cs.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 4.dp))
+        Text(app.label, style = MaterialTheme.typography.labelMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 4.dp))
     }
 }
 
@@ -764,6 +791,6 @@ private val FullWindow = object : PopupPositionProvider {
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) = IntOffset.Zero
 }
 
-private const val FolderColumns = 4
+private const val FolderColumns = 3
 private const val MaxNameLength = 40
-private val FolderIconSize = 52.dp
+private val FolderIconSize = 56.dp
