@@ -652,13 +652,13 @@ internal fun FolderPopup(
                             translate(-sidePad.toPx(), -cardTop.toPx()) {
                                 drawImage(glass, dstSize = IntSize(constraints.maxWidth, h), filterQuality = FilterQuality.Low)
                             }
-                            // Lifted with a pale tint, light catching the top edge, a faint purple at the bottom.
+                            // Lifted with a pale tint, light catching the top edge, nothing coloured.
                             drawRect(Color.White, alpha = 0.16f)
-                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent, 1f to Color(0xFF7C4DFF).copy(alpha = 0.10f)))
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent))
                         } else {
                             // No copy of the wallpaper to blur (Android won't let an app read it without all-files access): a frosted tint that hides its detail.
-                            drawRect(Color(0xFF3A3748), alpha = 0.78f)
-                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent, 1f to Color(0xFF7C4DFF).copy(alpha = 0.10f)))
+                            drawRect(Color(0xFF2E2E2E), alpha = 0.78f)
+                            drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.18f), 0.3f to Color.Transparent))
                         }
                     }
                     .border(1.dp, Color.White.copy(alpha = 0.2f), cardShape)
