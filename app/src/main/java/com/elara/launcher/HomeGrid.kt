@@ -173,6 +173,23 @@ fun HomeGrid(
     var menuFor by remember { mutableStateOf<String?>(null) }
     var widgetDrag by remember { mutableStateOf<WidgetDrag?>(null) }
     var widgetMenuFor by remember { mutableStateOf<Int?>(null) }
+    // Where each folder's tile is on screen, read when one is opened for you after an app is added.
+    val tiles = remember { HashMap<Int, androidx.compose.ui.layout.LayoutCoordinates>() }
+    // Folder sizes as last seen: one that grew (an app dropped in) or is new (two apps made one) opens to show it.
+    var seenSizes by remember { mutableStateOf(folders.associate { it.id to it.apps.size }) }
+    LaunchedEffect(localFolders) {
+        val grew = localFolders.firstOrNull { f -> f.apps.size >= 2 && (seenSizes[f.id] ?: 0) < f.apps.size }
+        seenSizes = localFolders.associate { it.id to it.apps.size }
+        if (grew != null && openFolder == null && drag == null) {
+            // A moment for the dropped icon to settle into its tile first.
+            kotlinx.coroutines.delay(280)
+            tiles[grew.id]?.takeIf { it.isAttached }?.boundsInWindow()?.let { b ->
+                folderOrigin = b
+                shownFolder = grew.id
+                openFolder = grew.id
+            }
+        }
+    }
     // The widget showing its resize frame.
     var resizing by remember { mutableStateOf<Int?>(null) }
     // Where a dropped widget was let go, so it glides from there to its cells.
@@ -541,6 +558,7 @@ fun HomeGrid(
                                         modifier = Modifier
                                             .size(with(density) { (span * cellW).toDp() }, with(density) { (span * cellH).toDp() })
                                             .offset { (position.value - Offset(span * cellW / 2, span * cellH / 2)).round() }
+                                            .onGloballyPositioned { tiles[folder.id] = it }
                                             .graphicsLayer {
                                                 // An open folder is its own card: the tile goes, its icons grow out of the place it was.
                                                 // Fades out as its folder opens and back in as the card shrinks onto it.
