@@ -181,8 +181,8 @@ private val GlassSheen = Brush.verticalGradient(
     0.75f to Color.Transparent,
     1f to Color.White.copy(alpha = 0.06f),
 )
-/** Release speeds above this (in drawer heights per second) open or close regardless of position. */
-private const val FlingSpeed = 1.5f
+/** Release speeds above this (in drawer heights per second, about 450 dp/s) open or close once past the minimum travel. */
+private const val FlickSpeed = 0.4f
 /** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
 private val SwipeDownDistance = 48.dp
 private val SwipeDownSpeed = 600.dp
@@ -367,9 +367,9 @@ internal fun LauncherScreen(
         val short = homePull.startedClosed && homePull.up < openDistance
         val open = when {
             short -> false
-            speed > FlingSpeed -> true
-            speed < -FlingSpeed -> false
-            else -> motion.progress > 0.5f
+            speed > FlickSpeed -> true
+            speed < -FlickSpeed -> false
+            else -> motion.progress > 0.35f
         }
         motion.settle(scope, if (open) 1f else 0f, speed)
         if (open != drawerOpen) onDrawerOpenChange(open)
@@ -422,7 +422,8 @@ internal fun LauncherScreen(
                 onDragStopped = { velocityY ->
                     // A swipe down that started on the home screen is the swipe-down gesture.
                     if (homePull.startedClosed && motion.progress == 0f &&
-                        (homePull.distance > swipeDownDistance || velocityY > swipeDownSpeed)
+                        // Net travel down, so finger wobble and a tap's noisy release speed don't count.
+                        (-homePull.up > swipeDownDistance || (-homePull.up > swipeDownDistance / 2 && velocityY > swipeDownSpeed))
                     ) {
                         onGesture(settings.swipeDown)
                     }
