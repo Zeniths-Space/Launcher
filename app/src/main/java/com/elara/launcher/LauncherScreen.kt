@@ -186,10 +186,14 @@ private const val FlingSpeed = 1.5f
 /** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
 private val SwipeDownDistance = 48.dp
 private val SwipeDownSpeed = 600.dp
+/** A swipe up must travel this far to open the drawer from the home screen, whatever its speed. */
+private val OpenDistance = 56.dp
 
 /** The current drag on the home screen: how far it has pulled down while the drawer was shut. */
 private class HomePull {
     var distance = 0f
+    /** Net upward travel since the drag began, in px; a flick or jitter that barely moved must not open the drawer. */
+    var up = 0f
     var startedClosed = false
 }
 private val HomeLift = 16.dp
@@ -357,9 +361,12 @@ internal fun LauncherScreen(
     val homePull = remember { HomePull() }
     val swipeDownDistance = with(LocalDensity.current) { SwipeDownDistance.toPx() }
     val swipeDownSpeed = with(LocalDensity.current) { SwipeDownSpeed.toPx() }
+    val openDistance = with(LocalDensity.current) { OpenDistance.toPx() }
     val settle: (Float) -> Unit = { velocityY ->
         val speed = -velocityY / range
+        val short = homePull.startedClosed && homePull.up < openDistance
         val open = when {
+            short -> false
             speed > FlingSpeed -> true
             speed < -FlingSpeed -> false
             else -> motion.progress > 0.5f
@@ -403,11 +410,13 @@ internal fun LauncherScreen(
             .draggable(
                 rememberDraggableState { dy ->
                     if (homePull.startedClosed && motion.progress == 0f && dy > 0f) homePull.distance += dy
+                    homePull.up -= dy
                     dragBy(dy)
                 },
                 Orientation.Vertical,
                 onDragStarted = {
                     homePull.distance = 0f
+                    homePull.up = 0f
                     homePull.startedClosed = motion.progress == 0f
                 },
                 onDragStopped = { velocityY ->
