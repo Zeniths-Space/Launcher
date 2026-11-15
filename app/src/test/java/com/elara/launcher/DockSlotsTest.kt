@@ -33,5 +33,5 @@ class DockSlotsTest {
 
     @Test fun insertMovesAppAlreadyThere() = assertEquals(listOf("b", "a"), DockSlots.insert(listOf("a", "b"), "a", 1, 2))
 
-    @Test fun insertWhenFullIsUnchanged() = assertEquals(listOf("a", "b"), DockSlots.insert(listOf("a", "b"), "k", 0, 2))
+    @Test fun insertWhenFullReplacesAppAtSlot() = assertEquals(listOf("k", "b"), DockSlots.insert(listOf("a", "b"), "k", 0, 2))
 }

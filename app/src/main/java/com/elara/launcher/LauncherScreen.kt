@@ -373,8 +373,10 @@ internal fun LauncherScreen(
     val dropApp = { app: AppEntry, at: Offset ->
         val grid = gridAt[0]?.takeIf { it.isAttached }
         if (grid != null && cell != Size.Zero) {
-            if (settings.showDock && at.y > grid.boundsInWindow().bottom) {
-                onDockChange(DockSlots.insert(dockKeys, app.key, dockSlotAt[0]?.invoke(at) ?: 0, settings.dockCapacity))
+            // A tall dock grows up over the grid, so a drop on the dock itself counts too.
+            val dockSlot = if (settings.showDock) dockSlotAt[0]?.invoke(at) else null
+            if (settings.showDock && (dockSlot != null || at.y > grid.boundsInWindow().bottom)) {
+                onDockChange(DockSlots.insert(dockKeys, app.key, dockSlot ?: 0, settings.dockCapacity))
             } else {
                 val p = grid.windowToLocal(at)
                 val slot = (p.y / cell.height).toInt().coerceIn(0, settings.homeRows - 1) * settings.homeColumns +
