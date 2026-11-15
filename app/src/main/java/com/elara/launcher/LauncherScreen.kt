@@ -97,7 +97,6 @@ import androidx.compose.runtime.LaunchedEffect
 import android.widget.Toast
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -201,6 +200,28 @@ private class HomePull {
     var up = 0f
     var startedClosed = false
 }
+
+/**
+ * Whether letting go of the drawer leaves it open. [up] is the finger's net upward travel in px,
+ * [speed] the drawer's speed at release (drawer heights per second, positive opening), [progress]
+ * how far open it already is, and [startedClosed] whether the drag began on the shut home screen,
+ * where the finger's travel alone decides: a swipe that went down must never open the drawer
+ * because it was let go quickly, and a short flick up must open it without a long drag.
+ */
+internal fun drawerOpens(
+    startedClosed: Boolean,
+    up: Float,
+    openDistance: Float,
+    speed: Float,
+    progress: Float,
+    /** The tail of a system gesture, which may not open the drawer. */
+    suppressed: Boolean = false,
+): Boolean = when {
+    startedClosed -> !suppressed && up > openDistance / 2 && (speed > FlickSpeed || (speed >= -FlickSpeed && up >= openDistance))
+    speed > FlickSpeed -> true
+    speed < -FlickSpeed -> false
+    else -> progress > 0.35f
+}
 private val HomeLift = 16.dp
 /** Icon scale while its menu is open; the press shrink (0.88) brings it near 1 while still held. */
 private const val MenuLift = 1.2f
@@ -224,7 +245,8 @@ internal fun LauncherScreen(
     drawerOpen: Boolean,
     resets: Int,
     entrances: Int,
-    suppressDrawerSwipe: Boolean,
+    /** True for a moment after a system gesture (swipe up to Recents) hands focus back: read as it is used, not in composition. */
+    suppressDrawerSwipe: () -> Boolean,
     onDrawerOpenChange: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onSettings: (suspend SettingsStore.() -> Unit) -> Unit,
@@ -336,7 +358,6 @@ internal fun LauncherScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     var height by remember { mutableIntStateOf(1) }
     val range = height * DragFraction
-    val drawerShown by remember { derivedStateOf { motion.progress > 0f } }
     val dim = when {
         // Glass wins: pure black only blacks out the plain drawer, with the blur off.
         glassImage != null -> glassStyle.dim
@@ -380,19 +401,22 @@ internal fun LauncherScreen(
     }
 
     val dragBy: (Float) -> Unit = { dy -> motion.drag(-dy / range) }
+    // Read inside the gesture, so a change of focus (a banner, the notification shade) doesn't recompose the launcher.
+    val suppressed = rememberUpdatedState(suppressDrawerSwipe)
     val homePull = remember { HomePull() }
     val swipeDownDistance = with(LocalDensity.current) { SwipeDownDistance.toPx() }
     val openDistance = with(LocalDensity.current) { OpenDistance.toPx() }
     val settle: (Float) -> Unit = { velocityY ->
+        // Drawer heights per second, positive opening.
         val speed = -velocityY / range
-        val open = when {
-            // On the closed home screen, classify by the finger's net travel. A release flick
-            // in the opposite direction must not turn a down swipe into an opening gesture.
-            homePull.startedClosed -> homePull.up >= openDistance
-            speed > FlickSpeed -> true
-            speed < -FlickSpeed -> false
-            else -> motion.progress > 0.35f
-        }
+        val open = drawerOpens(
+            startedClosed = homePull.startedClosed,
+            up = homePull.up,
+            openDistance = openDistance,
+            speed = speed,
+            progress = motion.progress,
+            suppressed = suppressDrawerSwipe(),
+        )
         motion.settle(scope, if (open) 1f else 0f, speed)
         if (open != drawerOpen) onDrawerOpenChange(open)
     }
@@ -432,12 +456,13 @@ internal fun LauncherScreen(
             .draggable(
                 rememberDraggableState { dy ->
                     homePull.up -= dy
-                    dragBy(dy)
+                    // The tail of a system gesture (swipe up to Recents) may not pull the drawer open;
+                    // a swipe down is still the swipe-down gesture, which reads the net travel above.
+                    if (!suppressed.value() || dy > 0f) dragBy(dy)
                 },
                 Orientation.Vertical,
-                // The drawer grid owns vertical gestures while open. Its nested-scroll handler
-                // closes the drawer when a downward pull reaches the top of the list.
-                enabled = !suppressDrawerSwipe && !drawerOpen,
+                // The drawer owns vertical gestures while it is open: its own pull closes it.
+                enabled = !drawerOpen,
                 onDragStarted = {
                     homePull.up = 0f
                     homePull.startedClosed = motion.progress == 0f
@@ -486,7 +511,9 @@ internal fun LauncherScreen(
             onSwitchSpace = onSwitchSpace,
             onNewSpace = onNewSpace,
             modifier = Modifier
-                .then(if (drawerShown) Modifier.clearAndSetSemantics {} else Modifier)
+                // Switched by the drawer's open state, not its first pixel of movement: a gesture's
+                // opening frame must not recompose the launcher (it did, and dropped a frame).
+                .then(if (drawerOpen) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
                     val gone = (motion.progress / HomeFadeEnd).coerceIn(0f, 1f)
                     alpha = 1f - gone
@@ -625,7 +652,7 @@ internal fun LauncherScreen(
                     onDrawerOpenChange(false)
                 },
                 modifier = Modifier
-                    .then(if (drawerShown) Modifier else Modifier.clearAndSetSemantics {})
+                    .then(if (drawerOpen) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
                         val shown = ((motion.progress - HomeFadeEnd) / (1f - HomeFadeEnd)).coerceIn(0f, 1f)
                         // Fades out in the first half of the page's arrival, and swells a little as it recedes.
@@ -1296,7 +1323,11 @@ private fun AppDrawer(
             .fillMaxSize()
             // The bar below has its own room, so a tall answer card can't push it under the keyboard.
             .then(if (searchBelow && searching) Modifier.padding(bottom = SearchBarBottom + 52.dp) else Modifier)
-            .nestedScroll(pullToClose),
+            .nestedScroll(pullToClose)
+            // Pull down to close where the list can't scroll vertically and so never hands the drag
+            // to [pullToClose]: the header, a search, sideways pages. Where it can (the grid), the
+            // list takes the drag first and the nested-scroll pull above closes the drawer.
+            .draggable(rememberDraggableState { dy -> onPull(dy) }, Orientation.Vertical, onDragStopped = { onRelease(it) }),
     ) {
         if (showSort) ElaraSheet(stringResource(R.string.drawer_sort), Icons.Sort, onDismiss = { showSort = false }) {
             SheetGroup(
