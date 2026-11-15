@@ -46,7 +46,9 @@ No other ecosystem app is needed.
   `graphicsLayer`/`drawBehind`, so a drag redraws without recomposing. Constants are measured from
   One UI Home recordings. The drawer stays composed, parked off screen while closed: building it
   when a swipe began froze the main thread ~270 ms (debug build) and lost the fling. The launcher
-  resets to the home screen in `onStop`.
+  resets to the home screen in `onStop`, and on a home intent: "Close all" in Recents sends one
+  to a home screen that has been away, so `drawerAnimatesShut` tells it from a Home press (paused
+  and sent in the same frame) and jumps the drawer shut instead of animating it over the way in.
 - **Launch animation is the system's.** Apps start through `LauncherApps.startMainActivity` with
   the icon's bounds and, on Android 13+, `SPLASH_SCREEN_STYLE_ICON` (otherwise Android gives a
   launch it does not count as from the home app a plain colour splash), and Android animates
