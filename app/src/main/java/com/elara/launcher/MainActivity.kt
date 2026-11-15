@@ -65,8 +65,11 @@ class MainActivity : ComponentActivity() {
 
     // Stopped because the screen went off: on unlock the home screen comes back as it was, like One UI.
     private var stoppedAsleep = false
-    // When the screen last went off. onStop can run just before or after isInteractive turns false, so it is not trusted alone.
-    private var screenOffAt = Long.MIN_VALUE
+    // When the screen last went off, or 0 if it has not since this process started. It started as
+    // Long.MIN_VALUE, and subtracting that from elapsedRealtime overflowed to a negative number, so
+    // the first stop after every launch looked like a screen-off: the drawer was left open under the
+    // next screen, and coming back animated it shut over the home screen.
+    private var screenOffAt = 0L
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOffAt = SystemClock.elapsedRealtime()
@@ -293,8 +296,11 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         widgets.stopListening()
-        stoppedAsleep = !getSystemService(PowerManager::class.java).isInteractive ||
-            SystemClock.elapsedRealtime() - screenOffAt < 3000
+        stoppedAsleep = stoppedForScreenOff(
+            interactive = getSystemService(PowerManager::class.java).isInteractive,
+            elapsed = SystemClock.elapsedRealtime(),
+            screenOffAt = screenOffAt,
+        )
         if (stoppedAsleep) return
         drawer.jump(0f)
         drawerOpen = false
@@ -343,4 +349,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Whether [onStop] came from the screen going off, so unlocking shows the home screen as it was.
+ * [onStop] can run just before or after isInteractive turns false, so when the screen-off
+ * broadcast arrived is checked too: [screenOffAt] is 0 if the screen has not gone off since this
+ * process started (a timestamp, never 0 itself, so the subtraction can't overflow).
+ */
+internal fun stoppedForScreenOff(interactive: Boolean, elapsed: Long, screenOffAt: Long): Boolean =
+    !interactive || (screenOffAt != 0L && elapsed - screenOffAt < ScreenOffWindowMs)
+
+private const val ScreenOffWindowMs = 3000L
 private const val ReloadDelayMs = 300L
