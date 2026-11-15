@@ -191,6 +191,9 @@ private val GlassSheen = Brush.verticalGradient(
 private const val FlickSpeed = 0.4f
 /** A swipe down on the home screen this far, or this fast, is the swipe-down gesture. */
 private val SwipeDownDistance = 48.dp
+
+// A drawer this near shut (the tail of a spring) still counts as shut; an exact 0 test dropped swipe-downs.
+private const val DrawerClosedBelow = 0.02f
 /** A swipe up must travel this far to open the drawer from the home screen, whatever its speed. */
 private val OpenDistance = 56.dp
 
@@ -467,11 +470,11 @@ internal fun LauncherScreen(
                 enabled = !drawerOpen,
                 onDragStarted = {
                     homePull.up = 0f
-                    homePull.startedClosed = motion.progress == 0f
+                    homePull.startedClosed = motion.progress < DrawerClosedBelow
                 },
                 onDragStopped = { velocityY ->
                     // A swipe down that started on the home screen is the swipe-down gesture.
-                    if (homePull.startedClosed && motion.progress == 0f &&
+                    if (homePull.startedClosed && motion.progress < DrawerClosedBelow &&
                         // Net travel down, so finger wobble and a tap's release speed don't count.
                         -homePull.up > swipeDownDistance
                     ) {
