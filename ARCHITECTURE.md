@@ -69,8 +69,11 @@ No other ecosystem app is needed.
   the owner's choice. Locking the screen has no such route: it needs an
   accessibility service, and Play Protect blocks the install of a sideloaded app that declares
   one (found 2026-11-12), so that gesture and the service were removed. A swipe down counts when it starts on the home
-  screen with the drawer shut and goes 48 dp or 600 dp/s; double tap is only listened for when
-  it is set.
+  screen with the drawer shut and goes 48 dp; double tap is only listened for when it is set.
+  Letting go of the swipe up opens the drawer by the finger's travel and release speed together
+  (`drawerOpens`), so a short flick opens it and a swipe that went down never does. Pulling down
+  closes the drawer from anywhere its content can't scroll up (the header, a search, the sideways
+  app pages) as well as from the top of the app grid.
 - **Dock.** App keys by slot in reading order, "" for an empty slot, in the settings DataStore
   (`DockSlots` does the edits); an app that is uninstalled leaves its slot empty. Columns, rows,
   icon size and row spacing are stored with it; only the first columns times rows slots show, and the rest

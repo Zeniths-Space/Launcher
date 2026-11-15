@@ -49,9 +49,13 @@ class MainActivity : ComponentActivity() {
     private val repository by lazy { AppRepository(this) }
     private val store by lazy { SettingsStore(this) }
     private var drawerOpen by mutableStateOf(false)
-    // Ignore the tail of a system Recents swipe when its window hands focus back to the launcher.
+    // Ignore the tail of a system gesture (a swipe up to Recents) when it hands focus back to the
+    // launcher. Only the drawer's opening waits on it: the swipe-down gesture (notifications) must never be.
     private var suppressDrawerSwipe by mutableStateOf(false)
     private var suppressDrawerSwipeJob: Job? = null
+    // The home screen started since it last had focus: coming back from an app is a fresh start, so
+    // the first swipe there is the user's and must not be taken for the tail of a system gesture.
+    private var startedSinceFocus = false
     // Checked on every return, for the setup's home app step: it changes in Android's settings.
     private var isDefaultHome by mutableStateOf(false)
     // Counts Home presses and leaving, which also close the home sheet.
@@ -156,7 +160,8 @@ class MainActivity : ComponentActivity() {
                         drawerOpen = drawerOpen,
                         resets = resets,
                         entrances = entrances,
-                        suppressDrawerSwipe = suppressDrawerSwipe,
+                        // Read where it is used, so a focus change doesn't recompose the home screen.
+                        suppressDrawerSwipe = { suppressDrawerSwipe },
                         onDrawerOpenChange = { drawerOpen = it },
                         onOpenSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) },
                         onSettings = { edit -> lifecycleScope.launch { store.edit() } },
@@ -256,9 +261,12 @@ class MainActivity : ComponentActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             suppressDrawerSwipeJob?.cancel()
-            suppressDrawerSwipe = true
+            // Focus returning to a home screen that was already up comes from an overlay closing
+            // (Recents, Quick Settings), which can hand over the rest of that system swipe.
+            suppressDrawerSwipe = !startedSinceFocus
+            startedSinceFocus = false
             suppressDrawerSwipeJob = lifecycleScope.launch {
-                delay(350)
+                delay(300)
                 suppressDrawerSwipe = false
             }
         }
@@ -267,6 +275,7 @@ class MainActivity : ComponentActivity() {
     // Widgets update only while the home screen is started.
     override fun onStart() {
         super.onStart()
+        startedSinceFocus = true
         widgets.startListening()
         // Back from Android's access screen, say: only worth a look while the copy is missing or out of date.
         if (GlassWallpaper.stale.value) checkGlass()
