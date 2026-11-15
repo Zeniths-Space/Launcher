@@ -247,16 +247,30 @@ class MainActivity : ComponentActivity() {
     }
 
     // Home pressed while already home: back to the home screen, like every launcher.
+    // "Close all" in Recents sends it too, to bring the home screen back: there the drawer has to
+    // be shut already, not animate shut over the home screen it is coming back to.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.action == Intent.ACTION_MAIN) {
-            drawerOpen = false
-            resets++
-        }
+        if (intent.action != Intent.ACTION_MAIN) return
+        // A Home press pauses this screen and sends the intent in the same frame; anywhere else the
+        // home screen had been away, so it is the one coming back.
+        val awayFor = if (pausedAt == 0L) 0L else SystemClock.uptimeMillis() - pausedAt
+        if (!drawerAnimatesShut(awayFor)) drawer.jump(0f)
+        drawerOpen = false
+        resets++
+    }
+
+    // When this screen was paused, or 0 while it shows; told apart by [onNewIntent].
+    private var pausedAt = 0L
+
+    override fun onPause() {
+        super.onPause()
+        pausedAt = SystemClock.uptimeMillis()
     }
 
     override fun onResume() {
         super.onResume()
+        pausedAt = 0L
         isDefaultHome = isDefaultHome(this)
     }
 
@@ -348,6 +362,17 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 }
+
+/**
+ * Whether a drawer a home intent closes may animate shut: only while the home screen is up, so
+ * the animation is watched. A Home press pauses the screen and sends the intent in the same frame
+ * ([awayFor] a few ms), while "Close all" in Recents sends it to a home screen that has been away
+ * for as long as Recents was up: there animating it shut would show the drawer sliding over the
+ * home screen on its way in.
+ */
+internal fun drawerAnimatesShut(awayFor: Long): Boolean = awayFor < HomePressPauseMs
+
+private const val HomePressPauseMs = 100L
 
 /**
  * Whether [onStop] came from the screen going off, so unlocking shows the home screen as it was.
