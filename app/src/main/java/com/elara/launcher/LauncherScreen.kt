@@ -173,11 +173,13 @@ import kotlinx.coroutines.launch
 /*
  * Drawer motion, measured from One UI Home on a Galaxy S24 Ultra (screen recording, 120 Hz):
  * the drawer follows the finger over half the screen height. Home content fades out over the
- * first 30% of the swipe; then the drawer fades in while rising 7% of the screen height, over a
- * wallpaper dimmed to about 60%. On release it settles in about 300 ms without overshoot.
+ * first 30% of the swipe; the drawer fades in from 15%, crossing over it (as Smart Launcher does:
+ * waiting for home to vanish first left a dark frame between them), while rising 7% of the screen
+ * height, over a wallpaper dimmed to about 60%. On release it settles in about 150 ms without overshoot.
  */
 private const val DragFraction = 0.5f
 private const val HomeFadeEnd = 0.3f
+private const val DrawerFadeStart = 0.15f
 private const val DrawerRise = 0.07f
 private const val WallpaperDim = 0.4f
 /** Light caught by the glass: brightest at the top edge, fading down, a faint lift at the bottom. */
@@ -238,7 +240,7 @@ private val HomeEnterSpring = spring<Float>(dampingRatio = 0.75f, stiffness = Sp
 private class DrawerDrag(val app: AppEntry, val icon: ImageBitmap?, at: Offset) {
     var at by mutableStateOf(at)
 }
-private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 400f)
+private val DrawerSpring = spring<Float>(dampingRatio = 1f, stiffness = 1000f)
 
 @Composable
 internal fun LauncherScreen(
@@ -659,7 +661,7 @@ internal fun LauncherScreen(
                 modifier = Modifier
                     .then(if (drawerOpen) Modifier else Modifier.clearAndSetSemantics {})
                     .graphicsLayer {
-                        val shown = ((motion.progress - HomeFadeEnd) / (1f - HomeFadeEnd)).coerceIn(0f, 1f)
+                        val shown = ((motion.progress - DrawerFadeStart) / (1f - DrawerFadeStart)).coerceIn(0f, 1f)
                         // Fades out in the first half of the page's arrival, and swells a little as it recedes.
                         alpha = shown * (1f - (pageShown * 2f).coerceAtMost(1f))
                         scaleX = 1f + 0.05f * pageShown
