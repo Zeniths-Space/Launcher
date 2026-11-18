@@ -1,8 +1,5 @@
 package com.elara.launcher
 
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.HorizontalDivider
 import android.os.Build
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.drawWithCache
@@ -125,40 +122,39 @@ internal fun AppMenu(
     MenuPopup(
         expanded, app.label, header, onInfo = if (app.key == Games.Key || app.packageName == DrawerFolders.Package) null else ({ repository.openAppInfo(app) }), actions, onDismiss,
         onEdit = edit?.let { { it(app) } },
+        // The app's own shortcuts come first, one per row; the gear in the header swaps them for the launcher's actions.
         top = if (shortcuts.isEmpty()) null else ({ run ->
-            // Side by side, up to four: the actions below stay a list, so the menu stays short.
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                shortcuts.forEach { s -> ShortcutTile(s, repository, Modifier.weight(1f)) { run { repository.startShortcut(s, null) } } }
-            }
-            HorizontalDivider(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 3.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            shortcuts.forEach { s -> ShortcutRow(s, repository) { run { repository.startShortcut(s, null) } } }
         }),
     )
 }
 
-/** One of an app's shortcuts in its menu: the shortcut's own icon, its name under it. */
+/** One of an app's shortcuts in its menu: the shortcut's own icon, its name beside it. */
 @Composable
-private fun ShortcutTile(shortcut: AppShortcut, repository: AppRepository, modifier: Modifier, onClick: () -> Unit) {
+private fun ShortcutRow(shortcut: AppShortcut, repository: AppRepository, onClick: () -> Unit) {
     val px = with(LocalDensity.current) { ShortcutIconSize.roundToPx() }
     val icon by produceState<ImageBitmap?>(null, shortcut.key, px) { value = repository.shortcutIcon(shortcut, px) }
-    Column(
-        modifier
-            .clip(RoundedCornerShape(18.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = ShortcutRowHeight)
+            .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // A light badge: shortcut icons are drawn for light launchers, and many are bare black glyphs.
         Box(Modifier.size(ShortcutIconSize).clip(CookieShape).background(ShortcutBadge), contentAlignment = Alignment.Center) {
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(ShortcutIconSize)) }
         }
+        Spacer(Modifier.width(16.dp))
         Text(
             shortcut.label,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium, lineHeight = 15.sp),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(end = 10.dp),
         )
     }
 }
@@ -179,7 +175,7 @@ internal fun MenuPopup(
     hasIcon: Boolean = true,
     /** A pencil button left of the info button (an app's name and icon). */
     onEdit: (() -> Unit)? = null,
-    /** Rows above the actions (an app's shortcuts); `run` closes the menu, then runs one. */
+    /** An app's shortcuts, shown first in place of the actions until the header's gear is tapped; `run` closes the menu, then runs one. */
     top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)? = null,
 ) {
     // Stays composed after closing until the closing animation ends.
@@ -245,6 +241,9 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
     val blurPx = with(LocalDensity.current) { MenuBlur.toPx() }
     val run: (() -> Unit) -> Unit = { onDismiss(); it() }
     val shape = RoundedCornerShape(28.dp)
+    // With shortcuts, the menu opens on them; the gear turns it to the actions, which reopening resets.
+    var showActions by remember { mutableStateOf(false) }
+    val page = if (top == null || showActions) null else top
     Column(
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
@@ -304,7 +303,11 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (onEdit != null) {
+            if (page != null) {
+                Spacer(Modifier.width(8.dp))
+                HeaderButton(Icons.Settings, stringResource(R.string.menu_settings), dark) { showActions = true }
+            }
+            if (page == null && onEdit != null) {
                 Spacer(Modifier.width(8.dp))
                 Box(
                     Modifier
@@ -317,7 +320,7 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                     Icon(Icons.Edit, contentDescription = stringResource(R.string.menu_edit), tint = cs.primary, modifier = Modifier.size(18.dp))
                 }
             }
-            if (onAppInfo != null) {
+            if (page == null && onAppInfo != null) {
                 Spacer(Modifier.width(8.dp))
                 Box(
                     Modifier
@@ -333,8 +336,21 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                 Spacer(Modifier.height(36.dp))
             }
         }
-        top?.invoke(run)
-        actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
+        if (page != null) page(run) else actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
+    }
+}
+
+@Composable
+private fun HeaderButton(icon: ImageVector, label: String, dark: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(if (dark) Raised else RaisedLight)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -417,6 +433,7 @@ private val MenuMaxWidth = 280.dp
 private val RowHeight = 46.dp
 private val RowIconSize = 34.dp
 private val ShortcutIconSize = 40.dp
+private val ShortcutRowHeight = 52.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 
