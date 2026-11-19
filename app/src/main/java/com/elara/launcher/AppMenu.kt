@@ -14,7 +14,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -226,9 +224,8 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
         modifier
             // Room for the shadow, which the popup's window would otherwise cut off.
             .padding(10.dp)
-            // As wide as its widest line (title row or action), within these bounds.
-            .widthIn(min = MenuMinWidth, max = MenuMaxWidth)
-            .width(IntrinsicSize.Max)
+            // One width for every app, whatever its shortcuts or actions; long labels ellipsize.
+            .width(MenuWidth)
             .shadow(12.dp, shape)
             .clip(shape)
             // Solid AMOLED dark grey: no wallpaper blur, so it reads the same over any wallpaper.
@@ -371,8 +368,7 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 200.dp
-private val MenuMaxWidth = 244.dp
+private val MenuWidth = 232.dp
 /** Rows sized for easy reading and tapping; shortcuts and actions alike. */
 private val RowHeight = 56.dp
 private val RowIconSize = 36.dp
