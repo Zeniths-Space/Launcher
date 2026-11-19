@@ -1862,7 +1862,6 @@ private fun AppTile(
                 }
             },
             onDismiss = { menu = false },
-            icon = icon,
         )
     }
 }

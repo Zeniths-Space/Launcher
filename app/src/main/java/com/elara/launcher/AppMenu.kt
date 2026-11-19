@@ -101,9 +101,8 @@ internal class MenuAction(
 )
 
 /**
- * An app's long-press menu: its icon, name and App info, then a list of [actions]. It opens above
+ * An app's long-press menu: its name and App info, then a list of [actions]. It opens above
  * the app, or below when there's no room above, growing out of the app and shrinking back into it.
- * [icon] is the app's icon if the caller has it; otherwise the menu draws its own.
  */
 @Composable
 internal fun AppMenu(
@@ -112,15 +111,13 @@ internal fun AppMenu(
     repository: AppRepository,
     actions: List<MenuAction>,
     onDismiss: () -> Unit,
-    icon: ImageBitmap? = null,
 ) {
-    val headerPx = with(LocalDensity.current) { HeaderIconSize.roundToPx() }
-    val header by produceState(icon, app.key, repository.iconEpoch) { if (value == null) value = repository.icon(app, headerPx) }
     val edit = LocalEditApp.current
     // Read each time the menu opens: apps change their shortcuts at will.
     val shortcuts by produceState(emptyList<AppShortcut>(), expanded, app.key) { if (expanded) value = repository.shortcuts(app) }
     MenuPopup(
-        expanded, app.label, header, onInfo = if (app.key == Games.Key || app.packageName == DrawerFolders.Package) null else ({ repository.openAppInfo(app) }), actions, onDismiss,
+        expanded, app.label, null, onInfo = if (app.key == Games.Key || app.packageName == DrawerFolders.Package) null else ({ repository.openAppInfo(app) }), actions, onDismiss,
+        hasIcon = false,
         onEdit = edit?.let { { it(app) } },
         // The app's own shortcuts come first, one per row; the gear in the header swaps them for the launcher's actions.
         top = if (shortcuts.isEmpty()) null else ({ run ->
@@ -137,7 +134,7 @@ private fun ShortcutRow(shortcut: AppShortcut, repository: AppRepository, onClic
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = ShortcutRowHeight)
+            .heightIn(min = RowHeight)
             .clip(RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -173,7 +170,7 @@ internal fun MenuPopup(
     actions: List<MenuAction>,
     onDismiss: () -> Unit,
     hasIcon: Boolean = true,
-    /** A pencil button left of the info button (an app's name and icon). */
+    /** Adds a pencil row at the top of [actions] (an app's name and icon). */
     onEdit: (() -> Unit)? = null,
     /** An app's shortcuts, shown first in place of the actions until the header's gear is tapped; `run` closes the menu, then runs one. */
     top: (@Composable (run: (() -> Unit) -> Unit) -> Unit)? = null,
@@ -307,19 +304,6 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                 Spacer(Modifier.width(8.dp))
                 HeaderButton(Icons.Settings, stringResource(R.string.menu_settings), dark) { showActions = true }
             }
-            if (page == null && onEdit != null) {
-                Spacer(Modifier.width(8.dp))
-                Box(
-                    Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (dark) Raised else RaisedLight)
-                        .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_edit)) { run(onEdit) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Edit, contentDescription = stringResource(R.string.menu_edit), tint = cs.primary, modifier = Modifier.size(18.dp))
-                }
-            }
             if (page == null && onAppInfo != null) {
                 Spacer(Modifier.width(8.dp))
                 Box(
@@ -336,7 +320,10 @@ private fun MenuCard(title: String?, icon: ImageBitmap?, hasIcon: Boolean, actio
                 Spacer(Modifier.height(36.dp))
             }
         }
-        if (page != null) page(run) else actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
+        if (page != null) page(run) else {
+            if (onEdit != null) ActionButton(MenuAction(Icons.Edit, stringResource(R.string.menu_edit), onClick = onEdit)) { run(onEdit) }
+            actions.forEach { action -> ActionButton(action) { run(action.onClick) } }
+        }
     }
 }
 
@@ -427,13 +414,12 @@ internal fun RenameDialog(current: String, original: String, onSave: (String) ->
 
 private const val MaxNameLength = 40
 
-private val MenuMinWidth = 232.dp
-private val MenuMaxWidth = 280.dp
-/** Rows sized for easy reading and tapping. */
-private val RowHeight = 46.dp
-private val RowIconSize = 34.dp
-private val ShortcutIconSize = 40.dp
-private val ShortcutRowHeight = 52.dp
+private val MenuMinWidth = 200.dp
+private val MenuMaxWidth = 244.dp
+/** Rows sized for easy reading and tapping; shortcuts and actions alike. */
+private val RowHeight = 56.dp
+private val RowIconSize = 36.dp
+private val ShortcutIconSize = 36.dp
 /** Extra blur over the wallpaper copy, which some blur styles leave sharp in places. */
 private val MenuBlur = 16.dp
 

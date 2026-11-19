@@ -787,7 +787,6 @@ private fun FolderApp(app: AppEntry, repository: AppRepository, locked: Boolean,
                 }
             },
             onDismiss = { menu = false },
-            icon = icon,
         )
     }
 }

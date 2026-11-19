@@ -314,7 +314,6 @@ private fun DockIcon(
                 }
             },
             onDismiss = { menu = false },
-            icon = icon,
         )
     }
 }

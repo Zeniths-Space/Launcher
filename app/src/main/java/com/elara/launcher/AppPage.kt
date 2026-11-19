@@ -125,7 +125,7 @@ internal fun AppListPage(
                             onLongClick = { if (!adding) menu = true },
                         ),
                     )
-                    AppMenu(menu, app, repository, listOf(MenuAction(removeIcon, removeLabel, danger = true) { onRemove(app) }), onDismiss = { menu = false }, icon = icon)
+                    AppMenu(menu, app, repository, listOf(MenuAction(removeIcon, removeLabel, danger = true) { onRemove(app) }), onDismiss = { menu = false })
                 }
             }
         }
